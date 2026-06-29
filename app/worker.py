@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 from app import config
+from app.assets.system_assets import register_system_health_assets
 from app.brain import learn_from_check
 from app.db import (
     count_recent_failed_actions,
@@ -79,15 +80,15 @@ def evaluate_incidents(containers, health):
             resolve_incident(item["name"], title)
 
     system_checks = [
-        ("CPU høj", EventTypes.HIGH_CPU, health["cpu_percent"], config.CPU_WARN_PERCENT),
-        ("RAM høj", EventTypes.HIGH_RAM, health["memory"]["percent"], config.MEMORY_WARN_PERCENT),
-        ("Swap høj", EventTypes.HIGH_SWAP, health["swap"]["percent"], config.SWAP_WARN_PERCENT),
-        ("Disk høj", EventTypes.HIGH_DISK, health["disk_root"]["percent"], config.DISK_WARN_PERCENT),
+        ("CPU høj", EventTypes.HIGH_CPU, health["cpu_percent"], config.CPU_WARN_PERCENT, "system:cpu"),
+        ("RAM høj", EventTypes.HIGH_RAM, health["memory"]["percent"], config.MEMORY_WARN_PERCENT, "system:memory"),
+        ("Swap høj", EventTypes.HIGH_SWAP, health["swap"]["percent"], config.SWAP_WARN_PERCENT, "system:swap"),
+        ("Disk høj", EventTypes.HIGH_DISK, health["disk_root"]["percent"], config.DISK_WARN_PERCENT, "system:disk"),
     ]
-    for title, event_type, value, threshold in system_checks:
+    for title, event_type, value, threshold, asset_id in system_checks:
         if value >= threshold:
             create_incident("warning", "system", title, f"Målt {value:.1f}% over grænse {threshold}%.")
-            publish("worker", event_type, "warning", "system", {"value": value, "threshold": threshold})
+            publish("worker", event_type, "warning", asset_id, {"asset_id": asset_id, "value": value, "threshold": threshold})
         else:
             resolve_incident("system", title)
 
@@ -121,6 +122,7 @@ def run_check_once():
     try:
         containers, docker_error = list_containers()
         health = get_health()
+        register_system_health_assets(health)
         publish("worker", EventTypes.HEALTH_COLLECTED, "info", "system", health)
         if docker_error:
             create_incident("critical", "docker", "Docker kan ikke læses", docker_error)
