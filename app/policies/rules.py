@@ -4,9 +4,9 @@ from app.events.types import EventTypes
 def default_policies():
     return [
         {
-            "policy_id": "policy.unknown_container_discovered",
-            "name": "Unknown container discovered",
-            "description": "Recommend classification when Docker reports an unknown container.",
+            "policy_id": "policy.unknown_asset_discovered",
+            "name": "Unknown asset discovered",
+            "description": "Recommend classification when an unknown Docker asset is observed.",
             "enabled": True,
             "priority": 10,
             "trigger_event_type": EventTypes.CONTAINER_UNKNOWN,
@@ -15,8 +15,8 @@ def default_policies():
             "safety_level": "safe_observation",
         },
         {
-            "policy_id": "policy.critical_container_stopped",
-            "name": "Critical Docker container stopped",
+            "policy_id": "policy.critical_asset_stopped",
+            "name": "Critical asset stopped",
             "description": "Create a critical incident and recommendation when a critical Docker asset stops.",
             "enabled": True,
             "priority": 20,
@@ -26,8 +26,8 @@ def default_policies():
             "safety_level": "safe_observation",
         },
         {
-            "policy_id": "policy.optional_container_stopped",
-            "name": "Optional Docker container stopped",
+            "policy_id": "policy.optional_asset_stopped",
+            "name": "Optional asset stopped",
             "description": "Recommend and queue a waiting-approval manual restart for optional stopped Docker assets. No automatic restart.",
             "enabled": True,
             "priority": 30,
@@ -37,8 +37,8 @@ def default_policies():
             "safety_level": "safe_manual_queue",
         },
         {
-            "policy_id": "policy.stopped_by_design_container_stopped",
-            "name": "Stopped-by-design container stopped",
+            "policy_id": "policy.stopped_by_design_asset_stopped",
+            "name": "Stopped-by-design asset stopped",
             "description": "Ignore stopped-by-design assets with an explanation.",
             "enabled": True,
             "priority": 40,
@@ -46,16 +46,5 @@ def default_policies():
             "conditions": {"classification": "stopped_by_design"},
             "actions": [{"type": "ignore"}],
             "safety_level": "safe_observation",
-        },
-        {
-            "policy_id": "policy.qbittorrent_dependency_guard",
-            "name": "qBittorrent dependency guard",
-            "description": "Deny unsafe future qBittorrent auto-start unless docker:gluetun is running.",
-            "enabled": True,
-            "priority": 5,
-            "trigger_event_type": "Docker.*",
-            "conditions": {"asset_id": "docker:qbittorrent"},
-            "actions": [{"type": "dependency_guard", "dependency": "docker:gluetun", "required_state": "running"}],
-            "safety_level": "deny_unsafe_auto_action",
         },
     ]
