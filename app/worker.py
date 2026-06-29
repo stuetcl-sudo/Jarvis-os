@@ -38,6 +38,10 @@ _last_throttled_logs = {}
 THROTTLE_WINDOW = timedelta(hours=1)
 
 
+def state_of(container):
+    return container.get("docker_state") or container.get("status")
+
+
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -56,20 +60,22 @@ def log_throttled(action, target, status, reason):
 def summarize_containers(containers):
     return {
         "total": len(containers),
-        "running": len([c for c in containers if c["status"] == "running"]),
-        "stopped": len([c for c in containers if c["status"] == "exited"]),
+        "running": len([c for c in containers if state_of(c) == "running"]),
+        "stopped": len([c for c in containers if state_of(c) == "exited"]),
         "critical": [c for c in containers if c["classification"] == "critical"],
         "optional": [c for c in containers if c["classification"] == "optional"],
         "stopped_by_design": [c for c in containers if c["classification"] == "stopped_by_design"],
+        "unknown": [c for c in containers if c["classification"] == "unknown"],
     }
 
 
 def evaluate_incidents(containers, health):
     for item in containers:
+        docker_state = state_of(item)
         title = "Service er stoppet"
-        if item["classification"] == "critical" and item["status"] != "running":
-            create_incident("critical", item["name"], title, f"Kritisk service har status {item['status']}.")
-        elif item["status"] == "running":
+        if item["classification"] == "critical" and docker_state != "running":
+            create_incident("critical", item["name"], title, f"Kritisk service har Docker state {docker_state}.")
+        elif docker_state == "running":
             resolve_incident(item["name"], title)
 
     system_checks = [
@@ -88,7 +94,7 @@ def evaluate_incidents(containers, health):
 
 def auto_heal(containers):
     for item in containers:
-        if item["status"] != "exited":
+        if state_of(item) != "exited":
             continue
         if item["classification"] == "stopped_by_design":
             log_throttled("auto_start", item["name"], "skipped", "Service er stoppet med vilje.")
