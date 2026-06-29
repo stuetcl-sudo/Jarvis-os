@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import config
+from app.brain import brain_summary, dismiss_recommendation, list_observations, list_recommendations
 from app.db import init_db, list_actions, list_incidents, log_action
 from app.docker_monitor import list_containers, restart_container
 from app.health import get_health
@@ -90,6 +91,29 @@ def worker_run_once():
     return run_check_once()
 
 
+@app.get("/api/brain")
+def brain():
+    return brain_summary()
+
+
+@app.get("/api/observations")
+def observations(limit: int = 100):
+    return {"observations": list_observations(limit)}
+
+
+@app.get("/api/recommendations")
+def recommendations(active_only: bool = True, limit: int = 100):
+    return {"recommendations": list_recommendations(active_only, limit)}
+
+
+@app.post("/api/recommendations/{recommendation_id}/dismiss")
+def dismiss_recommendation_route(recommendation_id: int):
+    if not dismiss_recommendation(recommendation_id):
+        raise HTTPException(status_code=404, detail="Recommendation not found or already dismissed")
+    log_action("dismiss_recommendation", str(recommendation_id), "ok", "Recommendation dismissed by user")
+    return {"status": "ok"}
+
+
 @app.get("/api/mission")
 def mission():
     items, error = list_containers()
@@ -123,5 +147,6 @@ def mission():
         "latest_action": actions[0] if actions else None,
         "active_incidents": active_incidents,
         "worker": current_worker,
+        "brain": brain_summary()["normal_behavior_summary"],
         "what_jarvis_is_doing_now": current_worker["current_task"],
     }
