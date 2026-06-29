@@ -1,29 +1,52 @@
 <!doctype html>
-<html lang="en">
+<html lang="da">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jarvis-os v0.1</title>
+  <title>Jarvis-os Mission Control</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
   <main>
-    <header>
+    <header class="hero">
       <div>
-        <p class="eyebrow">Local server assistant</p>
-        <h1>Jarvis-os v0.1</h1>
+        <p class="eyebrow">Mission Control</p>
+        <h1>Jarvis-os</h1>
+        <p class="subtitle">Lokal assistent til Docker, system health og sikker self-healing.</p>
       </div>
-      <button onclick="refreshAll()">Refresh</button>
+      <div class="hero-actions">
+        <button onclick="runOnce()">Kør check nu</button>
+        <button class="secondary" onclick="refreshAll()">Opdater</button>
+      </div>
     </header>
 
-    <section class="grid" id="health"></section>
+    <section class="mission-grid" id="missionCards"></section>
+
+    <section class="panel wide">
+      <div class="panel-head">
+        <h2>Hvad Jarvis gør nu</h2>
+        <span id="workerBadge" class="pill">Indlæser</span>
+      </div>
+      <p id="workerText" class="large-text">Indlæser worker status...</p>
+    </section>
+
+    <section class="columns">
+      <article class="panel">
+        <h2>Kritiske services</h2>
+        <div id="criticalServices" class="service-list"></div>
+      </article>
+      <article class="panel">
+        <h2>System health</h2>
+        <div id="systemHealth" class="metric-list"></div>
+      </article>
+    </section>
 
     <section class="panel">
-      <h2>Docker containers</h2>
+      <h2>Docker status</h2>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Name</th><th>Image</th><th>Status</th><th>Protected</th><th>Action</th></tr>
+            <tr><th>Navn</th><th>Type</th><th>Status</th><th>Beskyttet</th><th>Auto-start</th><th>Handling</th></tr>
           </thead>
           <tbody id="containers"></tbody>
         </table>
@@ -31,8 +54,19 @@
     </section>
 
     <section class="panel">
-      <h2>Action log</h2>
-      <div id="actions"></div>
+      <h2>Stoppet med vilje</h2>
+      <div id="stoppedByDesign" class="service-list"></div>
+    </section>
+
+    <section class="columns">
+      <article class="panel">
+        <h2>Aktive incidents</h2>
+        <div id="incidents"></div>
+      </article>
+      <article class="panel">
+        <h2>Seneste Jarvis handling</h2>
+        <div id="latestAction"></div>
+      </article>
     </section>
   </main>
 
@@ -46,62 +80,90 @@ async function getJson(url, options = {}) {
   return res.json();
 }
 
-function pct(value) {
-  return `${Number(value).toFixed(1)}%`;
+function pct(value) { return `${Number(value).toFixed(1)}%`; }
+function labelStatus(value) {
+  if (value === 'ok') return 'Alt ok';
+  if (value === 'warning') return 'Advarsel';
+  if (value === 'critical') return 'Kritisk';
+  return value || 'Ukendt';
+}
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 }
 
-async function loadHealth() {
-  const data = await getJson('/api/health');
-  document.getElementById('health').innerHTML = `
-    <article class="card"><span>Safe mode</span><strong>${data.safe_mode ? 'ON' : 'OFF'}</strong></article>
-    <article class="card"><span>CPU</span><strong>${pct(data.cpu_percent)}</strong></article>
-    <article class="card"><span>Memory</span><strong>${pct(data.memory.percent)}</strong></article>
-    <article class="card"><span>Swap</span><strong>${pct(data.swap.percent)}</strong></article>
-    <article class="card"><span>Disk /</span><strong>${pct(data.disk_root.percent)}</strong></article>
-  `;
+async function runOnce() {
+  try {
+    await getJson('/api/worker/run-once', { method: 'POST' });
+    await refreshAll();
+  } catch (err) {
+    alert(err.message);
+    await refreshAll();
+  }
 }
 
 async function restartContainer(name) {
-  if (!confirm(`Start stopped container: ${name}?`)) return;
+  if (!confirm(`Start stoppet container: ${name}?`)) return;
   try {
     await getJson(`/api/containers/${encodeURIComponent(name)}/restart`, { method: 'POST' });
     await refreshAll();
   } catch (err) {
     alert(err.message);
-    await loadActions();
+    await refreshAll();
   }
 }
 
-async function loadContainers() {
-  const data = await getJson('/api/containers');
-  document.getElementById('containers').innerHTML = data.containers.map(c => `
-    <tr>
-      <td>${c.name}</td>
-      <td>${c.image}</td>
-      <td><span class="status ${c.status}">${c.status}</span></td>
-      <td>${c.protected ? 'yes' : 'no'}</td>
-      <td>${c.status === 'exited' ? `<button onclick="restartContainer('${c.name}')">Start</button>` : '—'}</td>
-    </tr>
-  `).join('');
+function renderService(service) {
+  return `<div class="service-row"><b>${escapeHtml(service.name)}</b><span class="status ${service.status}">${escapeHtml(service.status)}</span></div>`;
 }
 
-async function loadActions() {
-  const data = await getJson('/api/actions?limit=25');
-  document.getElementById('actions').innerHTML = data.actions.map(a => `
-    <div class="logline">
-      <b>${a.status}</b> ${a.action} <span>${a.target || ''}</span>
-      <small>${a.created_at}</small>
-      <em>${a.reason || ''}</em>
-    </div>
-  `).join('');
+function renderAction(action) {
+  if (!action) return '<p class="muted">Ingen handlinger endnu.</p>';
+  return `<div class="logline"><b>${escapeHtml(action.status)}</b> ${escapeHtml(action.action)} <span>${escapeHtml(action.target || '')}</span><small>${escapeHtml(action.created_at)}</small><em>${escapeHtml(action.reason || '')}</em></div>`;
 }
 
 async function refreshAll() {
-  await Promise.all([loadHealth(), loadContainers(), loadActions()]);
+  const data = await getJson('/api/mission');
+  const workerRunning = data.worker.running;
+
+  document.getElementById('missionCards').innerHTML = `
+    <article class="card status-card ${data.overall_status}"><span>Samlet status</span><strong>${labelStatus(data.overall_status)}</strong></article>
+    <article class="card"><span>Safe mode</span><strong>${data.safe_mode ? 'ON' : 'OFF'}</strong></article>
+    <article class="card"><span>Kritiske services</span><strong>${data.critical_ok ? 'OK' : 'Fejl'}</strong></article>
+    <article class="card"><span>Docker</span><strong>${data.docker.running}/${data.docker.total}</strong><small>${data.docker.stopped} stoppet</small></article>
+    <article class="card"><span>Incidents</span><strong>${data.active_incidents.length}</strong></article>
+  `;
+
+  document.getElementById('workerBadge').textContent = workerRunning ? 'Jarvis arbejder' : 'Afventer';
+  document.getElementById('workerBadge').className = workerRunning ? 'pill working' : 'pill';
+  document.getElementById('workerText').textContent = data.what_jarvis_is_doing_now;
+
+  document.getElementById('criticalServices').innerHTML = data.critical_services.length ? data.critical_services.map(renderService).join('') : '<p class="muted">Ingen kritiske containere fundet.</p>';
+
+  document.getElementById('systemHealth').innerHTML = `
+    <div><span>CPU</span><b>${pct(data.health.cpu_percent)}</b></div>
+    <div><span>RAM</span><b>${pct(data.health.memory.percent)}</b></div>
+    <div><span>Swap</span><b>${pct(data.health.swap.percent)}</b></div>
+    <div><span>Disk /</span><b>${pct(data.health.disk_root.percent)}</b></div>
+  `;
+
+  document.getElementById('containers').innerHTML = [...data.critical_services, ...data.optional_services].map(c => `
+    <tr>
+      <td>${escapeHtml(c.name)}</td>
+      <td>${escapeHtml(c.classification)}</td>
+      <td><span class="status ${c.status}">${escapeHtml(c.status)}</span></td>
+      <td>${c.protected ? 'ja' : 'nej'}</td>
+      <td>${c.auto_start_allowed ? 'ja' : 'nej'}</td>
+      <td>${c.status === 'exited' ? `<button onclick="restartContainer('${escapeHtml(c.name)}')">Start</button>` : '—'}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('stoppedByDesign').innerHTML = data.stopped_by_design.length ? data.stopped_by_design.map(renderService).join('') : '<p class="muted">Ingen services er markeret som stoppet med vilje.</p>';
+  document.getElementById('incidents').innerHTML = data.active_incidents.length ? data.active_incidents.map(i => `<div class="incident ${i.severity}"><b>${escapeHtml(i.title)}</b><span>${escapeHtml(i.service || 'system')}</span><p>${escapeHtml(i.detail || '')}</p></div>`).join('') : '<p class="muted">Ingen aktive incidents.</p>';
+  document.getElementById('latestAction').innerHTML = renderAction(data.latest_action);
 }
 
 refreshAll();
-setInterval(refreshAll, 30000);
+setInterval(refreshAll, 15000);
 </script>
 </body>
 </html>
