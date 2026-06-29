@@ -6,6 +6,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app import config
+from app.assets.registry import asset_registry, initialize_asset_tables
+from app.assets.relationships import initialize_relationship_tables, list_relationships
 from app.brain import brain_summary, dismiss_recommendation, list_observations, list_recommendations
 from app.db import (
     event_statistics,
@@ -48,6 +50,8 @@ def docker_read_at(items):
 @app.on_event("startup")
 async def startup():
     init_db()
+    initialize_asset_tables()
+    initialize_relationship_tables()
     event_bus.subscribe("*", store_event)
     log_action("startup", "jarvis-os", "ok", f"Jarvis-os v{config.VERSION} startet")
     publish("core", "Core.Started", "info", "jarvis-os", {"version": config.VERSION})
@@ -166,8 +170,34 @@ def set_service_classification(service: str, payload: ServiceClassificationPaylo
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     log_action("classify_service", service, "ok", f"{saved['classification']}, protected={saved['protected']}, auto_start_allowed={saved['auto_start_allowed']}")
-    publish("core", "Service.Classified", "info", service, saved)
+    publish("core", "Service.Classified", "info", f"docker:{service}", {"asset_id": f"docker:{service}", **saved})
     return {"service_classification": saved}
+
+
+@app.get("/api/assets")
+def assets(plugin: str | None = None, asset_type: str | None = None, limit: int = 500):
+    return {"assets": asset_registry.list_assets(plugin=plugin, asset_type=asset_type, limit=limit)}
+
+
+@app.get("/api/assets/search")
+def assets_search(q: str = "", limit: int = 100):
+    return {"assets": asset_registry.search_assets(q, limit)}
+
+
+@app.get("/api/assets/relationships")
+def asset_relationships(asset_id: str | None = None, relationship_type: str | None = None):
+    return {"relationships": list_relationships(asset_id=asset_id, relationship_type=relationship_type)}
+
+
+@app.get("/api/assets/{asset_id:path}")
+def asset_detail(asset_id: str):
+    asset = asset_registry.get_asset(asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    related = list_relationships(asset_id=asset_id)
+    events_for_asset = [e for e in list_events(250) if e.get("service") == asset_id or e.get("payload", {}).get("asset_id") == asset_id]
+    recs = [r for r in list_recommendations(False, 250) if r.get("service") in {asset_id, asset.get("name")}]
+    return {"asset": asset, "relationships": related, "events": events_for_asset[:50], "recommendations": recs[:50]}
 
 
 @app.get("/api/events")
@@ -209,6 +239,7 @@ def mission():
     critical_ok = all(state_of(c) == "running" for c in critical)
     overall = "critical" if any(i["severity"] == "critical" for i in active_incidents) else "warning" if active_incidents or health_data["warnings"] else "ok"
     current_worker = worker_status()
+    assets_list = asset_registry.list_assets(limit=1000)
 
     return {
         "app": config.APP_NAME,
@@ -222,6 +253,8 @@ def mission():
         "stopped_by_design": stopped_by_design,
         "unknown_containers": unknown,
         "docker": {"total": len(items), "running": running_count, "stopped": stopped_count, "docker_read_at": docker_read_at(items)},
+        "assets": assets_list,
+        "asset_summary": {"total": len(assets_list), "by_plugin": {}},
         "health": health_data,
         "latest_action": actions[0] if actions else None,
         "active_incidents": active_incidents,
