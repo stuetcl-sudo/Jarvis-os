@@ -32,7 +32,7 @@ bash scripts/privacy_check.sh || {
   exit 1
 }
 
-echo "[2/9] Running focused Action Engine, Docker transition, and worker queue tests"
+echo "[2/9] Running focused Action Engine, Docker transition, worker queue, and policy seed tests"
 if [ -z "$PYTHON_BIN" ]; then
   echo "ERROR: Python is required for focused tests."
   exit 1
@@ -40,6 +40,7 @@ fi
 PYTHONPATH=. "$PYTHON_BIN" tests/test_action_state_machine.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_docker_transition_events.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_worker_action_queue.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_policy_seed_migration.py
 
 echo "[3/9] Checking Docker"
 command -v docker >/dev/null 2>&1 || fail "docker was not found."
@@ -102,7 +103,7 @@ mission_by_name = {c['name']: c for c in mission_containers}
 if not policies:
     raise SystemExit('Policy Engine has no policies')
 for p in policies:
-    for field in ['policy_id','name','enabled','priority','trigger_event_type','conditions','actions','safety_level']:
+    for field in ['policy_id','name','enabled','priority','trigger_event_type','conditions','actions','safety_level','managed_by','seed_version','retired']:
         if field not in p:
             raise SystemExit(f'Missing {field} on policy')
 for d in decisions:
