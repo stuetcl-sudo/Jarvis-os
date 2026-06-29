@@ -1,10 +1,12 @@
 # Jarvis-os Action Engine
 
-The Action Engine is the safe execution layer for Jarvis-os. It separates decisions from execution so AI and policies cannot run actions directly.
+The Action Engine is the safe execution boundary for Jarvis-os.
+
+Policies and AI may recommend, queue, explain or request actions, but they must never execute actions directly.
 
 ## Why actions are separate from policies
 
-The Policy Engine decides what is allowed or recommended. The Action Engine handles the actual lifecycle of an action.
+Policies decide what may be considered. Actions handle execution safely.
 
 Flow:
 
@@ -24,7 +26,31 @@ Action History
 Explanation
 ```
 
-Policies may create queued actions, but they cannot run them. AI may suggest or explain, but it cannot execute actions directly.
+This separation keeps Jarvis explainable and prevents policy logic, AI logic or UI logic from directly touching Docker or future integrations.
+
+## v0.7 supported actions
+
+Supported action types:
+
+- `docker.start_container`
+- `recommendation.create`
+- `incident.create`
+- `notification.create_stub`
+
+Only `docker.start_container` touches Docker. It uses the Docker SDK only.
+
+Not implemented and forbidden:
+
+- Docker stop
+- Docker delete
+- Docker prune
+- Docker exec
+- Docker compose control
+- Shell execution
+- File deletion
+- Volume deletion
+- Firewall changes
+- DNS changes
 
 ## Action model
 
@@ -60,31 +86,24 @@ Statuses:
 - `denied`
 - `cancelled`
 
-Actions are stored in SQLite in the `actions` table and survive container restart.
+Actions are stored in SQLite and survive container restart.
 
 ## Manual approval flow
 
-1. A user or policy queues an action.
-2. If approval is required, the action enters `waiting_approval`.
-3. A user approves or denies it.
-4. A user runs it.
-5. The Action Engine performs safety checks.
-6. The executor runs only if safety passes.
-7. Verification confirms the result.
-8. The action is stored with explanation and result.
+1. User or policy queues an action.
+2. The action is stored as `waiting_approval` when approval is required.
+3. User approves the action.
+4. User runs the action.
+5. Safety checks run immediately before execution.
+6. Executor runs only if safety passes.
+7. Verification reads live state again.
+8. Result and explanation are stored.
 
-## Supported v0.7 actions
-
-- `docker.start_container`
-- `recommendation.create`
-- `incident.create`
-- `notification.create_stub`
-
-No other executor exists in v0.7.
+Mission Control exposes approve, deny, cancel and run controls.
 
 ## Docker start safety rules
 
-`docker.start_container` is allowed only when all checks pass:
+`docker.start_container` is allowed only when all are true:
 
 - `SAFE_MODE=true`
 - Asset exists
@@ -92,31 +111,48 @@ No other executor exists in v0.7.
 - Asset state is `exited`
 - Asset is not protected
 - Asset classification is `optional`
-- Asset is not unknown
-- Action type is allowed
-- Policy decision allows it when action source is policy
-- Manual approval is present when required
+- Asset is not `unknown`
+- Manual approval is present, unless `auto_actions_allowed=true`
 - Dependency guards pass
-- Action is not destructive
+- Action type is not destructive
 
-Protected assets cannot receive restart/start actions. Unknown assets cannot receive automatic or queued restart actions.
+Protected assets cannot be started by the Action Engine.
 
-## Docker executor
+Unknown assets cannot receive restart/start actions.
 
-The Docker executor supports only `docker.start_container`.
+qBittorrent requires `docker:gluetun` to be running before a future start action can pass.
 
-It uses the Docker SDK to:
+## Verification
 
-1. Read the container state.
-2. Confirm it is `exited`.
-3. Start the container.
-4. Verify by re-reading live Docker state.
-5. Publish `Action.Completed` or `Action.Failed`.
-6. Store result and explanation.
+After Docker start, Jarvis re-reads live Docker state through the existing Docker monitor.
 
-It does not implement stop, delete, prune, exec, update, compose or shell.
+The action only becomes `completed` if verification confirms the asset is `running`.
+
+If verification fails, the action becomes `failed` and stores the reason.
+
+## AI safety boundary
+
+AI cannot execute actions directly.
+
+AI may:
+
+- Explain an action
+- Suggest an action
+- Request that an action be queued
+
+AI may not:
+
+- Bypass policy decisions
+- Bypass manual approval
+- Bypass safety checks
+- Run shell commands
+- Delete data
+- Change firewall or DNS
+- Execute destructive actions
 
 ## API
+
+Action endpoints:
 
 - `GET /api/actions`
 - `GET /api/actions/{action_id}`
@@ -126,45 +162,19 @@ It does not implement stop, delete, prune, exec, update, compose or shell.
 - `POST /api/actions/{action_id}/cancel`
 - `POST /api/actions/{action_id}/run`
 
-Queue request example:
+Legacy action log is available at:
 
-```json
-{
-  "asset_id": "docker:jellyfin",
-  "action_type": "docker.start_container",
-  "requested_by": "user",
-  "reason": "manual restart from Mission Control",
-  "requires_approval": true
-}
-```
-
-## Safety model
-
-The Action Engine must not:
-
-- Execute arbitrary shell commands
-- Delete files
-- Delete Docker volumes
-- Run Docker prune
-- Change firewall rules
-- Change DNS settings
-- Change Docker volumes
-- Add destructive automatic actions
-- Let AI execute actions directly
-
-Every action must be explainable and traceable.
+- `GET /api/action-log`
 
 ## Future action types
 
-Future versions may add more action types, but each must be explicitly added to the allowed action list, have a narrow executor, pass safety checks, and produce verification plus history.
+Future safe action types can be added behind the same boundary:
 
-Possible future actions:
-
-- Home Assistant service call with allowlist
-- UniFi read-only diagnostics
-- AdGuard safe list reload
-- UPS notification
-- Tailscale status alert
+- Home Assistant service call with policy constraints
+- UniFi read-only remediation suggestions
+- AdGuard list update request with approval
 - Notification delivery
+- Backup verification
+- UPS shutdown recommendation
 
-The core rule remains: policy decides, Action Engine safely executes, AI never bypasses the queue.
+Any future executor must declare safety rules, verification and forbidden operations before it is enabled.
