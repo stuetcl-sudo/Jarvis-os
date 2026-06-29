@@ -12,7 +12,7 @@
       <div>
         <p class="eyebrow">Mission Control + Event Engine</p>
         <h1>Jarvis-os</h1>
-        <p class="subtitle">Event-drevet lokal assistent med live Docker-state og dynamisk container discovery.</p>
+        <p class="subtitle">Live Docker-state, dynamisk discovery, Event Engine og sikker klassificering.</p>
       </div>
       <div class="hero-actions">
         <button onclick="runOnce()">Kør check nu</button>
@@ -21,59 +21,19 @@
     </header>
 
     <section class="mission-grid" id="missionCards"></section>
-
-    <section class="panel wide">
-      <div class="panel-head"><h2>Hvad Jarvis gør nu</h2><span id="workerBadge" class="pill">Indlæser</span></div>
-      <p id="workerText" class="large-text">Indlæser worker status...</p>
-    </section>
-
-    <section class="panel wide">
-      <div class="panel-head"><h2>Ukendte containere</h2><span class="pill">Klassificér senere</span></div>
-      <div id="unknownContainers" class="service-list"></div>
-    </section>
-
-    <section class="panel wide">
-      <div class="panel-head"><h2>Live event feed</h2><span class="pill working">Event Engine</span></div>
-      <div id="eventFeed" class="event-list"></div>
-    </section>
-
-    <section class="panel wide">
-      <div class="panel-head"><h2>Jarvis Brain</h2><span id="learningBadge" class="pill working">Jarvis lærer</span></div>
-      <div class="columns brain-columns">
-        <article><h3>Hvad Jarvis har lært</h3><div id="brainSummary" class="metric-list"></div></article>
-        <article><h3>Normal adfærd</h3><div id="normalBehavior" class="metric-list"></div></article>
-      </div>
-    </section>
-
-    <section class="columns">
-      <article class="panel"><h2>Observationer</h2><div id="observations"></div></article>
-      <article class="panel"><h2>Anbefalinger</h2><div id="recommendations"></div></article>
-    </section>
-
-    <section class="columns">
-      <article class="panel"><h2>Kritiske services</h2><div id="criticalServices" class="service-list"></div></article>
-      <article class="panel"><h2>System health</h2><div id="systemHealth" class="metric-list"></div></article>
-    </section>
-
-    <section class="panel">
-      <h2>Alle Docker containere</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Navn</th><th>Type</th><th>Docker state</th><th>SDK status</th><th>Health</th><th>Beskyttet</th><th>Auto-start</th><th>Klassificér</th><th>Handling</th></tr></thead>
-          <tbody id="containers"></tbody>
-        </table>
-      </div>
-    </section>
-
+    <section class="panel wide"><div class="panel-head"><h2>Hvad Jarvis gør nu</h2><span id="workerBadge" class="pill">Indlæser</span></div><p id="workerText" class="large-text">Indlæser worker status...</p></section>
+    <section class="panel wide"><div class="panel-head"><h2>Live event feed</h2><span class="pill working">Event Engine</span></div><div id="eventFeed" class="event-list"></div></section>
+    <section class="panel wide"><div class="panel-head"><h2>Ukendte containere</h2><span class="pill">Skal klassificeres</span></div><div id="unknownContainers" class="service-list"></div></section>
+    <section class="panel wide"><div class="panel-head"><h2>Jarvis Brain</h2><span id="learningBadge" class="pill working">Jarvis lærer</span></div><div class="columns brain-columns"><article><h3>Hvad Jarvis har lært</h3><div id="brainSummary" class="metric-list"></div></article><article><h3>Normal adfærd</h3><div id="normalBehavior" class="metric-list"></div></article></div></section>
+    <section class="columns"><article class="panel"><h2>Observationer</h2><div id="observations"></div></article><article class="panel"><h2>Anbefalinger</h2><div id="recommendations"></div></article></section>
+    <section class="columns"><article class="panel"><h2>Kritiske services</h2><div id="criticalServices" class="service-list"></div></article><article class="panel"><h2>System health</h2><div id="systemHealth" class="metric-list"></div></article></section>
+    <section class="panel"><h2>Alle Docker-containere</h2><div class="table-wrap"><table><thead><tr><th>Navn</th><th>Type</th><th>Docker state</th><th>SDK status</th><th>Health</th><th>Beskyttet</th><th>Auto-start</th><th>Klassificér</th><th>Handling</th></tr></thead><tbody id="containers"></tbody></table></div></section>
     <section class="panel"><h2>Stoppet med vilje</h2><div id="stoppedByDesign" class="service-list"></div></section>
-
-    <section class="columns">
-      <article class="panel"><h2>Aktive incidents</h2><div id="incidents"></div></article>
-      <article class="panel"><h2>Seneste Jarvis handling</h2><div id="latestAction"></div></article>
-    </section>
+    <section class="columns"><article class="panel"><h2>Aktive incidents</h2><div id="incidents"></div></article><article class="panel"><h2>Seneste Jarvis handling</h2><div id="latestAction"></div></article></section>
   </main>
 
 <script>
+let containerRows = [];
 async function getJson(url, options = {}) {
   const res = await fetch(url, options);
   if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body.detail || res.statusText); }
@@ -82,39 +42,40 @@ async function getJson(url, options = {}) {
 function pct(value) { return `${Number(value).toFixed(1)}%`; }
 function labelStatus(value) { if (value === 'ok') return 'Alt ok'; if (value === 'warning') return 'Advarsel'; if (value === 'critical') return 'Kritisk'; return value || 'Ukendt'; }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
-function dockerState(c) { return c.docker_state || c.status || 'unknown'; }
 async function runOnce() { try { await getJson('/api/worker/run-once', { method: 'POST' }); await refreshAll(); } catch (err) { alert(err.message); await refreshAll(); } }
 async function restartContainer(name) { if (!confirm(`Start stoppet container: ${name}?`)) return; try { await getJson(`/api/containers/${encodeURIComponent(name)}/restart`, { method: 'POST' }); await refreshAll(); } catch (err) { alert(err.message); await refreshAll(); } }
 async function dismissRecommendation(id) { try { await getJson(`/api/recommendations/${id}/dismiss`, { method: 'POST' }); await refreshAll(); } catch (err) { alert(err.message); } }
-async function classifyContainer(name, classification) {
-  const payload = { classification, protected: classification === 'critical', auto_start_allowed: false };
+async function classifyContainer(index) {
+  const c = containerRows[index];
+  const classification = document.getElementById(`cls-${index}`).value;
+  const protectedValue = document.getElementById(`prot-${index}`).checked;
+  const autoStart = document.getElementById(`auto-${index}`).checked;
   try {
-    await getJson(`/api/service-classifications/${encodeURIComponent(name)}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    await getJson(`/api/service-classifications/${encodeURIComponent(c.name)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ classification, protected: protectedValue, auto_start_allowed: autoStart }) });
     await refreshAll();
   } catch (err) { alert(err.message); }
 }
-function classifyButtons(name) {
-  const safe = escapeHtml(name);
-  return `<div class="classify-buttons"><button class="secondary" onclick="classifyContainer('${safe}','critical')">Critical</button><button class="secondary" onclick="classifyContainer('${safe}','optional')">Optional</button><button class="secondary" onclick="classifyContainer('${safe}','stopped_by_design')">Stopped</button><button class="secondary" onclick="classifyContainer('${safe}','unknown')">Unknown</button></div>`;
-}
-function renderService(service) { return `<div class="service-row"><b>${escapeHtml(service.name)}</b><span class="status ${dockerState(service)}">${escapeHtml(dockerState(service))}</span></div>`; }
+function renderService(service) { const state = service.docker_state || service.status; return `<div class="service-row"><b>${escapeHtml(service.name)}</b><span class="status ${escapeHtml(state)}">${escapeHtml(state)}</span></div>`; }
 function renderAction(action) { if (!action) return '<p class="muted">Ingen handlinger endnu.</p>'; return `<div class="logline"><b>${escapeHtml(action.status)}</b> ${escapeHtml(action.action)} <span>${escapeHtml(action.target || '')}</span><small>${escapeHtml(action.created_at)}</small><em>${escapeHtml(action.reason || '')}</em></div>`; }
 function renderObservation(item) { return `<div class="incident ${item.severity}"><b>${escapeHtml(item.title)}</b><span>${escapeHtml(item.service || item.category)}</span><p>${escapeHtml(item.detail)}</p></div>`; }
 function renderRecommendation(item) { return `<div class="incident ${item.severity}"><b>${escapeHtml(item.title)}</b><span>${escapeHtml(item.service || item.category)}</span><p>${escapeHtml(item.detail)}</p><button class="secondary" onclick="dismissRecommendation(${item.id})">Skjul</button></div>`; }
 function renderEvent(item) { return `<div class="event-row ${escapeHtml(item.severity)}"><b>${escapeHtml(item.type)}</b><span>${escapeHtml(item.source)} · ${escapeHtml(item.service || 'system')}</span><small>${escapeHtml(item.timestamp)}</small></div>`; }
-function renderContainerRow(c) {
-  const state = dockerState(c);
-  return `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(c.classification)}</td><td><span class="status ${state}">${escapeHtml(state)}</span></td><td>${escapeHtml(c.docker_status || '')}</td><td>${escapeHtml(c.health_status || '—')}</td><td>${c.protected ? 'ja' : 'nej'}</td><td>${c.auto_start_allowed ? 'ja' : 'nej'}</td><td>${classifyButtons(c.name)}</td><td>${state === 'exited' ? `<button onclick="restartContainer('${escapeHtml(c.name)}')">Start</button>` : '—'}</td></tr>`;
+function classSelect(index, current) { return `<select id="cls-${index}"><option value="critical" ${current==='critical'?'selected':''}>critical</option><option value="optional" ${current==='optional'?'selected':''}>optional</option><option value="stopped_by_design" ${current==='stopped_by_design'?'selected':''}>stopped-by-design</option><option value="unknown" ${current==='unknown'?'selected':''}>unknown</option></select>`; }
+function renderContainerRow(c, index) {
+  const state = c.docker_state || c.status;
+  return `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(c.classification)}</td><td><span class="status ${escapeHtml(state)}">${escapeHtml(state)}</span></td><td>${escapeHtml(c.docker_status || '')}</td><td>${escapeHtml(c.health_status || '—')}</td><td><input id="prot-${index}" type="checkbox" ${c.protected ? 'checked' : ''}></td><td><input id="auto-${index}" type="checkbox" ${c.auto_start_allowed ? 'checked' : ''}></td><td>${classSelect(index, c.classification)} <button class="secondary" onclick="classifyContainer(${index})">Gem</button></td><td>${state === 'exited' && !c.protected ? `<button onclick="restartContainer('${escapeHtml(c.name)}')">Start</button>` : '—'}</td></tr>`;
 }
+function renderUnknown(c, index) { const state = c.docker_state || c.status; return `<div class="service-row"><div><b>${escapeHtml(c.name)}</b><small>Docker state: ${escapeHtml(state)}</small></div><div>${classSelect(index, c.classification)} <button class="secondary" onclick="classifyContainer(${index})">Gem</button></div></div>`; }
 async function refreshAll() {
   const [data, brain, events] = await Promise.all([getJson('/api/mission'), getJson('/api/brain'), getJson('/api/events/latest?limit=20')]);
+  containerRows = data.containers || [];
   const workerRunning = data.worker.running;
-  document.getElementById('missionCards').innerHTML = `<article class="card status-card ${data.overall_status}"><span>Samlet status</span><strong>${labelStatus(data.overall_status)}</strong></article><article class="card"><span>Safe mode</span><strong>${data.safe_mode ? 'ON' : 'OFF'}</strong></article><article class="card"><span>Kritiske services</span><strong>${data.critical_ok ? 'OK' : 'Fejl'}</strong></article><article class="card"><span>Docker</span><strong>${data.docker.running}/${data.docker.total}</strong><small>${data.docker.stopped} exited</small></article><article class="card"><span>Ukendte</span><strong>${data.unknown_containers.length}</strong></article>`;
+  document.getElementById('missionCards').innerHTML = `<article class="card status-card ${data.overall_status}"><span>Samlet status</span><strong>${labelStatus(data.overall_status)}</strong></article><article class="card"><span>Safe mode</span><strong>${data.safe_mode ? 'ON' : 'OFF'}</strong></article><article class="card"><span>Kritiske services</span><strong>${data.critical_ok ? 'OK' : 'Fejl'}</strong></article><article class="card"><span>Docker live</span><strong>${data.docker.running}/${data.docker.total}</strong><small>${data.docker.stopped} exited</small></article><article class="card"><span>Ukendte</span><strong>${data.unknown_containers.length}</strong></article>`;
   document.getElementById('workerBadge').textContent = workerRunning ? 'Jarvis arbejder' : 'Afventer';
   document.getElementById('workerBadge').className = workerRunning ? 'pill working' : 'pill';
   document.getElementById('workerText').textContent = data.what_jarvis_is_doing_now;
-  document.getElementById('unknownContainers').innerHTML = data.unknown_containers.length ? data.unknown_containers.map(c => `<div class="service-row"><b>${escapeHtml(c.name)}</b><span>${escapeHtml(dockerState(c))}</span>${classifyButtons(c.name)}</div>`).join('') : '<p class="muted">Ingen ukendte containere.</p>';
   document.getElementById('eventFeed').innerHTML = events.events.length ? events.events.map(renderEvent).join('') : '<p class="muted">Ingen events endnu.</p>';
+  document.getElementById('unknownContainers').innerHTML = data.unknown_containers.length ? data.unknown_containers.map(c => renderUnknown(c, containerRows.findIndex(x => x.name === c.name))).join('') : '<p class="muted">Ingen ukendte containere.</p>';
   document.getElementById('learningBadge').textContent = brain.learning ? 'Jarvis lærer' : 'Læring pause';
   const baseline = brain.system_baseline;
   document.getElementById('brainSummary').innerHTML = `<div><span>Services lært</span><b>${brain.normal_behavior_summary.services_learned}</b></div><div><span>System samples</span><b>${brain.normal_behavior_summary.system_samples}</b></div><div><span>Aktive anbefalinger</span><b>${brain.normal_behavior_summary.active_recommendations}</b></div>`;
@@ -123,7 +84,7 @@ async function refreshAll() {
   document.getElementById('recommendations').innerHTML = brain.recommendations.length ? brain.recommendations.slice(0, 6).map(renderRecommendation).join('') : '<p class="muted">Ingen aktive anbefalinger.</p>';
   document.getElementById('criticalServices').innerHTML = data.critical_services.length ? data.critical_services.map(renderService).join('') : '<p class="muted">Ingen kritiske containere fundet.</p>';
   document.getElementById('systemHealth').innerHTML = `<div><span>CPU</span><b>${pct(data.health.cpu_percent)}</b></div><div><span>RAM</span><b>${pct(data.health.memory.percent)}</b></div><div><span>Swap</span><b>${pct(data.health.swap.percent)}</b></div><div><span>Disk /</span><b>${pct(data.health.disk_root.percent)}</b></div>`;
-  document.getElementById('containers').innerHTML = data.containers.map(renderContainerRow).join('');
+  document.getElementById('containers').innerHTML = containerRows.map(renderContainerRow).join('');
   document.getElementById('stoppedByDesign').innerHTML = data.stopped_by_design.length ? data.stopped_by_design.map(renderService).join('') : '<p class="muted">Ingen services er markeret som stoppet med vilje.</p>';
   document.getElementById('incidents').innerHTML = data.active_incidents.length ? data.active_incidents.map(i => `<div class="incident ${i.severity}"><b>${escapeHtml(i.title)}</b><span>${escapeHtml(i.service || 'system')}</span><p>${escapeHtml(i.detail || '')}</p></div>`).join('') : '<p class="muted">Ingen aktive incidents.</p>';
   document.getElementById('latestAction').innerHTML = renderAction(data.latest_action);
