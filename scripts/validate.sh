@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_URL="${APP_URL:-http://localhost:8088}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-90}"
-ENDPOINTS=("/api/health" "/api/mission" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations" "/api/events" "/api/events/latest" "/api/events/types" "/api/events/statistics" "/api/service-classifications")
+ENDPOINTS=("/api/health" "/api/mission" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations" "/api/events" "/api/events/latest" "/api/events/types" "/api/events/statistics" "/api/service-classifications" "/api/assets" "/api/assets/search" "/api/assets/relationships")
 
 show_logs() {
   echo ""
@@ -61,11 +61,12 @@ for endpoint in "${ENDPOINTS[@]}"; do
   echo "OK: ${endpoint} returned HTTP 200"
 done
 
-echo "[6/7] Reading live Docker API snapshots"
+echo "[6/7] Reading live Docker and asset snapshots"
 curl -fsS --max-time 10 "${APP_URL}/api/containers" -o /tmp/jarvis-containers.json || fail "Could not read /api/containers"
 curl -fsS --max-time 10 "${APP_URL}/api/mission" -o /tmp/jarvis-mission.json || fail "Could not read /api/mission"
+curl -fsS --max-time 10 "${APP_URL}/api/assets" -o /tmp/jarvis-assets.json || fail "Could not read /api/assets"
 
-echo "[7/7] Checking live Docker status consistency"
+echo "[7/7] Checking live Docker and Asset Registry consistency"
 if [ -n "$PYTHON_BIN" ]; then
   "$PYTHON_BIN" - <<'PY'
 import json
@@ -73,6 +74,8 @@ from pathlib import Path
 containers_response = json.loads(Path('/tmp/jarvis-containers.json').read_text())
 containers = containers_response['containers']
 mission = json.loads(Path('/tmp/jarvis-mission.json').read_text())
+assets = json.loads(Path('/tmp/jarvis-assets.json').read_text())['assets']
+asset_ids = {a['asset_id'] for a in assets}
 mission_containers = mission.get('containers', [])
 mission_by_name = {c['name']: c for c in mission_containers}
 if 'docker_read_at' not in containers_response:
@@ -83,17 +86,22 @@ if len(containers) != mission['docker']['total'] or len(containers) != len(missi
     raise SystemExit('Docker totals disagree')
 for c in containers:
     name = c.get('name')
+    expected_asset = f'docker:{name}'
+    if c.get('asset_id') != expected_asset:
+        raise SystemExit(f'Missing or wrong asset_id for {name}')
+    if expected_asset not in asset_ids:
+        raise SystemExit(f'Asset Registry missing {expected_asset}')
     if name not in mission_by_name:
         raise SystemExit(f'{name} missing from /api/mission containers list')
     m = mission_by_name[name]
     for item, label in [(c, '/api/containers'), (m, '/api/mission')]:
         if item.get('status') != item.get('docker_state'):
-            raise SystemExit(f'{label} status/docker_state mismatch for {name}: {item.get("status")} != {item.get("docker_state")}')
-        for field in ['docker_state','docker_status','status','health_status','read_at']:
+            raise SystemExit(f'{label} status/docker_state mismatch for {name}')
+        for field in ['docker_state','docker_status','status','health_status','read_at','asset_id']:
             if field not in item:
                 raise SystemExit(f'Missing {field} on {name} in {label}')
     if c.get('docker_state') != m.get('docker_state') or c.get('status') != m.get('status'):
-        raise SystemExit(f'Docker state mismatch for {name}: containers={c.get("docker_state")} mission={m.get("docker_state")}')
+        raise SystemExit(f'Docker state mismatch for {name}')
 class_total = sum(len(mission.get(k, [])) for k in ['critical_services','optional_services','stopped_by_design','unknown_containers'])
 if class_total != len(containers):
     raise SystemExit('Classified sections do not include all containers')
@@ -101,7 +109,7 @@ if sum(1 for c in containers if c.get('docker_state') == 'running') != mission['
     raise SystemExit('Docker running count disagrees')
 if sum(1 for c in containers if c.get('docker_state') == 'exited') != mission['docker']['stopped']:
     raise SystemExit('Docker stopped count disagrees')
-print('Live Docker status regression OK')
+print('Live Docker + Asset Registry regression OK')
 PY
 else
   echo "WARNING: skipped JSON consistency check because host Python is unavailable."
