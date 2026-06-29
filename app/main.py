@@ -47,7 +47,6 @@ class QueueActionPayload(BaseModel):
     requested_by: str = "user"
     source: str = "manual"
     reason: str = "manual action request"
-    requires_approval: bool = True
     priority: int = 100
     payload: dict = {}
 
@@ -143,7 +142,7 @@ def queue_action(payload: QueueActionPayload):
         requested_by=payload.requested_by,
         source=payload.source,
         reason=payload.reason,
-        requires_approval=payload.requires_approval,
+        requires_approval=True,
         priority=payload.priority,
         payload=payload.payload,
     )
@@ -160,7 +159,10 @@ def get_action(action_id: str):
 
 @app.post("/api/actions/{action_id}/approve")
 def approve_action(action_id: str):
-    action = action_engine.approve_action(action_id, "user")
+    try:
+        action = action_engine.approve_action(action_id, "user")
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     if not action:
         raise HTTPException(status_code=404, detail="Action not found")
     return {"action": action}
@@ -168,7 +170,10 @@ def approve_action(action_id: str):
 
 @app.post("/api/actions/{action_id}/deny")
 def deny_action(action_id: str):
-    action = action_engine.deny_action(action_id, "user")
+    try:
+        action = action_engine.deny_action(action_id, "user")
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     if not action:
         raise HTTPException(status_code=404, detail="Action not found")
     return {"action": action}
@@ -176,7 +181,10 @@ def deny_action(action_id: str):
 
 @app.post("/api/actions/{action_id}/cancel")
 def cancel_action(action_id: str):
-    action = action_engine.cancel_action(action_id, "user")
+    try:
+        action = action_engine.cancel_action(action_id, "user")
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     if not action:
         raise HTTPException(status_code=404, detail="Action not found")
     return {"action": action}
@@ -184,7 +192,10 @@ def cancel_action(action_id: str):
 
 @app.post("/api/actions/{action_id}/run")
 def run_action(action_id: str):
-    action = action_engine.run_action(action_id)
+    try:
+        action = action_engine.run_action(action_id)
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     if not action:
         raise HTTPException(status_code=404, detail="Action not found")
     return {"action": action}
@@ -341,7 +352,6 @@ def mission():
     if error:
         log_action("mission", "docker", "error", error)
         raise HTTPException(status_code=503, detail=error)
-
     critical = [c for c in items if c["classification"] == "critical"]
     optional = [c for c in items if c["classification"] == "optional"]
     stopped_by_design = [c for c in items if c["classification"] == "stopped_by_design"]
@@ -354,7 +364,6 @@ def mission():
     assets_list = asset_registry.list_assets(limit=1000)
     decisions = policy_engine.list_decisions(10)
     queued_actions = action_engine.list_actions(25)
-
     return {
         "app": config.APP_NAME,
         "version": config.VERSION,
