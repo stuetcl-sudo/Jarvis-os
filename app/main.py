@@ -83,6 +83,9 @@ def restart(name: str):
     if not match:
         log_action("restart_container", name, "denied", "Container not found")
         raise HTTPException(status_code=404, detail="Container not found")
+    if match.get("protected"):
+        log_action("restart_container", name, "denied", "Containeren er beskyttet.")
+        raise HTTPException(status_code=403, detail="Containeren er beskyttet.")
 
     allowed, reason = can_restart_container(match["name"], state_of(match))
     if not allowed:
