@@ -54,6 +54,13 @@ th { color: #93c5fd; font-size: 13px; text-transform: uppercase; letter-spacing:
 .incident b, .incident span { display: block; }
 .incident span { color: #94a3b8; margin-top: 3px; }
 .incident p { margin: 8px 0 0; color: #cbd5e1; }
+.event-list { display: grid; gap: 8px; max-height: 420px; overflow: auto; padding-right: 6px; }
+.event-row { border-left: 4px solid #38bdf8; padding: 10px 12px; background: rgba(148,163,184,.08); border-radius: 14px; }
+.event-row.warning { border-left-color: #fbbf24; }
+.event-row.critical, .event-row.error { border-left-color: #f87171; }
+.event-row.info { border-left-color: #38bdf8; }
+.event-row b, .event-row span, .event-row small { display: block; }
+.event-row span, .event-row small { color: #94a3b8; margin-top: 3px; }
 
 @media (max-width: 980px) {
   .hero { align-items: flex-start; flex-direction: column; }
