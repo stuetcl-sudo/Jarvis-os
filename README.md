@@ -2,7 +2,7 @@
 
 Local server assistant for Docker monitoring and basic host health.
 
-## Features
+## What v0.1 does
 
 - FastAPI backend
 - Simple web UI dashboard on port `8088`
@@ -17,21 +17,42 @@ Jarvis-os v0.1 will only start containers that are already stopped and only when
 
 It will never delete volumes, delete containers, prune Docker, change firewall rules, change DNS settings or run arbitrary shell commands.
 
-## Install
+Protected containers are never restarted automatically. By default these are:
 
-1. Clone the repo.
-2. Checkout branch `jarvis-v0.1`.
-3. Copy `.env.example` to `.env`.
-4. Start with Docker Compose.
-5. Open `http://SERVER-IP:8088`.
+```env
+jarvis-os,adguardhome,caddy,gluetun
+```
 
-Commands:
+## Recommended install on Dennis' server
+
+Use `/docker/jarvis` so it matches the rest of the server layout.
 
 ```bash
-git clone https://github.com/stuetcl-sudo/Jarvis-os.git
-cd Jarvis-os
+cd /docker
+git clone https://github.com/stuetcl-sudo/Jarvis-os.git jarvis
+cd jarvis
 git checkout jarvis-v0.1
 cp .env.example .env
+docker compose up -d --build
+```
+
+Open:
+
+```text
+http://SERVER-IP:8088
+```
+
+On the local LAN this may be:
+
+```text
+http://192.168.68.135:8088
+```
+
+## Update later
+
+```bash
+cd /docker/jarvis
+git pull
 docker compose up -d --build
 ```
 
@@ -51,6 +72,12 @@ Use `PROTECTED_CONTAINERS` for critical services that Jarvis must not restart.
 
 Use `ALLOWED_RESTART_CONTAINERS` if Jarvis should only be allowed to start selected containers.
 
+Example:
+
+```env
+ALLOWED_RESTART_CONTAINERS=homebridge,filebrowser,glances
+```
+
 ## API
 
 - `GET /api/health`
@@ -61,3 +88,5 @@ Use `ALLOWED_RESTART_CONTAINERS` if Jarvis should only be allowed to start selec
 ## Status
 
 This is v0.1 foundation code. It is not a fully autonomous agent yet.
+
+Next target: v0.2 system agent with scheduled checks, memory, and smarter self-healing rules.
