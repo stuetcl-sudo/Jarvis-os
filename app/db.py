@@ -46,6 +46,61 @@ CREATE TABLE IF NOT EXISTS worker_checks (
 )
 """
 
+SERVICE_BASELINE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS service_baselines (
+    service TEXT PRIMARY KEY,
+    classification TEXT NOT NULL,
+    normal_status TEXT NOT NULL,
+    running_count INTEGER NOT NULL DEFAULT 0,
+    stopped_count INTEGER NOT NULL DEFAULT 0,
+    unknown_seen_count INTEGER NOT NULL DEFAULT 0,
+    sample_count INTEGER NOT NULL DEFAULT 0,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL
+)
+"""
+
+SYSTEM_BASELINE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS system_baselines (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    sample_count INTEGER NOT NULL DEFAULT 0,
+    avg_cpu_percent REAL NOT NULL DEFAULT 0,
+    avg_memory_percent REAL NOT NULL DEFAULT 0,
+    avg_swap_percent REAL NOT NULL DEFAULT 0,
+    min_swap_percent REAL NOT NULL DEFAULT 0,
+    max_swap_percent REAL NOT NULL DEFAULT 0,
+    avg_disk_percent REAL NOT NULL DEFAULT 0,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL
+)
+"""
+
+OBSERVATION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS observations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    category TEXT NOT NULL,
+    service TEXT,
+    title TEXT NOT NULL,
+    detail TEXT NOT NULL
+)
+"""
+
+RECOMMENDATION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS recommendations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    severity TEXT NOT NULL,
+    category TEXT NOT NULL,
+    service TEXT,
+    title TEXT NOT NULL,
+    detail TEXT NOT NULL,
+    dismissed_at TEXT
+)
+"""
+
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -65,6 +120,10 @@ def init_db():
     conn.execute(ACTION_SCHEMA)
     conn.execute(INCIDENT_SCHEMA)
     conn.execute(CHECK_SCHEMA)
+    conn.execute(SERVICE_BASELINE_SCHEMA)
+    conn.execute(SYSTEM_BASELINE_SCHEMA)
+    conn.execute(OBSERVATION_SCHEMA)
+    conn.execute(RECOMMENDATION_SCHEMA)
     conn.commit()
     conn.close()
 
