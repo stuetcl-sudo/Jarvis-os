@@ -90,34 +90,12 @@ class PolicyEngine:
             if existing:
                 conn.execute(
                     "UPDATE policies SET name = ?, description = ?, priority = ?, trigger_event_type = ?, conditions = ?, actions = ?, safety_level = ?, updated_at = ? WHERE policy_id = ?",
-                    (
-                        policy["name"],
-                        policy["description"],
-                        policy["priority"],
-                        policy["trigger_event_type"],
-                        _json(policy["conditions"]),
-                        _json(policy["actions"]),
-                        policy["safety_level"],
-                        now,
-                        policy["policy_id"],
-                    ),
+                    (policy["name"], policy["description"], policy["priority"], policy["trigger_event_type"], _json(policy["conditions"]), _json(policy["actions"]), policy["safety_level"], now, policy["policy_id"]),
                 )
             else:
                 conn.execute(
                     "INSERT INTO policies (policy_id, name, description, enabled, priority, trigger_event_type, conditions, actions, safety_level, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        policy["policy_id"],
-                        policy["name"],
-                        policy["description"],
-                        1 if policy.get("enabled", True) else 0,
-                        policy["priority"],
-                        policy["trigger_event_type"],
-                        _json(policy["conditions"]),
-                        _json(policy["actions"]),
-                        policy["safety_level"],
-                        now,
-                        now,
-                    ),
+                    (policy["policy_id"], policy["name"], policy["description"], 1 if policy.get("enabled", True) else 0, policy["priority"], policy["trigger_event_type"], _json(policy["conditions"]), _json(policy["actions"]), policy["safety_level"], now, now),
                 )
         conn.commit()
         conn.close()
@@ -155,10 +133,7 @@ class PolicyEngine:
     def conditions_match(self, policy: dict[str, Any], event: Event, asset: dict[str, Any] | None) -> tuple[bool, str]:
         conditions = policy.get("conditions") or {}
         for key, expected in conditions.items():
-            if key == "asset_id":
-                actual = event.asset_id or event.service or event.payload.get("asset_id")
-            else:
-                actual = (asset or {}).get(key) or event.payload.get(key)
+            actual = event.asset_id or event.service or event.payload.get("asset_id") if key == "asset_id" else (asset or {}).get(key) or event.payload.get(key)
             if actual != expected:
                 return False, f"Condition {key} expected {expected}, got {actual}."
         return True, "All policy conditions matched."
@@ -168,19 +143,7 @@ class PolicyEngine:
         conn = connect()
         conn.execute(
             "INSERT INTO policy_decisions (decision_id, policy_id, timestamp, asset_id, event_id, matched, allowed, action, reason, explanation, dry_run) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                data["decision_id"],
-                data["policy_id"],
-                data["timestamp"],
-                data["asset_id"],
-                data["event_id"],
-                1 if data["matched"] else 0,
-                1 if data["allowed"] else 0,
-                data["action"],
-                data["reason"],
-                data["explanation"],
-                1 if data["dry_run"] else 0,
-            ),
+            (data["decision_id"], data["policy_id"], data["timestamp"], data["asset_id"], data["event_id"], 1 if data["matched"] else 0, 1 if data["allowed"] else 0, data["action"], data["reason"], data["explanation"], 1 if data["dry_run"] else 0),
         )
         conn.commit()
         conn.close()
@@ -203,6 +166,13 @@ class PolicyEngine:
         if action_type == "recommend_restart":
             create_recommendation("warning", "policy", asset_id, f"Consider restart for {name}", f"{asset_id} is optional and stopped. Policy recommends manual restart only.")
             return True, action_type, "Manual restart recommendation created; automatic restart denied.", True
+        if action_type == "queue_manual_restart":
+            try:
+                from app.actions.engine import action_engine
+                action_engine.queue_action(asset_id=asset_id, action_type="docker.start_container", requested_by="policy", source="policy", reason=f"Policy queued manual restart for optional stopped asset {asset_id}.", requires_approval=True, payload={"event_id": event.id})
+                return True, action_type, "Waiting-approval docker.start_container action queued. It will not run automatically.", True
+            except Exception as exc:
+                return False, action_type, f"Could not queue action: {exc}", True
         if action_type == "ignore":
             ignore()
             return True, action_type, f"Ignored because classification is {classification}.", True
@@ -236,12 +206,11 @@ class PolicyEngine:
         return decisions
 
     def on_event(self, event: Event) -> None:
-        if event.source == "policy_engine":
+        if event.source in {"policy_engine", "action_engine"}:
             return
         try:
             self.evaluate_event(event)
         except Exception:
-            # Policy errors must never crash the event bus or worker.
             return
 
 
