@@ -8,8 +8,6 @@ Policies and AI may recommend, queue, explain or request actions, but they must 
 
 Policies decide what may be considered. Actions handle execution safely.
 
-Flow:
-
 ```text
 Policy Decision
 ↓
@@ -28,9 +26,9 @@ Explanation
 
 This separation keeps Jarvis explainable and prevents policy logic, AI logic or UI logic from directly touching Docker or future integrations.
 
-## v0.7 supported actions
+## Supported actions
 
-Supported action types:
+Supported action types in this branch:
 
 - `docker.start_container`
 - `recommendation.create`
@@ -39,41 +37,11 @@ Supported action types:
 
 Only `docker.start_container` touches Docker. It uses the Docker SDK only.
 
-Not implemented and forbidden:
-
-- Docker stop
-- Docker delete
-- Docker prune
-- Docker exec
-- Docker compose control
-- Shell execution
-- File deletion
-- Volume deletion
-- Firewall changes
-- DNS changes
+Unsupported action categories include stopping, deleting, pruning, command execution, compose control, file deletion, volume changes, firewall changes and DNS changes.
 
 ## Action model
 
-Each action contains:
-
-- `action_id`
-- `created_at`
-- `updated_at`
-- `requested_by`
-- `source`
-- `asset_id`
-- `action_type`
-- `status`
-- `priority`
-- `requires_approval`
-- `approved`
-- `approved_by`
-- `approved_at`
-- `safety_status`
-- `reason`
-- `explanation`
-- `payload`
-- `result`
+Each action contains identifiers, timestamps, requester, source, asset, action type, status, approval fields, safety status, reason, explanation, payload and result.
 
 Statuses:
 
@@ -120,7 +88,7 @@ Protected assets cannot be started by the Action Engine.
 
 Unknown assets cannot receive restart/start actions.
 
-qBittorrent requires `docker:gluetun` to be running before a future start action can pass.
+Dependency guards are relationship-driven. For example, a future plugin or local configuration may define that one Docker asset depends on another Docker asset and require the dependency to be running before a start action can pass.
 
 ## Verification
 
@@ -134,21 +102,7 @@ If verification fails, the action becomes `failed` and stores the reason.
 
 AI cannot execute actions directly.
 
-AI may:
-
-- Explain an action
-- Suggest an action
-- Request that an action be queued
-
-AI may not:
-
-- Bypass policy decisions
-- Bypass manual approval
-- Bypass safety checks
-- Run shell commands
-- Delete data
-- Change firewall or DNS
-- Execute destructive actions
+AI may explain, suggest, or request that an action be queued. AI may not bypass policy decisions, manual approval, safety checks or verification.
 
 ## API
 
@@ -170,9 +124,9 @@ Legacy action log is available at:
 
 Future safe action types can be added behind the same boundary:
 
-- Home Assistant service call with policy constraints
-- UniFi read-only remediation suggestions
-- AdGuard list update request with approval
+- Home automation service request with policy constraints
+- Network-controller remediation suggestion
+- DNS-filter list update request with approval
 - Notification delivery
 - Backup verification
 - UPS shutdown recommendation
