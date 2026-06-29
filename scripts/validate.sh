@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_URL="${APP_URL:-http://localhost:8088}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-90}"
-ENDPOINTS=("/api/health" "/api/mission" "/api/worker/status")
+ENDPOINTS=("/api/health" "/api/mission" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations")
 
 show_logs() {
   echo ""
