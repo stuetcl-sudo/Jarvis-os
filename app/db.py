@@ -61,6 +61,18 @@ CREATE TABLE IF NOT EXISTS service_baselines (
 )
 """
 
+SERVICE_CLASSIFICATION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS service_classifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    service TEXT NOT NULL UNIQUE,
+    classification TEXT NOT NULL,
+    protected INTEGER NOT NULL DEFAULT 0,
+    auto_start_allowed INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+)
+"""
+
 SYSTEM_BASELINE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS system_baselines (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -115,6 +127,8 @@ CREATE TABLE IF NOT EXISTS events (
 )
 """
 
+VALID_CLASSIFICATIONS = {"critical", "optional", "stopped_by_design", "unknown"}
+
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -145,6 +159,7 @@ def init_db():
     conn.execute(INCIDENT_SCHEMA)
     conn.execute(CHECK_SCHEMA)
     conn.execute(SERVICE_BASELINE_SCHEMA)
+    conn.execute(SERVICE_CLASSIFICATION_SCHEMA)
     conn.execute(SYSTEM_BASELINE_SCHEMA)
     conn.execute(OBSERVATION_SCHEMA)
     conn.execute(RECOMMENDATION_SCHEMA)
@@ -153,6 +168,54 @@ def init_db():
     conn.execute("UPDATE recommendations SET updated_at = created_at WHERE updated_at IS NULL OR updated_at = ''")
     conn.commit()
     conn.close()
+
+
+def list_service_classifications():
+    conn = connect()
+    rows = conn.execute("SELECT * FROM service_classifications ORDER BY service ASC").fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        item = dict(row)
+        item["protected"] = bool(item["protected"])
+        item["auto_start_allowed"] = bool(item["auto_start_allowed"])
+        result.append(item)
+    return result
+
+
+def get_service_classification(service):
+    conn = connect()
+    row = conn.execute("SELECT * FROM service_classifications WHERE service = ?", (service,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    item = dict(row)
+    item["protected"] = bool(item["protected"])
+    item["auto_start_allowed"] = bool(item["auto_start_allowed"])
+    return item
+
+
+def upsert_service_classification(service, classification, protected=False, auto_start_allowed=False):
+    if classification not in VALID_CLASSIFICATIONS:
+        raise ValueError("Invalid classification")
+    if classification in {"unknown", "stopped_by_design"}:
+        auto_start_allowed = False
+    now = now_iso()
+    conn = connect()
+    existing = conn.execute("SELECT id FROM service_classifications WHERE service = ?", (service,)).fetchone()
+    if existing:
+        conn.execute(
+            "UPDATE service_classifications SET classification = ?, protected = ?, auto_start_allowed = ?, updated_at = ? WHERE service = ?",
+            (classification, 1 if protected else 0, 1 if auto_start_allowed else 0, now, service),
+        )
+    else:
+        conn.execute(
+            "INSERT INTO service_classifications (service, classification, protected, auto_start_allowed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (service, classification, 1 if protected else 0, 1 if auto_start_allowed else 0, now, now),
+        )
+    conn.commit()
+    conn.close()
+    return get_service_classification(service)
 
 
 def store_event(event):
