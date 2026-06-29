@@ -1,6 +1,6 @@
 # Jarvis-os Event Engine
 
-The Event Engine turns Jarvis-os into an event-driven platform while keeping the v0.3 APIs and safety model intact.
+The Event Engine turns Jarvis-os into an event-driven platform while keeping existing APIs and the safety model intact.
 
 ## Event flow
 
@@ -13,9 +13,9 @@ Docker.ContainerStopped event
 ↓
 Event Bus
 ↓
-Policy / Safety checks
+Policy Engine
 ↓
-Memory and recommendations
+Action Queue or Memory
 ↓
 Mission Control UI
 ```
@@ -28,6 +28,7 @@ Every event contains:
 - `type`
 - `severity`
 - `service`
+- `asset_id`
 - `payload`
 
 Example event types:
@@ -42,6 +43,8 @@ Example event types:
 - `Recommendation.Created`
 - `Worker.Started`
 - `Worker.Completed`
+- `Action.Queued`
+- `Action.Completed`
 
 ## Event Bus
 
@@ -56,13 +59,13 @@ Listeners can subscribe to a specific event type or to `*` for all events. Liste
 
 ## Worker flow
 
-The worker now publishes events during checks:
+The worker publishes events during checks:
 
 1. `Worker.Started`
 2. Docker collection events from DockerPlugin
 3. `System.HealthCollected`
 4. High resource events when thresholds are crossed
-5. Memory and recommendation flow
+5. Memory, policy and recommendation flow
 6. `Worker.Completed` or `Worker.Failed`
 
 Existing worker behavior is preserved. The worker still runs every 60 seconds and continues after exceptions.
@@ -78,13 +81,13 @@ Plugins inherit from `PluginBase` and may implement:
 - `publish(...)`
 - `collect()`
 
-Plugins are not allowed to execute arbitrary system commands directly. The first plugin direction is read-only collection and event publication.
+Plugins must stay inside declared capabilities and safety boundaries.
 
 ## Memory integration
 
 Important events are stored in SQLite in the `events` table. Jarvis keeps the latest 10,000 events and removes older event rows from its own database table only.
 
-This does not delete files, Docker data, Docker volumes or external data.
+This does not remove external runtime data.
 
 ## API
 
@@ -97,29 +100,18 @@ Event endpoints:
 
 ## Mission Control
 
-Mission Control shows a live event feed with newest events first. Events are displayed with severity, source, service and timestamp.
+Mission Control shows a live event feed with newest events first. Events are displayed with severity, source, asset and timestamp.
 
 ## Future integrations
 
 The Event Engine is designed so future integrations can publish and subscribe to events without changing the core:
 
-- Home Assistant
-- UniFi
-- AdGuard
-- Notifications
-- LLM / local assistant reasoning
+- Home automation plugins
+- Network controller plugins
+- DNS filtering plugins
+- Notification plugins
+- Local reasoning plugins
 
 ## Safety boundaries
 
-Jarvis must not:
-
-- Execute arbitrary shell commands
-- Delete files
-- Delete Docker volumes
-- Run Docker prune
-- Change firewall rules
-- Change DNS settings
-- Change Docker volumes
-- Add destructive automatic actions
-
-The Event Engine does not weaken these rules. Events describe facts and intent; actions still need explicit policy and safety checks.
+Events describe facts and intent. They do not grant permission to act. Actions still require policies, approvals, Action Engine checks and verification.
