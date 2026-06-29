@@ -6,8 +6,11 @@ from fastapi.staticfiles import StaticFiles
 
 from app import config
 from app.brain import brain_summary, dismiss_recommendation, list_observations, list_recommendations
-from app.db import init_db, list_actions, list_incidents, log_action
+from app.db import event_statistics, event_types, init_db, list_actions, list_events, list_incidents, log_action, store_event
 from app.docker_monitor import list_containers, restart_container
+from app.events.bus import event_bus
+from app.events.dispatcher import publish
+from app.events.types import EventTypes
 from app.health import get_health
 from app.safety import can_restart_container
 from app.worker import run_check_once, worker_loop, worker_status
@@ -19,7 +22,9 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 @app.on_event("startup")
 async def startup():
     init_db()
+    event_bus.subscribe("*", store_event)
     log_action("startup", "jarvis-os", "ok", f"Jarvis-os v{config.VERSION} startet")
+    publish("core", "Core.Started", "info", "jarvis-os", {"version": config.VERSION})
     if config.WORKER_ENABLED:
         asyncio.create_task(worker_loop())
 
@@ -111,7 +116,28 @@ def dismiss_recommendation_route(recommendation_id: int):
     if not dismiss_recommendation(recommendation_id):
         raise HTTPException(status_code=404, detail="Recommendation not found or already dismissed")
     log_action("dismiss_recommendation", str(recommendation_id), "ok", "Recommendation dismissed by user")
+    publish("core", EventTypes.RECOMMENDATION_DISMISSED, "info", str(recommendation_id), {"id": recommendation_id})
     return {"status": "ok"}
+
+
+@app.get("/api/events")
+def events(limit: int = 100):
+    return {"events": list_events(limit)}
+
+
+@app.get("/api/events/latest")
+def latest_events(limit: int = 25):
+    return {"events": list_events(limit)}
+
+
+@app.get("/api/events/types")
+def events_types():
+    return {"types": event_types()}
+
+
+@app.get("/api/events/statistics")
+def events_statistics():
+    return event_statistics()
 
 
 @app.get("/api/mission")
@@ -148,5 +174,6 @@ def mission():
         "active_incidents": active_incidents,
         "worker": current_worker,
         "brain": brain_summary()["normal_behavior_summary"],
+        "events": list_events(10),
         "what_jarvis_is_doing_now": current_worker["current_task"],
     }
