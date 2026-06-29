@@ -13,6 +13,70 @@ Current status: v0.3 is stabilized and prepared for a future v0.4 plugin archite
 - Recommendations are non-destructive
 - Auto-start remains disabled by default
 - Validation tests the Dockerized app, not host Python dependencies
+- Unknown Docker containers are discovered dynamically and stay visible until classified
+
+## Dynamic container discovery
+
+Jarvis reads the current live Docker state directly from Docker Engine. Mission Control does not use baselines, event history or previous observations as the source of truth for current Docker status.
+
+Each container includes:
+
+- `docker_state` from Docker Engine state
+- `docker_status` from the Docker SDK
+- `health_status` when Docker health checks are available
+- `classification`
+- `protected`
+- `auto_start_allowed`
+
+Unknown containers are never auto-started.
+
+Examples such as `jellyseerr`, `qbittorrent`, `gluetun`, `bazarr` and other new services remain `unknown` unless they are configured in `.env` or saved through Mission Control classification.
+
+## Unknown container classification workflow
+
+Mission Control has an **Unknown containers** section near Docker status.
+
+For each unknown container, Jarvis shows:
+
+- Name
+- Docker state
+- Image
+- Recommended classification
+- Classification controls
+- Protected yes/no
+- Auto-start yes/no
+
+Available classifications:
+
+- `critical`
+- `optional`
+- `stopped_by_design`
+- `unknown`
+
+The UI saves classification through:
+
+```text
+POST /api/service-classifications/{service}
+```
+
+Request body:
+
+```json
+{
+  "classification": "optional",
+  "protected": false,
+  "auto_start_allowed": false
+}
+```
+
+After saving, Mission Control refreshes and the container moves into the correct section.
+
+Recommended safe defaults:
+
+- Use `critical` for services the server depends on, such as reverse proxy, DNS and Home Assistant.
+- Use `optional` for media/tools that may safely be down for a while.
+- Use `stopped_by_design` for services that are intentionally off, test containers, VPN-dependent services or one-shot containers.
+- Keep `auto_start_allowed=false` until you have verified the service is safe to restart automatically.
 
 ## Jarvis Brain memory
 
@@ -24,6 +88,7 @@ Memory tables:
 - `system_baselines`
 - `observations`
 - `recommendations`
+- `service_classifications`
 
 ## Memory retention
 
@@ -103,20 +168,23 @@ Examples Jarvis may create:
 
 Jarvis-os v0.3 is safety-first.
 
-Auto-start is disabled by default. A container must be explicitly added to `ALLOWED_AUTO_START_CONTAINERS` before Jarvis may auto-start it.
+Auto-start is disabled by default. A container must be explicitly added to `ALLOWED_AUTO_START_CONTAINERS` or saved with `auto_start_allowed=true` before Jarvis may auto-start it.
 
 It may auto-start stopped optional containers only when all of these are true:
 
 - `SAFE_MODE=true`
+- Container is classified as `optional`
 - Container is not protected
-- Container is listed in `ALLOWED_AUTO_START_CONTAINERS`
+- Container is explicitly allowed for auto-start
 - Container has fewer than 3 failed auto-start attempts inside 30 minutes
 
 Jarvis must never auto-start:
 
+- Unknown containers
 - `gluetun`
 - `qbittorrent` unless `gluetun` is running
 - Protected containers
+- Stopped-by-design containers
 
 Jarvis does not contain destructive actions. It does not delete files, delete containers, delete Docker volumes, prune Docker, change firewall rules, change DNS settings, change Docker volumes or run arbitrary shell commands.
 
@@ -148,7 +216,7 @@ Critical services create active incidents and observations when they are not run
 PROTECTED_CONTAINERS=jarvis-os,adguardhome,caddy,gluetun
 ```
 
-Protected containers are never auto-started.
+Protected containers are never auto-started. If a protected container is not otherwise configured, it can still appear as `unknown` but protected.
 
 ### Optional services
 
@@ -156,7 +224,7 @@ Protected containers are never auto-started.
 OPTIONAL_SERVICES=sonarr,radarr,readarr,prowlarr,jellyfin,filebrowser,glances
 ```
 
-Optional services may be auto-started only if they are also listed in `ALLOWED_AUTO_START_CONTAINERS`.
+Optional services may be auto-started only if they are explicitly allowed for auto-start.
 
 Default:
 
@@ -180,7 +248,7 @@ Use `/docker/jarvis` so it matches the rest of the server layout.
 cd /docker
 git clone https://github.com/stuetcl-sudo/Jarvis-os.git jarvis
 cd jarvis
-git checkout jarvis-v0.1
+git checkout feature/event-engine
 cp .env.example .env
 docker compose up -d --build
 ```
@@ -201,7 +269,7 @@ http://192.168.68.135:8088
 
 ```bash
 cd /docker/jarvis
-git checkout jarvis-v0.1
+git checkout feature/event-engine
 git pull
 docker compose up -d --build
 ```
@@ -242,13 +310,7 @@ WORKER_ENABLED=true
 ALLOWED_AUTO_START_CONTAINERS=
 ```
 
-When the system has proven stable, explicitly add selected optional services to `ALLOWED_AUTO_START_CONTAINERS`.
-
-Example:
-
-```env
-ALLOWED_AUTO_START_CONTAINERS=filebrowser,glances
-```
+When the system has proven stable, explicitly add selected optional services to auto-start.
 
 ## API
 
@@ -257,6 +319,8 @@ ALLOWED_AUTO_START_CONTAINERS=filebrowser,glances
 - `GET /api/observations`
 - `GET /api/recommendations`
 - `POST /api/recommendations/{id}/dismiss`
+- `GET /api/service-classifications`
+- `POST /api/service-classifications/{service}`
 - `GET /api/incidents`
 - `GET /api/worker/status`
 - `POST /api/worker/run-once`
@@ -273,14 +337,7 @@ Run:
 bash scripts/validate.sh
 ```
 
-The script validates the Dockerized app, starts the stack with Docker Compose, waits for readiness and checks:
-
-- `/api/health`
-- `/api/mission`
-- `/api/worker/status`
-- `/api/brain`
-- `/api/observations`
-- `/api/recommendations`
+The script validates the Dockerized app, starts the stack with Docker Compose, waits for readiness and checks the API endpoints plus a live Docker consistency regression between `/api/containers` and `/api/mission`.
 
 It does not require Python dependencies on the Ubuntu host.
 
@@ -290,8 +347,9 @@ See:
 
 ```text
 docs/ARCHITECTURE.md
+docs/EVENT_ENGINE.md
 ```
 
 ## Status
 
-This is stabilized v0.3 foundation code for a learning local assistant. It is intentionally conservative and does not include broad autonomous control.
+This is stabilized v0.3 foundation code for a learning local assistant and event-driven platform. It is intentionally conservative and does not include broad autonomous control.
