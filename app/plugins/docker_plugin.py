@@ -20,15 +20,22 @@ class DockerPlugin(PluginBase):
 
     def classify(self, name: str) -> tuple[str, bool, bool]:
         saved = get_service_classification(name)
+        config_protected = name in config.PROTECTED_CONTAINERS
         if saved:
-            return saved["classification"], bool(saved["protected"]), bool(saved["auto_start_allowed"])
-        if name in config.IGNORED_SERVICES:
-            return "stopped_by_design", name in config.PROTECTED_CONTAINERS, False
-        if name in config.CRITICAL_SERVICES:
-            return "critical", name in config.PROTECTED_CONTAINERS, False
-        if name in config.OPTIONAL_SERVICES:
-            return "optional", name in config.PROTECTED_CONTAINERS, name in config.ALLOWED_AUTO_START_CONTAINERS
-        return "unknown", name in config.PROTECTED_CONTAINERS, False
+            classification = saved["classification"]
+            protected = bool(saved["protected"]) or config_protected
+            allowed = bool(saved["auto_start_allowed"])
+        elif name in config.IGNORED_SERVICES:
+            classification, protected, allowed = "stopped_by_design", config_protected, False
+        elif name in config.CRITICAL_SERVICES:
+            classification, protected, allowed = "critical", config_protected, False
+        elif name in config.OPTIONAL_SERVICES:
+            classification, protected, allowed = "optional", config_protected, name in config.ALLOWED_AUTO_START_CONTAINERS
+        else:
+            classification, protected, allowed = "unknown", config_protected, False
+        if classification != "optional" or protected:
+            allowed = False
+        return classification, protected, allowed
 
     def list_containers(self):
         items = []
@@ -38,7 +45,7 @@ class DockerPlugin(PluginBase):
                 attrs = container.attrs
                 state = attrs.get("State", {})
                 name = container.name
-                classification, protected, auto_start_allowed = self.classify(name)
+                classification, protected, allowed = self.classify(name)
                 docker_state = state.get("Status") or container.status or "unknown"
                 if docker_state not in VALID_DOCKER_STATES:
                     docker_state = docker_state or "unknown"
@@ -57,7 +64,7 @@ class DockerPlugin(PluginBase):
                     "restart_count": state.get("RestartCount", 0),
                     "protected": protected,
                     "classification": classification,
-                    "auto_start_allowed": auto_start_allowed if classification == "optional" and not protected else False,
+                    "auto_start_allowed": allowed,
                 }
                 items.append(item)
             items = sorted(items, key=lambda c: c["name"])
