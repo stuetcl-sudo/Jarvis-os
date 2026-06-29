@@ -41,6 +41,10 @@ def state_of(container):
     return container.get("docker_state") or container.get("status")
 
 
+def docker_read_at(items):
+    return items[0].get("read_at") if items else None
+
+
 @app.on_event("startup")
 async def startup():
     init_db()
@@ -69,7 +73,7 @@ def containers():
     if error:
         log_action("list_containers", "docker", "error", error)
         raise HTTPException(status_code=503, detail=error)
-    return {"containers": items}
+    return {"docker_read_at": docker_read_at(items), "containers": items}
 
 
 @app.post("/api/containers/{name}/restart")
@@ -217,7 +221,7 @@ def mission():
         "optional_services": optional,
         "stopped_by_design": stopped_by_design,
         "unknown_containers": unknown,
-        "docker": {"total": len(items), "running": running_count, "stopped": stopped_count},
+        "docker": {"total": len(items), "running": running_count, "stopped": stopped_count, "docker_read_at": docker_read_at(items)},
         "health": health_data,
         "latest_action": actions[0] if actions else None,
         "active_incidents": active_incidents,
