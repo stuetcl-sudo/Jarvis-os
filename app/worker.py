@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 from app import config
+from app.brain import learn_from_check
 from app.db import (
     count_recent_failed_actions,
     create_incident,
@@ -24,6 +25,7 @@ worker_state = {
     "last_result": None,
     "last_error": None,
     "current_task": "Afventer næste check",
+    "learning": True,
 }
 
 _last_throttled_logs = {}
@@ -112,6 +114,8 @@ def run_check_once():
 
         summary = summarize_containers(containers)
         evaluate_incidents(containers, health)
+        worker_state["current_task"] = "Jarvis lærer normal serveradfærd"
+        learn_from_check(containers, health)
         worker_state["current_task"] = "Vurderer safe mode og self-healing"
         auto_heal(containers)
 
@@ -127,9 +131,9 @@ def run_check_once():
             health["disk_root"]["percent"],
             ", ".join(health["warnings"]),
         )
-        log_action("worker_check", "jarvis-os", "ok", f"Docker: {summary['running']} kører, {summary['stopped']} stoppet.")
+        log_action("worker_check", "jarvis-os", "ok", f"Docker: {summary['running']} kører, {summary['stopped']} stoppet. Brain learning aktiv.")
         worker_state["last_result"] = status
-        return {"status": status, "health": health, "docker": summary}
+        return {"status": status, "health": health, "docker": summary, "learning": True}
     except Exception as exc:
         worker_state["last_error"] = str(exc)
         worker_state["last_result"] = "error"
