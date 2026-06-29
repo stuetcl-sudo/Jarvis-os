@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS events (
     type TEXT NOT NULL,
     severity TEXT NOT NULL,
     service TEXT,
+    asset_id TEXT,
     payload TEXT NOT NULL
 )
 """
@@ -165,6 +166,7 @@ def init_db():
     conn.execute(RECOMMENDATION_SCHEMA)
     conn.execute(EVENT_SCHEMA)
     _ensure_column(conn, "recommendations", "updated_at", "TEXT")
+    _ensure_column(conn, "events", "asset_id", "TEXT")
     conn.execute("UPDATE recommendations SET updated_at = created_at WHERE updated_at IS NULL OR updated_at = ''")
     conn.commit()
     conn.close()
@@ -220,9 +222,11 @@ def upsert_service_classification(service, classification, protected=False, auto
 
 def store_event(event):
     data = event.to_dict() if hasattr(event, "to_dict") else dict(event)
+    payload = data.get("payload", {}) or {}
+    asset_id = data.get("asset_id") or payload.get("asset_id") or (data.get("service") if isinstance(data.get("service"), str) and ":" in data.get("service") else None)
     conn = connect()
     conn.execute(
-        "INSERT OR IGNORE INTO events (id, timestamp, source, type, severity, service, payload) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO events (id, timestamp, source, type, severity, service, asset_id, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (
             data["id"],
             data["timestamp"],
@@ -230,7 +234,8 @@ def store_event(event):
             data["type"],
             data["severity"],
             data.get("service"),
-            json.dumps(data.get("payload", {}), sort_keys=True),
+            asset_id,
+            json.dumps(payload, sort_keys=True),
         ),
     )
     conn.execute("DELETE FROM events WHERE id NOT IN (SELECT id FROM events ORDER BY timestamp DESC LIMIT 10000)")
