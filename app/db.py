@@ -91,6 +91,7 @@ RECOMMENDATION_SCHEMA = """
 CREATE TABLE IF NOT EXISTS recommendations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active',
     severity TEXT NOT NULL,
     category TEXT NOT NULL,
@@ -106,6 +107,10 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
+def cutoff_iso(days):
+    return (datetime.now(timezone.utc) - timedelta(days=int(days))).isoformat()
+
+
 def connect():
     folder = os.path.dirname(config.DB_PATH)
     if folder:
@@ -113,6 +118,12 @@ def connect():
     conn = sqlite3.connect(config.DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _ensure_column(conn, table, column, definition):
+    columns = [row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+    if column not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def init_db():
@@ -124,8 +135,31 @@ def init_db():
     conn.execute(SYSTEM_BASELINE_SCHEMA)
     conn.execute(OBSERVATION_SCHEMA)
     conn.execute(RECOMMENDATION_SCHEMA)
+    _ensure_column(conn, "recommendations", "updated_at", "TEXT")
+    conn.execute("UPDATE recommendations SET updated_at = created_at WHERE updated_at IS NULL OR updated_at = ''")
     conn.commit()
     conn.close()
+
+
+def safe_cleanup_old_rows():
+    conn = connect()
+    deleted = {}
+    retention = [
+        ("observations", "created_at", config.OBSERVATIONS_RETENTION_DAYS, None),
+        ("worker_checks", "created_at", config.WORKER_CHECKS_RETENTION_DAYS, None),
+        ("action_log", "created_at", config.ACTION_LOG_RETENTION_DAYS, None),
+        ("incidents", "resolved_at", config.RESOLVED_INCIDENTS_RETENTION_DAYS, "resolved_at IS NOT NULL"),
+    ]
+    for table, column, days, extra_where in retention:
+        cutoff = cutoff_iso(days)
+        where = f"{column} < ?"
+        if extra_where:
+            where = f"{extra_where} AND {where}"
+        cur = conn.execute(f"DELETE FROM {table} WHERE {where}", (cutoff,))
+        deleted[table] = cur.rowcount
+    conn.commit()
+    conn.close()
+    return deleted
 
 
 def log_action(action, target, status, reason=None):
