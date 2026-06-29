@@ -3,10 +3,22 @@ import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from app import config
 from app.brain import brain_summary, dismiss_recommendation, list_observations, list_recommendations
-from app.db import event_statistics, event_types, init_db, list_actions, list_events, list_incidents, log_action, store_event
+from app.db import (
+    event_statistics,
+    event_types,
+    init_db,
+    list_actions,
+    list_events,
+    list_incidents,
+    list_service_classifications,
+    log_action,
+    store_event,
+    upsert_service_classification,
+)
 from app.docker_monitor import list_containers, restart_container
 from app.events.bus import event_bus
 from app.events.dispatcher import publish
@@ -17,6 +29,16 @@ from app.worker import run_check_once, worker_loop, worker_status
 
 app = FastAPI(title=config.APP_NAME, version=config.VERSION)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+class ServiceClassificationPayload(BaseModel):
+    classification: str
+    protected: bool = False
+    auto_start_allowed: bool = False
+
+
+def state_of(container):
+    return container.get("docker_state") or container.get("status")
 
 
 @app.on_event("startup")
@@ -62,7 +84,7 @@ def restart(name: str):
         log_action("restart_container", name, "denied", "Container not found")
         raise HTTPException(status_code=404, detail="Container not found")
 
-    allowed, reason = can_restart_container(match["name"], match["status"])
+    allowed, reason = can_restart_container(match["name"], state_of(match))
     if not allowed:
         log_action("restart_container", name, "denied", reason)
         raise HTTPException(status_code=403, detail=reason)
@@ -120,6 +142,27 @@ def dismiss_recommendation_route(recommendation_id: int):
     return {"status": "ok"}
 
 
+@app.get("/api/service-classifications")
+def service_classifications():
+    return {"service_classifications": list_service_classifications()}
+
+
+@app.post("/api/service-classifications/{service}")
+def set_service_classification(service: str, payload: ServiceClassificationPayload):
+    try:
+        saved = upsert_service_classification(
+            service,
+            payload.classification,
+            payload.protected,
+            payload.auto_start_allowed,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    log_action("classify_service", service, "ok", f"{saved['classification']}, protected={saved['protected']}, auto_start_allowed={saved['auto_start_allowed']}")
+    publish("core", "Service.Classified", "info", service, saved)
+    return {"service_classification": saved}
+
+
 @app.get("/api/events")
 def events(limit: int = 100):
     return {"events": list_events(limit)}
@@ -153,9 +196,10 @@ def mission():
     critical = [c for c in items if c["classification"] == "critical"]
     optional = [c for c in items if c["classification"] == "optional"]
     stopped_by_design = [c for c in items if c["classification"] == "stopped_by_design"]
-    running_count = len([c for c in items if c["status"] == "running"])
-    stopped_count = len([c for c in items if c["status"] == "exited"])
-    critical_ok = all(c["status"] == "running" for c in critical)
+    unknown = [c for c in items if c["classification"] == "unknown"]
+    running_count = len([c for c in items if state_of(c) == "running"])
+    stopped_count = len([c for c in items if state_of(c) == "exited"])
+    critical_ok = all(state_of(c) == "running" for c in critical)
     overall = "critical" if any(i["severity"] == "critical" for i in active_incidents) else "warning" if active_incidents or health_data["warnings"] else "ok"
     current_worker = worker_status()
 
@@ -165,9 +209,11 @@ def mission():
         "overall_status": overall,
         "safe_mode": config.SAFE_MODE,
         "critical_ok": critical_ok,
+        "containers": items,
         "critical_services": critical,
         "optional_services": optional,
         "stopped_by_design": stopped_by_design,
+        "unknown_containers": unknown,
         "docker": {"total": len(items), "running": running_count, "stopped": stopped_count},
         "health": health_data,
         "latest_action": actions[0] if actions else None,
