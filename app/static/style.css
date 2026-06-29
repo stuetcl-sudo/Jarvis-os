@@ -37,12 +37,19 @@ label { color: #cbd5e1; display: inline-flex; gap: 6px; align-items: center; }
 .pill { display: inline-flex; align-items: center; padding: 7px 12px; border-radius: 999px; background: rgba(148,163,184,.18); color: #cbd5e1; font-weight: 800; white-space: nowrap; }
 .pill.working { background: rgba(56,189,248,.2); color: #7dd3fc; }
 .asset-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
-.asset-group { border: 1px solid rgba(148,163,184,.18); border-radius: 18px; padding: 14px; background: rgba(148,163,184,.06); }
+.asset-group, .policy-row, .decision-row { border: 1px solid rgba(148,163,184,.18); border-radius: 18px; padding: 14px; background: rgba(148,163,184,.06); }
 .asset-group h3 { margin: 0 0 10px; color: #93c5fd; }
 .asset-pill { width: 100%; text-align: left; display: block; margin: 8px 0; background: rgba(15,23,42,.74); color: #e5e7eb; border: 1px solid rgba(148,163,184,.18); border-radius: 14px; }
 .asset-pill b, .asset-pill small { display: block; }
 .asset-pill small { color: #94a3b8; margin-top: 4px; }
 .asset-detail { margin-top: 14px; border-top: 1px solid rgba(148,163,184,.18); padding-top: 14px; }
+.policy-list { display: grid; gap: 10px; }
+.policy-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.policy-row b, .policy-row small, .decision-row b, .decision-row span { display: block; }
+.policy-row small, .decision-row span { color: #94a3b8; margin-top: 4px; }
+.decision-row { width: 100%; text-align: left; color: #e5e7eb; border-radius: 16px; }
+.decision-row.allowed { border-left: 4px solid #22c55e; }
+.decision-row.denied { border-left: 4px solid #f87171; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 1050px; }
 th, td { padding: 13px 12px; border-bottom: 1px solid rgba(148, 163, 184, .16); text-align: left; vertical-align: top; }
@@ -97,4 +104,5 @@ th { color: #93c5fd; font-size: 13px; text-transform: uppercase; letter-spacing:
   .quick-buttons button, .classification-controls button { width: auto; }
   .hero-actions { width: 100%; }
   .panel-head { align-items: flex-start; flex-direction: column; }
+  .policy-row { align-items: flex-start; flex-direction: column; }
 }
