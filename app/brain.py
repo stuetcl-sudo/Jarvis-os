@@ -18,6 +18,16 @@ def _one(query, params=()):
     return dict(row) if row else None
 
 
+def _bounded_step(current, new_value):
+    delta = float(new_value) - float(current)
+    max_step = float(config.BASELINE_MAX_STEP_PERCENT)
+    if delta > max_step:
+        return float(current) + max_step
+    if delta < -max_step:
+        return float(current) - max_step
+    return float(new_value)
+
+
 def _active_recommendation_exists(title, service):
     row = _one(
         "SELECT id FROM recommendations WHERE title = ? AND service IS ? AND status = 'active' LIMIT 1",
@@ -39,10 +49,11 @@ def add_observation(severity, category, service, title, detail):
 def add_recommendation(severity, category, service, title, detail):
     if _active_recommendation_exists(title, service):
         return
+    now = now_iso()
     conn = connect()
     conn.execute(
-        "INSERT INTO recommendations (created_at, status, severity, category, service, title, detail, dismissed_at) VALUES (?, 'active', ?, ?, ?, ?, ?, NULL)",
-        (now_iso(), severity, category, service, title, detail),
+        "INSERT INTO recommendations (created_at, updated_at, status, severity, category, service, title, detail, dismissed_at) VALUES (?, ?, 'active', ?, ?, ?, ?, ?, NULL)",
+        (now, now, severity, category, service, title, detail),
     )
     conn.commit()
     conn.close()
@@ -61,15 +72,26 @@ def list_recommendations(active_only=True, limit=100):
 
 
 def dismiss_recommendation(recommendation_id):
+    now = now_iso()
     conn = connect()
     cur = conn.execute(
-        "UPDATE recommendations SET status = 'dismissed', dismissed_at = ? WHERE id = ? AND status = 'active'",
-        (now_iso(), int(recommendation_id)),
+        "UPDATE recommendations SET status = 'dismissed', updated_at = ?, dismissed_at = ? WHERE id = ? AND status = 'active'",
+        (now, now, int(recommendation_id)),
     )
     conn.commit()
     changed = cur.rowcount
     conn.close()
     return changed > 0
+
+
+def resolve_recommendation(title, service):
+    conn = connect()
+    conn.execute(
+        "UPDATE recommendations SET status = 'resolved', updated_at = ? WHERE title = ? AND service IS ? AND status = 'active'",
+        (now_iso(), title, service),
+    )
+    conn.commit()
+    conn.close()
 
 
 def update_system_baseline(health):
@@ -87,17 +109,16 @@ def update_system_baseline(health):
         )
     else:
         sample_count = int(row["sample_count"]) + 1
-        previous = int(row["sample_count"])
         conn.execute(
             "UPDATE system_baselines SET sample_count = ?, avg_cpu_percent = ?, avg_memory_percent = ?, avg_swap_percent = ?, min_swap_percent = ?, max_swap_percent = ?, avg_disk_percent = ?, last_seen_at = ? WHERE id = 1",
             (
                 sample_count,
-                ((float(row["avg_cpu_percent"]) * previous) + cpu) / sample_count,
-                ((float(row["avg_memory_percent"]) * previous) + memory) / sample_count,
-                ((float(row["avg_swap_percent"]) * previous) + swap) / sample_count,
+                _bounded_step(row["avg_cpu_percent"], cpu),
+                _bounded_step(row["avg_memory_percent"], memory),
+                _bounded_step(row["avg_swap_percent"], swap),
                 min(float(row["min_swap_percent"]), swap),
                 max(float(row["max_swap_percent"]), swap),
-                ((float(row["avg_disk_percent"]) * previous) + disk) / sample_count,
+                _bounded_step(row["avg_disk_percent"], disk),
                 now,
             ),
         )
@@ -139,7 +160,7 @@ def update_service_baselines(containers):
 def recent_disk_trend():
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=6)).isoformat()
     rows = _rows("SELECT created_at, disk_percent FROM worker_checks WHERE created_at >= ? ORDER BY id ASC", (cutoff,))
-    if len(rows) < 3:
+    if len(rows) < config.BASELINE_MIN_SAMPLES:
         return None
     return float(rows[-1]["disk_percent"]) - float(rows[0]["disk_percent"])
 
@@ -147,6 +168,7 @@ def recent_disk_trend():
 def detect_anomalies(containers, health):
     system = _one("SELECT * FROM system_baselines WHERE id = 1")
     services = {row["service"]: row for row in _rows("SELECT * FROM service_baselines")}
+    system_ready = bool(system and int(system["sample_count"]) >= config.BASELINE_MIN_SAMPLES)
 
     for item in containers:
         name = item["name"]
@@ -157,6 +179,8 @@ def detect_anomalies(containers, health):
         if classification == "critical" and status != "running":
             add_observation("critical", "service", name, "Kritisk service stoppet", f"{name} har status {status}.")
             add_recommendation("critical", "service", name, "Undersøg kritisk service", f"{name} er kritisk og kører ikke. Jarvis auto-fixer ikke dette i v0.3.")
+        elif classification == "critical" and status == "running":
+            resolve_recommendation("Undersøg kritisk service", name)
 
         if classification == "unknown":
             add_observation("info", "service", name, "Ukendt container fundet", f"{name} er ikke klassificeret som critical, optional eller stopped-by-design.")
@@ -177,7 +201,7 @@ def detect_anomalies(containers, health):
             add_observation("warning", "service", name, "Optional service fejler gentagne gange", f"{name} har {recent_failures['total']} auto-start fejl i fejlvinduet.")
             add_recommendation("warning", "service", name, "Undersøg service før auto-start", f"{name} bør undersøges manuelt før den sættes på auto-start igen.")
 
-    if system and int(system["sample_count"]) >= config.BASELINE_MIN_SAMPLES:
+    if system_ready:
         ram_now = float(health["memory"]["percent"])
         swap_now = float(health["swap"]["percent"])
         ram_avg = float(system["avg_memory_percent"])
@@ -189,10 +213,10 @@ def detect_anomalies(containers, health):
             add_observation("warning", "system", "system", "Swap højere end normalt", f"Swap er {swap_now:.1f}%, baseline er {swap_avg:.1f}%.")
             add_recommendation("warning", "system", "system", "Swap er højere end normalt", "Overvej at undersøge RAM-forbrug og swap-pres. Jarvis ændrer ikke swap automatisk.")
 
-    disk_delta = recent_disk_trend()
-    if disk_delta is not None and disk_delta >= config.DISK_TREND_DELTA_PERCENT:
-        add_observation("warning", "system", "system", "Diskforbrug stiger", f"Diskforbrug er steget {disk_delta:.1f}% inden for seneste målinger.")
-        add_recommendation("warning", "system", "system", "Disk usage is trending upward", "Undersøg logs, downloads eller backupdata. Jarvis sletter intet automatisk.")
+        disk_delta = recent_disk_trend()
+        if disk_delta is not None and disk_delta >= config.DISK_TREND_DELTA_PERCENT:
+            add_observation("warning", "system", "system", "Diskforbrug stiger", f"Diskforbrug er steget {disk_delta:.1f}% inden for seneste målinger.")
+            add_recommendation("warning", "system", "system", "Disk usage is trending upward", "Undersøg logs, downloads eller backupdata. Jarvis sletter intet automatisk.")
 
 
 def learn_from_check(containers, health):
@@ -206,15 +230,18 @@ def brain_summary():
     services = _rows("SELECT * FROM service_baselines ORDER BY service ASC")
     observations = list_observations(25)
     recommendations = list_recommendations(True, 25)
+    samples = int(system["sample_count"]) if system else 0
     return {
         "learning": True,
+        "anomaly_detection_active": samples >= config.BASELINE_MIN_SAMPLES,
+        "minimum_samples_required": config.BASELINE_MIN_SAMPLES,
         "system_baseline": system,
         "service_baselines": services,
         "observations": observations,
         "recommendations": recommendations,
         "normal_behavior_summary": {
             "services_learned": len(services),
-            "system_samples": system["sample_count"] if system else 0,
+            "system_samples": samples,
             "active_recommendations": len(recommendations),
         },
     }
