@@ -1,8 +1,8 @@
-# Jarvis-os v0.3 + Asset Registry
+# Jarvis-os v0.3 + Policy Engine
 
-Jarvis-os is a local server assistant for Docker monitoring, system health, Event Engine, Asset Registry, safe self-healing and learning normal server behavior over time.
+Jarvis-os is a local server assistant for Docker monitoring, system health, Event Engine, Asset Registry, Policy Engine, safe self-healing and learning normal server behavior over time.
 
-Current branch: `feature/asset-registry`.
+Current branch: `feature/policy-engine`.
 
 ## Current status
 
@@ -10,13 +10,35 @@ Current branch: `feature/asset-registry`.
 - Mission Control UI runs on port `8088`
 - Event Engine remains enabled
 - Asset Registry persists observed assets in SQLite
+- Policy Engine evaluates events and stores explainable decisions
 - Docker containers are represented as assets like `docker:jellyfin`
 - System resources are represented as assets like `system:cpu`, `system:memory`, `system:swap`, `system:disk`
-- Jarvis Brain learns conservative baselines
-- Anomaly detection is observation-only
-- Recommendations are non-destructive
+- Recommendations and incidents are non-destructive
 - Auto-start remains disabled by default
 - Unknown Docker containers are discovered dynamically and stay visible until classified
+
+## Policy Engine
+
+Policies decide what Jarvis may do. Jarvis should not make decisions through scattered hardcoded logic.
+
+Each decision records:
+
+- What matched
+- Why it matched
+- What action was allowed
+- What action was denied
+- What rule caused the decision
+- Whether the decision was dry-run only
+
+The current Policy Engine can create incidents, recommendations, ignored decisions and denied decisions. It does not automatically restart containers.
+
+Default policies:
+
+- Unknown container discovered → recommend classification
+- Critical Docker container stopped → create critical incident and recommendation
+- Optional Docker container stopped → recommend manual restart
+- Stopped-by-design container stopped → ignore with explanation
+- qBittorrent dependency guard → deny future unsafe auto-start unless `docker:gluetun` is running
 
 ## Asset Registry
 
@@ -32,43 +54,15 @@ Examples:
 - `ha:light.kitchen`
 - `unifi:ap-livingroom`
 
-Each asset contains:
+Assets and relationships are persisted in SQLite and survive container restart through `/data/jarvis.db`.
 
-- `asset_id`
-- `asset_type`
-- `plugin`
-- `name`
-- `display_name`
-- `state`
-- `health`
-- `classification`
-- `protected`
-- `auto_actions_allowed`
-- `metadata`
-- `created_at`
-- `updated_at`
-
-Assets are persisted in SQLite and survive container restart through the existing `/data/jarvis.db` volume.
-
-## Relationship Engine
-
-Jarvis supports relationships between assets:
+Relationships supported:
 
 - `depends_on`
 - `contains`
 - `connected_to`
 - `managed_by`
 - `hosted_on`
-
-Examples:
-
-```text
-system:docker contains docker:jellyfin
-docker:qbittorrent depends_on docker:gluetun
-docker:jellyfin depends_on system:docker
-```
-
-Relationships are also persisted in SQLite and are designed for future plugins.
 
 ## Dynamic container discovery
 
@@ -86,50 +80,11 @@ Each container includes:
 
 Unknown containers are never auto-started.
 
-Examples such as `jellyseerr`, `qbittorrent`, `gluetun`, `bazarr` and other new services remain `unknown` unless they are configured in `.env` or saved through Mission Control classification.
-
-## Unknown container classification workflow
-
-Mission Control has an **Unknown containers** section near Docker status.
-
-For each unknown container, Jarvis shows:
-
-- Name
-- Docker state
-- Image
-- Recommended classification
-- Classification controls
-- Protected yes/no
-- Auto-start yes/no
-
-Available classifications:
-
-- `critical`
-- `optional`
-- `stopped_by_design`
-- `unknown`
-
-The UI saves classification through:
-
-```text
-POST /api/service-classifications/{service}
-```
-
-After saving, Mission Control refreshes and the container moves into the correct section. Keep `auto_start_allowed=false` until you have verified the service is safe to restart automatically.
-
 ## Safety model
 
 Jarvis-os is safety-first.
 
 Auto-start is disabled by default. A container must be explicitly added to `ALLOWED_AUTO_START_CONTAINERS` or saved with `auto_start_allowed=true` before Jarvis may auto-start it.
-
-It may auto-start stopped optional containers only when all of these are true:
-
-- `SAFE_MODE=true`
-- Container is classified as `optional`
-- Container is not protected
-- Container is explicitly allowed for auto-start
-- Container has fewer than 3 failed auto-start attempts inside 30 minutes
 
 Jarvis must never auto-start:
 
@@ -141,32 +96,7 @@ Jarvis must never auto-start:
 
 Jarvis does not delete files, delete containers, delete Docker volumes, prune Docker, change firewall rules, change DNS settings, change Docker volumes or run arbitrary shell commands.
 
-## Jarvis Brain memory
-
-Jarvis stores memory in SQLite under the existing Docker volume.
-
-Memory tables include:
-
-- `service_baselines`
-- `system_baselines`
-- `observations`
-- `recommendations`
-- `service_classifications`
-- `assets`
-- `asset_relationships`
-
-## Memory retention
-
-Jarvis safely cleans up only old rows from its own SQLite database tables. It never deletes files, Docker data, Docker volumes or external data.
-
-Default retention:
-
-```env
-OBSERVATIONS_RETENTION_DAYS=30
-WORKER_CHECKS_RETENTION_DAYS=30
-ACTION_LOG_RETENTION_DAYS=90
-RESOLVED_INCIDENTS_RETENTION_DAYS=90
-```
+AI may explain and suggest, but AI cannot execute actions directly and cannot bypass policies.
 
 ## Recommended install on Dennis' server
 
@@ -176,7 +106,7 @@ Use `/docker/jarvis` so it matches the rest of the server layout.
 cd /docker
 git clone https://github.com/stuetcl-sudo/Jarvis-os.git jarvis
 cd jarvis
-git checkout feature/asset-registry
+git checkout feature/policy-engine
 cp .env.example .env
 docker compose up -d --build
 ```
@@ -187,17 +117,11 @@ Open Mission Control:
 http://SERVER-IP:8088
 ```
 
-On the local LAN this may be:
-
-```text
-http://192.168.68.135:8088
-```
-
 ## Update commands
 
 ```bash
 cd /docker/jarvis
-git checkout feature/asset-registry
+git checkout feature/policy-engine
 git pull
 docker compose up -d --build
 ```
@@ -243,6 +167,29 @@ Core:
 - `GET /api/worker/status`
 - `POST /api/worker/run-once`
 
+Policy Engine:
+
+- `GET /api/policies`
+- `GET /api/policies/{policy_id}`
+- `POST /api/policies/{policy_id}/enable`
+- `POST /api/policies/{policy_id}/disable`
+- `GET /api/policy-decisions`
+- `GET /api/policy-decisions/latest`
+
+Asset Registry:
+
+- `GET /api/assets`
+- `GET /api/assets/{id}`
+- `GET /api/assets/search?q=...`
+- `GET /api/assets/relationships`
+
+Event Engine:
+
+- `GET /api/events`
+- `GET /api/events/latest`
+- `GET /api/events/types`
+- `GET /api/events/statistics`
+
 Brain and recommendations:
 
 - `GET /api/brain`
@@ -255,20 +202,6 @@ Classification:
 - `GET /api/service-classifications`
 - `POST /api/service-classifications/{service}`
 
-Event Engine:
-
-- `GET /api/events`
-- `GET /api/events/latest`
-- `GET /api/events/types`
-- `GET /api/events/statistics`
-
-Asset Registry:
-
-- `GET /api/assets`
-- `GET /api/assets/{id}`
-- `GET /api/assets/search?q=...`
-- `GET /api/assets/relationships`
-
 ## Validation
 
 Run:
@@ -277,7 +210,7 @@ Run:
 bash scripts/validate.sh
 ```
 
-The script validates the Dockerized app, starts the stack with Docker Compose, waits for readiness and checks endpoints plus live Docker and Asset Registry consistency.
+The script validates the Dockerized app, starts the stack with Docker Compose, waits for readiness and checks endpoint health plus Docker, Event Engine, Asset Registry and Policy Engine regressions.
 
 It does not require Python dependencies on the Ubuntu host.
 
@@ -289,11 +222,12 @@ See:
 docs/ARCHITECTURE.md
 docs/EVENT_ENGINE.md
 docs/ASSET_REGISTRY.md
+docs/POLICY_ENGINE.md
 ```
 
 ## Future compatibility
 
-The Asset Registry is designed so future integrations can register assets without changing the core:
+The Policy Engine is designed so future integrations can publish events and register assets without changing the core:
 
 - Home Assistant
 - UniFi
