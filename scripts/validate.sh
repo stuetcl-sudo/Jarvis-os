@@ -26,19 +26,25 @@ else
   echo "WARNING: no host Python found; endpoint checks continue."
 fi
 
-echo "[1/7] Checking Docker"
+echo "[1/8] Running privacy check"
+bash scripts/privacy_check.sh || {
+  echo "ERROR: privacy check failed."
+  exit 1
+}
+
+echo "[2/8] Checking Docker"
 command -v docker >/dev/null 2>&1 || fail "docker was not found."
 docker compose version >/dev/null 2>&1 || fail "docker compose was not found."
 docker --version
 docker compose version
 
-echo "[2/7] Checking Docker Compose config"
+echo "[3/8] Checking Docker Compose config"
 docker compose config >/dev/null || fail "docker compose config failed."
 
-echo "[3/7] Building and starting stack"
+echo "[4/8] Building and starting stack"
 docker compose up -d --build || fail "docker compose up -d --build failed."
 
-echo "[4/7] Waiting for Jarvis-os at ${APP_URL}"
+echo "[5/8] Waiting for Jarvis-os at ${APP_URL}"
 start_time=$(date +%s)
 while true; do
   if curl -fsS --max-time 3 "${APP_URL}/api/health" >/dev/null 2>&1; then
@@ -49,7 +55,7 @@ while true; do
   sleep 2
 done
 
-echo "[5/7] Checking API endpoints"
+echo "[6/8] Checking API endpoints"
 for endpoint in "${ENDPOINTS[@]}"; do
   url="${APP_URL}${endpoint}"
   code=$(curl -sS -o /tmp/jarvis-validate-response.txt -w "%{http_code}" --max-time 10 "$url" || true)
@@ -61,7 +67,7 @@ for endpoint in "${ENDPOINTS[@]}"; do
   echo "OK: ${endpoint} returned HTTP 200"
 done
 
-echo "[6/7] Reading live Docker, asset, event, policy, and action snapshots"
+echo "[7/8] Reading live Docker, asset, event, policy, and action snapshots"
 curl -fsS --max-time 10 "${APP_URL}/api/containers" -o /tmp/jarvis-containers.json || fail "Could not read /api/containers"
 curl -fsS --max-time 10 "${APP_URL}/api/mission" -o /tmp/jarvis-mission.json || fail "Could not read /api/mission"
 curl -fsS --max-time 10 "${APP_URL}/api/assets" -o /tmp/jarvis-assets.json || fail "Could not read /api/assets"
@@ -70,7 +76,7 @@ curl -fsS --max-time 10 "${APP_URL}/api/policies" -o /tmp/jarvis-policies.json |
 curl -fsS --max-time 10 "${APP_URL}/api/policy-decisions/latest" -o /tmp/jarvis-policy-decisions.json || fail "Could not read /api/policy-decisions/latest"
 curl -fsS --max-time 10 "${APP_URL}/api/actions" -o /tmp/jarvis-actions.json || fail "Could not read /api/actions"
 
-echo "[7/7] Checking live Docker, Asset Registry, Event Engine, Policy Engine, and Action Engine consistency"
+echo "[8/8] Checking live Docker, Asset Registry, Event Engine, Policy Engine, and Action Engine consistency"
 if [ -n "$PYTHON_BIN" ]; then
   "$PYTHON_BIN" - <<'PY'
 import json
@@ -79,7 +85,6 @@ containers_response = json.loads(Path('/tmp/jarvis-containers.json').read_text()
 containers = containers_response['containers']
 mission = json.loads(Path('/tmp/jarvis-mission.json').read_text())
 assets = json.loads(Path('/tmp/jarvis-assets.json').read_text())['assets']
-events = json.loads(Path('/tmp/jarvis-events.json').read_text())['events']
 policies = json.loads(Path('/tmp/jarvis-policies.json').read_text())['policies']
 decisions = json.loads(Path('/tmp/jarvis-policy-decisions.json').read_text())['decisions']
 actions = json.loads(Path('/tmp/jarvis-actions.json').read_text())['actions']
