@@ -27,8 +27,9 @@ class PluginBase(ABC):
     def on_event(self, event: Event) -> None:
         pass
 
-    def publish(self, event_type: str, severity: str = "info", service: str | None = None, payload: dict[str, Any] | None = None) -> Event:
-        return publish_event(self.name, event_type, severity, service, payload or {})
+    def publish(self, event_type: str, severity: str = "info", service: str | None = None, payload: dict[str, Any] | None = None, asset_id: str | None = None) -> Event:
+        payload = payload or {}
+        return publish_event(self.name, event_type, severity, service, payload, asset_id=asset_id)
 
     def collect(self) -> dict[str, Any]:
         return {}
