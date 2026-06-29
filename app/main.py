@@ -27,6 +27,7 @@ from app.events.bus import event_bus
 from app.events.dispatcher import publish
 from app.events.types import EventTypes
 from app.health import get_health
+from app.policies.engine import policy_engine
 from app.safety import can_restart_container
 from app.worker import run_check_once, worker_loop, worker_status
 
@@ -61,7 +62,9 @@ async def startup():
     init_db()
     initialize_asset_tables()
     initialize_relationship_tables()
+    policy_engine.initialize()
     event_bus.subscribe("*", store_event)
+    event_bus.subscribe("*", policy_engine.on_event)
     log_action("startup", "jarvis-os", "ok", f"Jarvis-os v{config.VERSION} startet")
     publish("core", "Core.Started", "info", "jarvis-os", {"version": config.VERSION}, asset_id="jarvis-os")
     if config.WORKER_ENABLED:
@@ -170,12 +173,7 @@ def service_classifications():
 @app.post("/api/service-classifications/{service}")
 def set_service_classification(service: str, payload: ServiceClassificationPayload):
     try:
-        saved = upsert_service_classification(
-            service,
-            payload.classification,
-            payload.protected,
-            payload.auto_start_allowed,
-        )
+        saved = upsert_service_classification(service, payload.classification, payload.protected, payload.auto_start_allowed)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     log_action("classify_service", service, "ok", f"{saved['classification']}, protected={saved['protected']}, auto_start_allowed={saved['auto_start_allowed']}")
@@ -207,6 +205,45 @@ def asset_detail(asset_id: str):
     events_for_asset = [e for e in list_events(250) if e.get("asset_id") == asset_id or e.get("service") == asset_id or e.get("payload", {}).get("asset_id") == asset_id]
     recs = [r for r in list_recommendations(False, 250) if r.get("service") in {asset_id, asset.get("name")}]
     return {"asset": asset, "relationships": related, "events": events_for_asset[:50], "recommendations": recs[:50]}
+
+
+@app.get("/api/policies")
+def policies():
+    return {"policies": policy_engine.list_policies()}
+
+
+@app.get("/api/policies/{policy_id:path}")
+def policy_detail(policy_id: str):
+    policy = policy_engine.get_policy(policy_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    return {"policy": policy}
+
+
+@app.post("/api/policies/{policy_id:path}/enable")
+def policy_enable(policy_id: str):
+    policy = policy_engine.set_enabled(policy_id, True)
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    return {"policy": policy}
+
+
+@app.post("/api/policies/{policy_id:path}/disable")
+def policy_disable(policy_id: str):
+    policy = policy_engine.set_enabled(policy_id, False)
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    return {"policy": policy}
+
+
+@app.get("/api/policy-decisions")
+def policy_decisions(limit: int = 100):
+    return {"decisions": policy_engine.list_decisions(limit)}
+
+
+@app.get("/api/policy-decisions/latest")
+def latest_policy_decisions(limit: int = 25):
+    return {"decisions": policy_engine.list_decisions(limit)}
 
 
 @app.get("/api/events")
@@ -249,6 +286,7 @@ def mission():
     overall = "critical" if any(i["severity"] == "critical" for i in active_incidents) else "warning" if active_incidents or health_data["warnings"] else "ok"
     current_worker = worker_status()
     assets_list = asset_registry.list_assets(limit=1000)
+    decisions = policy_engine.list_decisions(10)
 
     return {
         "app": config.APP_NAME,
@@ -264,6 +302,7 @@ def mission():
         "docker": {"total": len(items), "running": running_count, "stopped": stopped_count, "docker_read_at": docker_read_at(items)},
         "assets": assets_list,
         "asset_summary": asset_summary(assets_list),
+        "policies": {"total": len(policy_engine.list_policies()), "latest_decisions": decisions},
         "health": health_data,
         "latest_action": actions[0] if actions else None,
         "active_incidents": active_incidents,
