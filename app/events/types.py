@@ -8,6 +8,7 @@ class EventTypes:
     HIGH_SWAP = "System.HighSwap"
     HIGH_DISK = "System.HighDisk"
     DOCKER_COLLECTED = "Docker.Collected"
+    CONTAINER_DISCOVERED = "Docker.ContainerDiscovered"
     CONTAINER_STOPPED = "Docker.ContainerStopped"
     CONTAINER_STARTED = "Docker.ContainerStarted"
     CONTAINER_UNKNOWN = "Docker.ContainerUnknown"
