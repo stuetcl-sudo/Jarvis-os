@@ -38,14 +38,12 @@ def _policy_decision_allows(action: dict, asset: dict) -> tuple[bool, str]:
 
 
 def _dependency_guards_pass(action: dict, asset: dict) -> tuple[bool, str]:
-    if action.get("asset_id") == "docker:qbittorrent":
-        gluetun = asset_registry.get_asset("docker:gluetun")
-        if not gluetun or gluetun.get("state") != "running":
-            return False, "Dependency guard denied action: docker:gluetun must be running before qBittorrent can be started."
     for rel in list_relationships(asset_id=action.get("asset_id"), relationship_type="depends_on"):
-        target = asset_registry.get_asset(rel.get("target_asset_id"))
-        if rel.get("target_asset_id") == "docker:gluetun" and (not target or target.get("state") != "running"):
-            return False, "Dependency guard denied action: docker:gluetun must be running."
+        target_id = rel.get("target_asset_id")
+        target = asset_registry.get_asset(target_id)
+        required_state = rel.get("metadata", {}).get("required_state", "running") if isinstance(rel.get("metadata"), dict) else "running"
+        if not target or target.get("state") != required_state:
+            return False, f"Dependency guard denied action: {target_id} must be {required_state}."
     return True, "Dependency guards passed."
 
 
