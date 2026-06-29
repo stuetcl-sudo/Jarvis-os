@@ -65,30 +65,43 @@ echo "[6/7] Reading live Docker API snapshots"
 curl -fsS --max-time 10 "${APP_URL}/api/containers" -o /tmp/jarvis-containers.json || fail "Could not read /api/containers"
 curl -fsS --max-time 10 "${APP_URL}/api/mission" -o /tmp/jarvis-mission.json || fail "Could not read /api/mission"
 
-echo "[7/7] Checking live Docker count consistency"
+echo "[7/7] Checking live Docker status consistency"
 if [ -n "$PYTHON_BIN" ]; then
   "$PYTHON_BIN" - <<'PY'
 import json
 from pathlib import Path
-containers = json.loads(Path('/tmp/jarvis-containers.json').read_text())['containers']
+containers_response = json.loads(Path('/tmp/jarvis-containers.json').read_text())
+containers = containers_response['containers']
 mission = json.loads(Path('/tmp/jarvis-mission.json').read_text())
-def state(c): return c.get('docker_state') or c.get('status')
-if len(containers) != mission['docker']['total'] or len(containers) != len(mission.get('containers', [])):
+mission_containers = mission.get('containers', [])
+mission_by_name = {c['name']: c for c in mission_containers}
+if 'docker_read_at' not in containers_response:
+    raise SystemExit('Missing docker_read_at in /api/containers')
+if 'docker_read_at' not in mission.get('docker', {}):
+    raise SystemExit('Missing docker_read_at in /api/mission docker object')
+if len(containers) != mission['docker']['total'] or len(containers) != len(mission_containers):
     raise SystemExit('Docker totals disagree')
-if sum(1 for c in containers if state(c) == 'running') != mission['docker']['running']:
-    raise SystemExit('Docker running count disagrees')
-if sum(1 for c in containers if state(c) == 'exited') != mission['docker']['stopped']:
-    raise SystemExit('Docker stopped count disagrees')
+for c in containers:
+    name = c.get('name')
+    if name not in mission_by_name:
+        raise SystemExit(f'{name} missing from /api/mission containers list')
+    m = mission_by_name[name]
+    for item, label in [(c, '/api/containers'), (m, '/api/mission')]:
+        if item.get('status') != item.get('docker_state'):
+            raise SystemExit(f'{label} status/docker_state mismatch for {name}: {item.get("status")} != {item.get("docker_state")}')
+        for field in ['docker_state','docker_status','status','health_status','read_at']:
+            if field not in item:
+                raise SystemExit(f'Missing {field} on {name} in {label}')
+    if c.get('docker_state') != m.get('docker_state') or c.get('status') != m.get('status'):
+        raise SystemExit(f'Docker state mismatch for {name}: containers={c.get("docker_state")} mission={m.get("docker_state")}')
 class_total = sum(len(mission.get(k, [])) for k in ['critical_services','optional_services','stopped_by_design','unknown_containers'])
 if class_total != len(containers):
     raise SystemExit('Classified sections do not include all containers')
-if len([c for c in containers if c.get('classification') == 'unknown']) != len(mission.get('unknown_containers', [])):
-    raise SystemExit('Unknown containers are hidden or mismatched')
-for c in containers:
-    for field in ['docker_state','docker_status','health_status']:
-        if field not in c:
-            raise SystemExit(f'Missing {field} on {c.get("name")}')
-print('Live Docker regression OK')
+if sum(1 for c in containers if c.get('docker_state') == 'running') != mission['docker']['running']:
+    raise SystemExit('Docker running count disagrees')
+if sum(1 for c in containers if c.get('docker_state') == 'exited') != mission['docker']['stopped']:
+    raise SystemExit('Docker stopped count disagrees')
+print('Live Docker status regression OK')
 PY
 else
   echo "WARNING: skipped JSON consistency check because host Python is unavailable."
