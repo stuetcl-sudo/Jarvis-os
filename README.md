@@ -2,22 +2,17 @@
 
 Jarvis-os is a local server assistant for Docker monitoring, system health, safe self-healing and learning normal server behavior over time.
 
-v0.3 adds Jarvis Brain: persistent memory, simple baselines, anomaly observations and non-destructive recommendations.
+Current status: v0.3 is stabilized and prepared for a future v0.4 plugin architecture. No new major automation features are enabled.
 
-## v0.3 features
+## v0.3 status
 
-- Background worker every 60 seconds
-- Mission Control UI on port `8088`
-- Jarvis Brain UI section
-- Docker container monitoring
-- Host health checks: CPU, RAM, swap and root disk
-- Service classification: critical, optional, unknown and stopped-by-design
-- SQLite action log
-- SQLite incidents table
-- SQLite memory tables
-- Baseline learning for normal system behavior
-- Observations and recommendations
-- Safe optional container auto-start remains disabled by default
+- Background worker runs every 60 seconds
+- Mission Control UI runs on port `8088`
+- Jarvis Brain learns conservative baselines
+- Anomaly detection is observation-only
+- Recommendations are non-destructive
+- Auto-start remains disabled by default
+- Validation tests the Dockerized app, not host Python dependencies
 
 ## Jarvis Brain memory
 
@@ -30,7 +25,27 @@ Memory tables:
 - `observations`
 - `recommendations`
 
-## Baselines
+## Memory retention
+
+Jarvis safely cleans up only old rows from its own SQLite database tables. It never deletes files, Docker data, Docker volumes or external data.
+
+Default retention:
+
+- Observations: 30 days
+- Worker checks: 30 days
+- Action log: 90 days
+- Resolved incidents: 90 days
+
+Settings:
+
+```env
+OBSERVATIONS_RETENTION_DAYS=30
+WORKER_CHECKS_RETENTION_DAYS=30
+ACTION_LOG_RETENTION_DAYS=90
+RESOLVED_INCIDENTS_RETENTION_DAYS=90
+```
+
+## Baseline learning
 
 During each worker check, Jarvis stores and updates:
 
@@ -42,9 +57,18 @@ During each worker check, Jarvis stores and updates:
 - Service classification
 - Normal running/stopped state per service
 
-The baseline is simple and transparent. It uses running averages and status counts, not a black-box model.
+Baseline updates are conservative. One spike is limited by `BASELINE_MAX_STEP_PERCENT` and should not move the baseline too much.
 
-## Anomaly detection
+Anomaly detection does not become active until the minimum sample count is reached.
+
+Default:
+
+```env
+BASELINE_MIN_SAMPLES=20
+BASELINE_MAX_STEP_PERCENT=2
+```
+
+## Anomaly detection limits
 
 Jarvis v0.3 detects and records observations for:
 
@@ -58,7 +82,15 @@ Jarvis v0.3 detects and records observations for:
 
 Jarvis does not auto-fix anomalies in v0.3. It only logs observations and creates recommendations.
 
-## Recommendation examples
+## Recommendations
+
+Recommendations have lifecycle status:
+
+- `active`
+- `dismissed`
+- `resolved`
+
+Active duplicate recommendations for the same service and title are avoided. Dismissing a recommendation only marks it as dismissed. It does not delete anything.
 
 Examples Jarvis may create:
 
@@ -66,8 +98,6 @@ Examples Jarvis may create:
 - `Disk usage is trending upward`
 - `This service is usually stopped`
 - `This container is unknown; classify it?`
-
-Recommendations can be dismissed from the UI or API. Dismissing only changes recommendation status; it does not change Docker, files, firewall, DNS or volumes.
 
 ## Safety model
 
@@ -91,6 +121,16 @@ Jarvis must never auto-start:
 Jarvis does not contain destructive actions. It does not delete files, delete containers, delete Docker volumes, prune Docker, change firewall rules, change DNS settings, change Docker volumes or run arbitrary shell commands.
 
 Allowed and failed automated actions are logged. Repeated denied or skipped auto-start decisions are rate-limited to at most once per hour per container and reason.
+
+## Plugin architecture direction
+
+v0.3 prepares a read-only plugin structure for v0.4:
+
+- `app/plugins/base.py`
+- `app/plugins/docker_plugin.py`
+- `app/plugins/system_plugin.py`
+
+The current plugins are structure only. Existing behavior still uses the current Docker and system modules.
 
 ## Default service classes
 
@@ -182,10 +222,15 @@ IGNORED_SERVICES=
 ALLOWED_AUTO_START_CONTAINERS=
 AUTO_START_FAILURE_LIMIT=3
 AUTO_START_FAILURE_WINDOW_MINUTES=30
-BASELINE_MIN_SAMPLES=3
+BASELINE_MIN_SAMPLES=20
+BASELINE_MAX_STEP_PERCENT=2
 ANOMALY_RAM_DELTA_PERCENT=20
 ANOMALY_SWAP_DELTA_PERCENT=20
 DISK_TREND_DELTA_PERCENT=2
+OBSERVATIONS_RETENTION_DAYS=30
+WORKER_CHECKS_RETENTION_DAYS=30
+ACTION_LOG_RETENTION_DAYS=90
+RESOLVED_INCIDENTS_RETENTION_DAYS=90
 DB_PATH=/data/jarvis.db
 ```
 
@@ -228,8 +273,25 @@ Run:
 bash scripts/validate.sh
 ```
 
-The script validates the Dockerized app, starts the stack with Docker Compose, waits for readiness and checks all required API endpoints including Jarvis Brain.
+The script validates the Dockerized app, starts the stack with Docker Compose, waits for readiness and checks:
+
+- `/api/health`
+- `/api/mission`
+- `/api/worker/status`
+- `/api/brain`
+- `/api/observations`
+- `/api/recommendations`
+
+It does not require Python dependencies on the Ubuntu host.
+
+## Architecture docs
+
+See:
+
+```text
+docs/ARCHITECTURE.md
+```
 
 ## Status
 
-This is v0.3 foundation code for a learning local assistant. It is intentionally conservative and does not include broad autonomous control.
+This is stabilized v0.3 foundation code for a learning local assistant. It is intentionally conservative and does not include broad autonomous control.
