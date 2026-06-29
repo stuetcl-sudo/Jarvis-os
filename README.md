@@ -12,7 +12,7 @@ Current branch: `feature/action-engine`.
 - Asset Registry persists observed assets in SQLite
 - Policy Engine evaluates events and stores explainable decisions
 - Action Engine stores queued, approved, denied, completed and failed actions
-- Docker containers are represented as assets like `docker:jellyfin`
+- Docker containers are represented as assets such as `docker:example-app`
 - Recommendations and incidents are non-destructive
 - Auto-start remains disabled by default
 - Unknown Docker containers are discovered dynamically and stay visible until classified
@@ -20,8 +20,6 @@ Current branch: `feature/action-engine`.
 ## Action Engine
 
 Actions are separate from policies. Policies may recommend or queue actions, but they do not execute them.
-
-Flow:
 
 ```text
 Policy Decision
@@ -66,15 +64,7 @@ No stop, delete, prune, exec, compose or shell actions exist.
 
 Mission Control shows an Action Queue section.
 
-A stopped optional Docker asset shows **Request restart**.
-
-That button queues:
-
-```text
-docker.start_container
-```
-
-The user must then approve and run the action. Safety checks run immediately before execution. After execution, Jarvis verifies live Docker state and stores the result and explanation.
+A stopped optional Docker asset shows **Request restart**. The user must approve and run the queued action. Safety checks run immediately before execution. After execution, Jarvis verifies live Docker state and stores the result and explanation.
 
 ## Policy Engine
 
@@ -82,25 +72,25 @@ Policies decide what Jarvis may consider.
 
 Default policies:
 
-- Unknown container discovered → recommend classification
-- Critical Docker container stopped → create critical incident and recommendation
-- Optional Docker container stopped → recommend restart and queue a waiting-approval action
-- Stopped-by-design container stopped → ignore with explanation
-- qBittorrent dependency guard → deny future unsafe auto-start unless `docker:gluetun` is running
+- Unknown asset discovered → recommend classification
+- Critical Docker asset stopped → create critical incident and recommendation
+- Optional Docker asset stopped → recommend restart and queue a waiting-approval action
+- Stopped-by-design asset stopped → ignore with explanation
+
+Service-specific dependency guards are supported through Asset Registry relationships and policy configuration examples, but they are not enabled as universal defaults.
 
 ## Asset Registry
 
 An Asset is anything Jarvis can observe, reason about, show in Mission Control or eventually manage through explicit safe policies.
 
-Examples:
+Generic examples:
 
-- `docker:jellyfin`
-- `docker:adguardhome`
+- `docker:example-app`
+- `docker:database`
+- `docker:reverse-proxy`
 - `system:cpu`
 - `system:memory`
 - `system:disk`
-- `ha:light.kitchen`
-- `unifi:ap-livingroom`
 
 Assets and relationships are persisted in SQLite and survive container restart through `/data/jarvis.db`.
 
@@ -117,21 +107,17 @@ Jarvis-os is safety-first.
 Jarvis must never auto-start:
 
 - Unknown containers
-- `gluetun`
-- `qbittorrent` unless `gluetun` is running
 - Protected containers
 - Stopped-by-design containers
+- Any asset whose dependency guards fail
 
 Jarvis does not delete files, delete containers, delete Docker volumes, prune Docker, change firewall rules, change DNS settings, change Docker volumes or run arbitrary shell commands.
 
 AI may explain and suggest, but AI cannot execute actions directly and cannot bypass policies, approvals or Action Engine safety checks.
 
-## Recommended install on Dennis' server
-
-Use `/docker/jarvis` so it matches the rest of the server layout.
+## Recommended Docker installation
 
 ```bash
-cd /docker
 git clone https://github.com/stuetcl-sudo/Jarvis-os.git jarvis
 cd jarvis
 git checkout feature/action-engine
@@ -139,16 +125,18 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Open Mission Control:
+Open Mission Control on the trusted host or trusted private network:
 
 ```text
-http://SERVER-IP:8088
+http://localhost:8088
 ```
+
+Do not expose port `8088` directly to the public internet.
 
 ## Update commands
 
 ```bash
-cd /docker/jarvis
+cd jarvis
 git checkout feature/action-engine
 git pull
 docker compose up -d --build
@@ -156,16 +144,16 @@ docker compose up -d --build
 
 ## Configuration
 
-Important `.env` values:
+Safe generic `.env` defaults:
 
 ```env
 SAFE_MODE=true
 ALLOW_RESTART_STOPPED=true
 WORKER_ENABLED=true
 WORKER_INTERVAL_SECONDS=60
-CRITICAL_SERVICES=jarvis-os,adguardhome,caddy,homeassistant
-PROTECTED_CONTAINERS=jarvis-os,adguardhome,caddy,gluetun
-OPTIONAL_SERVICES=sonarr,radarr,readarr,prowlarr,jellyfin,filebrowser,glances
+CRITICAL_SERVICES=jarvis-os
+PROTECTED_CONTAINERS=jarvis-os
+OPTIONAL_SERVICES=
 IGNORED_SERVICES=
 ALLOWED_AUTO_START_CONTAINERS=
 AUTO_START_FAILURE_LIMIT=3
@@ -181,6 +169,8 @@ ACTION_LOG_RETENTION_DAYS=90
 RESOLVED_INCIDENTS_RETENTION_DAYS=90
 DB_PATH=/data/jarvis.db
 ```
+
+Configure your own critical, protected, optional and stopped-by-design services locally in `.env` or through Mission Control classification.
 
 ## API
 
@@ -246,12 +236,11 @@ Classification:
 Run:
 
 ```bash
+bash scripts/privacy_check.sh
 bash scripts/validate.sh
 ```
 
-The script validates the Dockerized app, starts the stack with Docker Compose, waits for readiness and checks endpoint health plus Docker, Event Engine, Asset Registry, Policy Engine and Action Engine regressions.
-
-It does not require Python dependencies on the Ubuntu host.
+The validation script checks endpoint health plus Docker, Event Engine, Asset Registry, Policy Engine and Action Engine regressions. The privacy check scans tracked Git files only.
 
 ## Architecture docs
 
@@ -263,17 +252,18 @@ docs/EVENT_ENGINE.md
 docs/ASSET_REGISTRY.md
 docs/POLICY_ENGINE.md
 docs/ACTION_ENGINE.md
+SECURITY.md
 ```
 
 ## Future compatibility
 
 Future integrations can publish events, register assets, evaluate policies and queue safe actions without changing the core:
 
-- Home Assistant
-- UniFi
-- AdGuard
-- UPS
-- Tailscale
-- Calendar
-- Notifications
+- Home Assistant integrations
+- Network-controller integrations
+- DNS-filter integrations
+- UPS integrations
+- Private-network integrations
+- Calendar integrations
+- Notification integrations
 - LLM reasoning
