@@ -34,7 +34,7 @@ def env_csv(name):
 
 
 APP_NAME = os.getenv("APP_NAME", "Jarvis-os")
-VERSION = "0.3.1"
+VERSION = "0.7.0"
 SAFE_MODE = env_bool("SAFE_MODE", True)
 ALLOW_RESTART_STOPPED = env_bool("ALLOW_RESTART_STOPPED", True)
 WORKER_ENABLED = env_bool("WORKER_ENABLED", True)
@@ -43,9 +43,9 @@ AUTO_START_FAILURE_LIMIT = env_int("AUTO_START_FAILURE_LIMIT", 3)
 AUTO_START_FAILURE_WINDOW_MINUTES = env_int("AUTO_START_FAILURE_WINDOW_MINUTES", 30)
 DB_PATH = os.getenv("DB_PATH", "/data/jarvis.db")
 
-CRITICAL_SERVICES = env_csv("CRITICAL_SERVICES") or {"jarvis-os", "adguardhome", "caddy", "homeassistant"}
-PROTECTED_CONTAINERS = env_csv("PROTECTED_CONTAINERS") or {"jarvis-os", "adguardhome", "caddy", "gluetun"}
-OPTIONAL_SERVICES = env_csv("OPTIONAL_SERVICES") or {"sonarr", "radarr", "readarr", "prowlarr", "jellyfin", "filebrowser", "glances"}
+CRITICAL_SERVICES = env_csv("CRITICAL_SERVICES") or {"jarvis-os"}
+PROTECTED_CONTAINERS = env_csv("PROTECTED_CONTAINERS") or {"jarvis-os"}
+OPTIONAL_SERVICES = env_csv("OPTIONAL_SERVICES")
 IGNORED_SERVICES = env_csv("IGNORED_SERVICES")
 ALLOWED_RESTART_CONTAINERS = env_csv("ALLOWED_RESTART_CONTAINERS")
 ALLOWED_AUTO_START_CONTAINERS = env_csv("ALLOWED_AUTO_START_CONTAINERS")
