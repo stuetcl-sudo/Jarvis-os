@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -102,6 +103,18 @@ CREATE TABLE IF NOT EXISTS recommendations (
 )
 """
 
+EVENT_SCHEMA = """
+CREATE TABLE IF NOT EXISTS events (
+    id TEXT PRIMARY KEY,
+    timestamp TEXT NOT NULL,
+    source TEXT NOT NULL,
+    type TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    service TEXT,
+    payload TEXT NOT NULL
+)
+"""
+
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -135,10 +148,68 @@ def init_db():
     conn.execute(SYSTEM_BASELINE_SCHEMA)
     conn.execute(OBSERVATION_SCHEMA)
     conn.execute(RECOMMENDATION_SCHEMA)
+    conn.execute(EVENT_SCHEMA)
     _ensure_column(conn, "recommendations", "updated_at", "TEXT")
     conn.execute("UPDATE recommendations SET updated_at = created_at WHERE updated_at IS NULL OR updated_at = ''")
     conn.commit()
     conn.close()
+
+
+def store_event(event):
+    data = event.to_dict() if hasattr(event, "to_dict") else dict(event)
+    conn = connect()
+    conn.execute(
+        "INSERT OR IGNORE INTO events (id, timestamp, source, type, severity, service, payload) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            data["id"],
+            data["timestamp"],
+            data["source"],
+            data["type"],
+            data["severity"],
+            data.get("service"),
+            json.dumps(data.get("payload", {}), sort_keys=True),
+        ),
+    )
+    conn.execute("DELETE FROM events WHERE id NOT IN (SELECT id FROM events ORDER BY timestamp DESC LIMIT 10000)")
+    conn.commit()
+    conn.close()
+
+
+def list_events(limit=100):
+    safe_limit = max(1, min(int(limit), 1000))
+    conn = connect()
+    rows = conn.execute("SELECT * FROM events ORDER BY timestamp DESC LIMIT ?", (safe_limit,)).fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        item = dict(row)
+        try:
+            item["payload"] = json.loads(item.get("payload") or "{}")
+        except json.JSONDecodeError:
+            item["payload"] = {}
+        result.append(item)
+    return result
+
+
+def event_types():
+    conn = connect()
+    rows = conn.execute("SELECT type, COUNT(*) AS count FROM events GROUP BY type ORDER BY type ASC").fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def event_statistics():
+    conn = connect()
+    total = conn.execute("SELECT COUNT(*) AS total FROM events").fetchone()
+    severities = conn.execute("SELECT severity, COUNT(*) AS count FROM events GROUP BY severity ORDER BY severity ASC").fetchall()
+    sources = conn.execute("SELECT source, COUNT(*) AS count FROM events GROUP BY source ORDER BY source ASC").fetchall()
+    conn.close()
+    return {
+        "total": int(total["total"] if total else 0),
+        "by_severity": [dict(row) for row in severities],
+        "by_source": [dict(row) for row in sources],
+        "max_events": 10000,
+    }
 
 
 def safe_cleanup_old_rows():
