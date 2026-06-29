@@ -60,6 +60,10 @@ class DockerPlugin(PluginBase):
             )
         )
 
+    def register_configured_dependencies(self):
+        for source_asset_id, target_asset_id in config.ASSET_DEPENDENCIES:
+            add_relationship(source_asset_id, RelationshipTypes.DEPENDS_ON, target_asset_id)
+
     def register_container_asset(self, item):
         asset_id = f"docker:{item['name']}"
         item["asset_id"] = asset_id
@@ -85,10 +89,6 @@ class DockerPlugin(PluginBase):
             )
         )
         add_relationship(DOCKER_HOST_ASSET_ID, RelationshipTypes.CONTAINS, asset_id)
-        if item["name"].lower() == "qbittorrent":
-            add_relationship(asset_id, RelationshipTypes.DEPENDS_ON, "docker:gluetun")
-        if item["name"].lower() == "jellyfin":
-            add_relationship(asset_id, RelationshipTypes.DEPENDS_ON, "system:docker")
 
     def list_containers(self):
         items = []
@@ -96,6 +96,7 @@ class DockerPlugin(PluginBase):
         try:
             api_client = self.client()
             self.register_docker_host_asset()
+            self.register_configured_dependencies()
             for container in api_client.containers.list(all=True):
                 container.reload()
                 inspected = api_client.api.inspect_container(container.id)
@@ -145,7 +146,7 @@ class DockerPlugin(PluginBase):
         try:
             container = self.client().containers.get(name)
             container.start()
-            self.publish(EventTypes.CONTAINER_STARTED, "info", f"docker:{name}", {"asset_id": f"docker:{name}", "reason": "manual_or_safe_auto_start"})
+            self.publish(EventTypes.CONTAINER_STARTED, "info", f"docker:{name}", {"asset_id": f"docker:{name}", "reason": "manual_or_safe_start"})
             return True, "Container started."
         except NotFound:
             return False, "Container not found."
