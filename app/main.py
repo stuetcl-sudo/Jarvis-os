@@ -1,4 +1,5 @@
 import asyncio
+from collections import Counter
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -47,6 +48,14 @@ def docker_read_at(items):
     return items[0].get("read_at") if items else None
 
 
+def asset_summary(assets):
+    return {
+        "total": len(assets),
+        "by_plugin": dict(Counter(a.get("plugin", "unknown") for a in assets)),
+        "by_type": dict(Counter(a.get("asset_type", "unknown") for a in assets)),
+    }
+
+
 @app.on_event("startup")
 async def startup():
     init_db()
@@ -54,7 +63,7 @@ async def startup():
     initialize_relationship_tables()
     event_bus.subscribe("*", store_event)
     log_action("startup", "jarvis-os", "ok", f"Jarvis-os v{config.VERSION} startet")
-    publish("core", "Core.Started", "info", "jarvis-os", {"version": config.VERSION})
+    publish("core", "Core.Started", "info", "jarvis-os", {"version": config.VERSION}, asset_id="jarvis-os")
     if config.WORKER_ENABLED:
         asyncio.create_task(worker_loop())
 
@@ -170,7 +179,7 @@ def set_service_classification(service: str, payload: ServiceClassificationPaylo
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     log_action("classify_service", service, "ok", f"{saved['classification']}, protected={saved['protected']}, auto_start_allowed={saved['auto_start_allowed']}")
-    publish("core", "Service.Classified", "info", f"docker:{service}", {"asset_id": f"docker:{service}", **saved})
+    publish("core", "Service.Classified", "info", f"docker:{service}", {"asset_id": f"docker:{service}", **saved}, asset_id=f"docker:{service}")
     return {"service_classification": saved}
 
 
@@ -195,7 +204,7 @@ def asset_detail(asset_id: str):
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     related = list_relationships(asset_id=asset_id)
-    events_for_asset = [e for e in list_events(250) if e.get("service") == asset_id or e.get("payload", {}).get("asset_id") == asset_id]
+    events_for_asset = [e for e in list_events(250) if e.get("asset_id") == asset_id or e.get("service") == asset_id or e.get("payload", {}).get("asset_id") == asset_id]
     recs = [r for r in list_recommendations(False, 250) if r.get("service") in {asset_id, asset.get("name")}]
     return {"asset": asset, "relationships": related, "events": events_for_asset[:50], "recommendations": recs[:50]}
 
@@ -254,7 +263,7 @@ def mission():
         "unknown_containers": unknown,
         "docker": {"total": len(items), "running": running_count, "stopped": stopped_count, "docker_read_at": docker_read_at(items)},
         "assets": assets_list,
-        "asset_summary": {"total": len(assets_list), "by_plugin": {}},
+        "asset_summary": asset_summary(assets_list),
         "health": health_data,
         "latest_action": actions[0] if actions else None,
         "active_incidents": active_incidents,
