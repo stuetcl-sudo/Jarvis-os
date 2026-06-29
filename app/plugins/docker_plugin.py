@@ -4,8 +4,11 @@ import docker
 from docker.errors import DockerException, NotFound
 
 from app import config
+from app.db import get_service_classification
 from app.events.types import EventTypes
 from app.plugins.base import PluginBase
+
+VALID_DOCKER_STATES = {"running", "exited", "created", "restarting", "paused", "dead"}
 
 
 class DockerPlugin(PluginBase):
@@ -15,42 +18,55 @@ class DockerPlugin(PluginBase):
     def client(self):
         return docker.from_env()
 
-    def classify(self, name: str) -> str:
+    def classify(self, name: str) -> tuple[str, bool, bool]:
+        saved = get_service_classification(name)
+        if saved:
+            return saved["classification"], bool(saved["protected"]), bool(saved["auto_start_allowed"])
         if name in config.IGNORED_SERVICES:
-            return "stopped_by_design"
+            return "stopped_by_design", name in config.PROTECTED_CONTAINERS, False
         if name in config.CRITICAL_SERVICES:
-            return "critical"
+            return "critical", name in config.PROTECTED_CONTAINERS, False
         if name in config.OPTIONAL_SERVICES:
-            return "optional"
-        return "unknown"
+            return "optional", name in config.PROTECTED_CONTAINERS, name in config.ALLOWED_AUTO_START_CONTAINERS
+        return "unknown", name in config.PROTECTED_CONTAINERS, False
 
     def list_containers(self):
         items = []
         try:
             for container in self.client().containers.list(all=True):
+                container.reload()
                 attrs = container.attrs
                 state = attrs.get("State", {})
                 name = container.name
-                classification = self.classify(name)
+                classification, protected, auto_start_allowed = self.classify(name)
+                docker_state = state.get("Status") or container.status or "unknown"
+                if docker_state not in VALID_DOCKER_STATES:
+                    docker_state = docker_state or "unknown"
+                health_status = None
+                if isinstance(state.get("Health"), dict):
+                    health_status = state["Health"].get("Status")
                 item = {
                     "id": container.short_id,
                     "name": name,
                     "image": attrs.get("Config", {}).get("Image", "unknown"),
-                    "status": container.status,
+                    "status": docker_state,
+                    "docker_state": docker_state,
+                    "docker_status": container.status,
+                    "health_status": health_status,
                     "created": attrs.get("Created"),
                     "restart_count": state.get("RestartCount", 0),
-                    "protected": name in config.PROTECTED_CONTAINERS,
+                    "protected": protected,
                     "classification": classification,
-                    "auto_start_allowed": name in config.ALLOWED_AUTO_START_CONTAINERS,
+                    "auto_start_allowed": auto_start_allowed if classification == "optional" and not protected else False,
                 }
                 items.append(item)
             items = sorted(items, key=lambda c: c["name"])
             self.publish(EventTypes.DOCKER_COLLECTED, "info", "docker", {"total": len(items)})
             for item in items:
-                if item["status"] == "exited":
+                if item["docker_state"] == "exited":
                     severity = "critical" if item["classification"] == "critical" else "warning"
                     self.publish(EventTypes.CONTAINER_STOPPED, severity, item["name"], item)
-                elif item["status"] == "running":
+                elif item["docker_state"] == "running":
                     self.publish(EventTypes.CONTAINER_STARTED, "info", item["name"], item)
                 if item["classification"] == "unknown":
                     self.publish(EventTypes.CONTAINER_UNKNOWN, "info", item["name"], item)
