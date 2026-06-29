@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app import config
+from app.actions.engine import action_engine
 from app.assets.registry import asset_registry, initialize_asset_tables
 from app.assets.relationships import initialize_relationship_tables, list_relationships
 from app.brain import brain_summary, dismiss_recommendation, list_observations, list_recommendations
@@ -14,7 +15,7 @@ from app.db import (
     event_statistics,
     event_types,
     init_db,
-    list_actions,
+    list_actions as list_action_log,
     list_events,
     list_incidents,
     list_service_classifications,
@@ -22,13 +23,12 @@ from app.db import (
     store_event,
     upsert_service_classification,
 )
-from app.docker_monitor import list_containers, restart_container
+from app.docker_monitor import list_containers
 from app.events.bus import event_bus
 from app.events.dispatcher import publish
 from app.events.types import EventTypes
 from app.health import get_health
 from app.policies.engine import policy_engine
-from app.safety import can_restart_container
 from app.worker import run_check_once, worker_loop, worker_status
 
 app = FastAPI(title=config.APP_NAME, version=config.VERSION)
@@ -39,6 +39,17 @@ class ServiceClassificationPayload(BaseModel):
     classification: str
     protected: bool = False
     auto_start_allowed: bool = False
+
+
+class QueueActionPayload(BaseModel):
+    asset_id: str
+    action_type: str
+    requested_by: str = "user"
+    source: str = "manual"
+    reason: str = "manual action request"
+    requires_approval: bool = True
+    priority: int = 100
+    payload: dict = {}
 
 
 def state_of(container):
@@ -63,6 +74,7 @@ async def startup():
     initialize_asset_tables()
     initialize_relationship_tables()
     policy_engine.initialize()
+    action_engine.initialize()
     event_bus.subscribe("*", store_event)
     event_bus.subscribe("*", policy_engine.on_event)
     log_action("startup", "jarvis-os", "ok", f"Jarvis-os v{config.VERSION} startet")
@@ -98,30 +110,84 @@ def restart(name: str):
     if error:
         log_action("restart_container", name, "error", error)
         raise HTTPException(status_code=503, detail=error)
-
     match = next((item for item in items if item["name"] == name), None)
     if not match:
-        log_action("restart_container", name, "denied", "Container not found")
         raise HTTPException(status_code=404, detail="Container not found")
-    if match.get("protected"):
-        log_action("restart_container", name, "denied", "Containeren er beskyttet.")
-        raise HTTPException(status_code=403, detail="Containeren er beskyttet.")
+    action = action_engine.queue_action(
+        asset_id=match["asset_id"],
+        action_type="docker.start_container",
+        requested_by="user",
+        source="legacy_container_restart_api",
+        reason="Legacy restart endpoint converted to Action Queue request. No direct execution.",
+        requires_approval=True,
+    )
+    log_action("queue_restart_container", name, "ok", f"Queued action {action['action_id']}")
+    return {"status": "queued", "action": action}
 
-    allowed, reason = can_restart_container(match["name"], state_of(match))
-    if not allowed:
-        log_action("restart_container", name, "denied", reason)
-        raise HTTPException(status_code=403, detail=reason)
 
-    ok, result = restart_container(name)
-    log_action("restart_container", name, "ok" if ok else "error", result)
-    if not ok:
-        raise HTTPException(status_code=500, detail=result)
-    return {"status": "ok", "reason": result}
+@app.get("/api/action-log")
+def action_log(limit: int = 100):
+    return {"actions": list_action_log(limit)}
 
 
 @app.get("/api/actions")
-def actions(limit: int = 100):
-    return {"actions": list_actions(limit)}
+def actions(limit: int = 100, status: str | None = None):
+    return {"actions": action_engine.list_actions(limit, status)}
+
+
+@app.post("/api/actions/queue")
+def queue_action(payload: QueueActionPayload):
+    action = action_engine.queue_action(
+        asset_id=payload.asset_id,
+        action_type=payload.action_type,
+        requested_by=payload.requested_by,
+        source=payload.source,
+        reason=payload.reason,
+        requires_approval=payload.requires_approval,
+        priority=payload.priority,
+        payload=payload.payload,
+    )
+    return {"action": action}
+
+
+@app.get("/api/actions/{action_id}")
+def get_action(action_id: str):
+    action = action_engine.get_action(action_id)
+    if not action:
+        raise HTTPException(status_code=404, detail="Action not found")
+    return {"action": action}
+
+
+@app.post("/api/actions/{action_id}/approve")
+def approve_action(action_id: str):
+    action = action_engine.approve_action(action_id, "user")
+    if not action:
+        raise HTTPException(status_code=404, detail="Action not found")
+    return {"action": action}
+
+
+@app.post("/api/actions/{action_id}/deny")
+def deny_action(action_id: str):
+    action = action_engine.deny_action(action_id, "user")
+    if not action:
+        raise HTTPException(status_code=404, detail="Action not found")
+    return {"action": action}
+
+
+@app.post("/api/actions/{action_id}/cancel")
+def cancel_action(action_id: str):
+    action = action_engine.cancel_action(action_id, "user")
+    if not action:
+        raise HTTPException(status_code=404, detail="Action not found")
+    return {"action": action}
+
+
+@app.post("/api/actions/{action_id}/run")
+def run_action(action_id: str):
+    action = action_engine.run_action(action_id)
+    if not action:
+        raise HTTPException(status_code=404, detail="Action not found")
+    return {"action": action}
 
 
 @app.get("/api/incidents")
@@ -271,7 +337,7 @@ def mission():
     items, error = list_containers()
     health_data = get_health()
     active_incidents = list_incidents(True, 50)
-    actions = list_actions(1)
+    legacy_actions = list_action_log(1)
     if error:
         log_action("mission", "docker", "error", error)
         raise HTTPException(status_code=503, detail=error)
@@ -287,6 +353,7 @@ def mission():
     current_worker = worker_status()
     assets_list = asset_registry.list_assets(limit=1000)
     decisions = policy_engine.list_decisions(10)
+    queued_actions = action_engine.list_actions(25)
 
     return {
         "app": config.APP_NAME,
@@ -303,8 +370,9 @@ def mission():
         "assets": assets_list,
         "asset_summary": asset_summary(assets_list),
         "policies": {"total": len(policy_engine.list_policies()), "latest_decisions": decisions},
+        "action_queue": {"total": len(queued_actions), "latest_actions": queued_actions},
         "health": health_data,
-        "latest_action": actions[0] if actions else None,
+        "latest_action": legacy_actions[0] if legacy_actions else None,
         "active_incidents": active_incidents,
         "worker": current_worker,
         "brain": brain_summary()["normal_behavior_summary"],
