@@ -1,21 +1,26 @@
+import asyncio
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-import psutil
 
 from app import config
-from app.db import init_db, list_actions, log_action
+from app.db import init_db, list_actions, list_incidents, log_action
 from app.docker_monitor import list_containers, restart_container
+from app.health import get_health
 from app.safety import can_restart_container
+from app.worker import run_check_once, worker_loop, worker_status
 
-app = FastAPI(title=config.APP_NAME, version="0.1.0")
+app = FastAPI(title=config.APP_NAME, version=config.VERSION)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
 @app.on_event("startup")
 def startup():
     init_db()
-    log_action("startup", "jarvis-os", "ok", "Jarvis-os v0.1 started")
+    log_action("startup", "jarvis-os", "ok", f"Jarvis-os v{config.VERSION} startet")
+    if config.WORKER_ENABLED:
+        asyncio.create_task(worker_loop())
 
 
 @app.get("/")
@@ -25,19 +30,9 @@ def ui():
 
 @app.get("/api/health")
 def health():
-    disk = psutil.disk_usage("/")
-    memory = psutil.virtual_memory()
-    swap = psutil.swap_memory()
-    return {
-        "app": config.APP_NAME,
-        "version": "0.1.0",
-        "safe_mode": config.SAFE_MODE,
-        "cpu_percent": psutil.cpu_percent(interval=0.2),
-        "memory": {"percent": memory.percent, "used": memory.used, "total": memory.total},
-        "swap": {"percent": swap.percent, "used": swap.used, "total": swap.total},
-        "disk_root": {"percent": disk.percent, "used": disk.used, "total": disk.total},
-        "boot_time": psutil.boot_time(),
-    }
+    data = get_health()
+    data.update({"app": config.APP_NAME, "version": config.VERSION, "safe_mode": config.SAFE_MODE})
+    return data
 
 
 @app.get("/api/containers")
@@ -76,3 +71,56 @@ def restart(name: str):
 @app.get("/api/actions")
 def actions(limit: int = 100):
     return {"actions": list_actions(limit)}
+
+
+@app.get("/api/incidents")
+def incidents(active_only: bool = True, limit: int = 100):
+    return {"incidents": list_incidents(active_only, limit)}
+
+
+@app.get("/api/worker/status")
+def get_worker_status():
+    return worker_status()
+
+
+@app.post("/api/worker/run-once")
+def worker_run_once():
+    if worker_status()["running"]:
+        raise HTTPException(status_code=409, detail="Jarvis worker kører allerede")
+    return run_check_once()
+
+
+@app.get("/api/mission")
+def mission():
+    items, error = list_containers()
+    health_data = get_health()
+    active_incidents = list_incidents(True, 50)
+    actions = list_actions(1)
+    if error:
+        log_action("mission", "docker", "error", error)
+        raise HTTPException(status_code=503, detail=error)
+
+    critical = [c for c in items if c["classification"] == "critical"]
+    optional = [c for c in items if c["classification"] == "optional"]
+    stopped_by_design = [c for c in items if c["classification"] == "stopped_by_design"]
+    running_count = len([c for c in items if c["status"] == "running"])
+    stopped_count = len([c for c in items if c["status"] == "exited"])
+    critical_ok = all(c["status"] == "running" for c in critical)
+    overall = "critical" if any(i["severity"] == "critical" for i in active_incidents) else "warning" if active_incidents or health_data["warnings"] else "ok"
+
+    return {
+        "app": config.APP_NAME,
+        "version": config.VERSION,
+        "overall_status": overall,
+        "safe_mode": config.SAFE_MODE,
+        "critical_ok": critical_ok,
+        "critical_services": critical,
+        "optional_services": optional,
+        "stopped_by_design": stopped_by_design,
+        "docker": {"total": len(items), "running": running_count, "stopped": stopped_count},
+        "health": health_data,
+        "latest_action": actions[0] if actions else None,
+        "active_incidents": active_incidents,
+        "worker": worker_status(),
+        "what_jarvis_is_doing_now": worker_status()["current_task"],
+    }
