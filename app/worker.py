@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 from app import config
+from app.actions.engine import action_engine
 from app.assets.system_assets import register_system_health_assets
 from app.brain import learn_from_check
 from app.db import (
@@ -15,7 +16,7 @@ from app.db import (
     safe_cleanup_old_rows,
     resolve_incident,
 )
-from app.docker_monitor import list_containers, start_container
+from app.docker_monitor import list_containers
 from app.events.dispatcher import publish
 from app.events.types import EventTypes
 from app.health import get_health
@@ -93,6 +94,22 @@ def evaluate_incidents(containers, health):
             resolve_incident("system", title)
 
 
+def queue_start_action(item, reason):
+    asset_id = item.get("asset_id") or f"docker:{item['name']}"
+    action = action_engine.queue_action(
+        asset_id=asset_id,
+        action_type="docker.start_container",
+        requested_by="worker",
+        source="worker",
+        reason=reason,
+        requires_approval=True,
+        priority=50,
+        payload={"container": item["name"], "worker_decision": reason},
+    )
+    log_action("queue_auto_start", item["name"], "ok", f"Queued action {action['action_id']} with status {action['status']}.")
+    return action
+
+
 def auto_heal(containers):
     for item in containers:
         if state_of(item) != "exited":
@@ -109,8 +126,7 @@ def auto_heal(containers):
         if not allowed:
             log_throttled("auto_start", item["name"], "denied", reason)
             continue
-        ok, result = start_container(item["name"])
-        log_action("auto_start", item["name"], "ok" if ok else "error", result)
+        queue_start_action(item, reason)
 
 
 def run_check_once():
