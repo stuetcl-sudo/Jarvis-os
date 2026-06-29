@@ -16,7 +16,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
 @app.on_event("startup")
-def startup():
+async def startup():
     init_db()
     log_action("startup", "jarvis-os", "ok", f"Jarvis-os v{config.VERSION} startet")
     if config.WORKER_ENABLED:
@@ -107,6 +107,7 @@ def mission():
     stopped_count = len([c for c in items if c["status"] == "exited"])
     critical_ok = all(c["status"] == "running" for c in critical)
     overall = "critical" if any(i["severity"] == "critical" for i in active_incidents) else "warning" if active_incidents or health_data["warnings"] else "ok"
+    current_worker = worker_status()
 
     return {
         "app": config.APP_NAME,
@@ -121,6 +122,6 @@ def mission():
         "health": health_data,
         "latest_action": actions[0] if actions else None,
         "active_incidents": active_incidents,
-        "worker": worker_status(),
-        "what_jarvis_is_doing_now": worker_status()["current_task"],
+        "worker": current_worker,
+        "what_jarvis_is_doing_now": current_worker["current_task"],
     }
