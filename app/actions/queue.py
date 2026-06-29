@@ -5,6 +5,10 @@ from app.actions.state_machine import transition_action
 ACTIVE_STATUSES = {"queued", "waiting_approval", "approved", "running"}
 
 
+def with_dedup_flag(action: dict, deduplicated: bool) -> dict:
+    return {**action, "deduplicated": deduplicated}
+
+
 def find_active_action(asset_id: str, action_type: str) -> dict | None:
     for action in list_actions(1000):
         if action["asset_id"] == asset_id and action["action_type"] == action_type and action["status"] in ACTIVE_STATUSES:
@@ -24,7 +28,7 @@ def queue_action(
 ) -> dict:
     existing = find_active_action(asset_id, action_type)
     if existing:
-        return existing
+        return with_dedup_flag(existing, True)
     forced_approval = True if action_type == "docker.start_container" or source != "trusted_internal" else bool(requires_approval)
     status = "waiting_approval" if forced_approval else "queued"
     action = Action(
@@ -42,7 +46,7 @@ def queue_action(
         approved_at=None,
         explanation="Action queued. It cannot run until safety checks pass and approval is present when required.",
     )
-    return insert_action(action)
+    return with_dedup_flag(insert_action(action), False)
 
 
 def approve_action(action_id: str, approved_by: str = "user"):
