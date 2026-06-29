@@ -25,8 +25,7 @@ def queue_action(
     existing = find_active_action(asset_id, action_type)
     if existing:
         return existing
-    manual_source = source not in {"trusted_internal"}
-    forced_approval = True if manual_source or action_type == "docker.start_container" else bool(requires_approval)
+    forced_approval = True if action_type == "docker.start_container" or source != "trusted_internal" else bool(requires_approval)
     status = "waiting_approval" if forced_approval else "queued"
     action = Action(
         requested_by=requested_by,
@@ -46,12 +45,10 @@ def queue_action(
     return insert_action(action)
 
 
-def approve_action(action_id: str, approved_by: str = "user") -> tuple[dict | None, bool, str | None]:
+def approve_action(action_id: str, approved_by: str = "user") -> dict | None:
     action = get_action(action_id)
-    if not action:
-        return None, False, None
-    if action["status"] != "waiting_approval":
-        return action, False, f"Cannot approve action in status {action['status']}."
+    if not action or action["status"] != "waiting_approval":
+        return action
     return update_action(
         action_id,
         status="approved",
@@ -59,25 +56,21 @@ def approve_action(action_id: str, approved_by: str = "user") -> tuple[dict | No
         approved_by=approved_by,
         approved_at=now_iso(),
         explanation="Action manually approved. It still requires safety checks before execution.",
-    ), True, None
+    )
 
 
-def deny_action(action_id: str, denied_by: str = "user") -> tuple[dict | None, bool, str | None]:
+def deny_action(action_id: str, denied_by: str = "user") -> dict | None:
     action = get_action(action_id)
-    if not action:
-        return None, False, None
-    if action["status"] not in {"queued", "waiting_approval", "approved"}:
-        return action, False, f"Cannot deny action in status {action['status']}."
-    return update_action(action_id, status="denied", safety_status="denied", explanation=f"Action denied by {denied_by}.", result={"denied_by": denied_by}), True, None
+    if not action or action["status"] in TERMINAL_STATUSES:
+        return action
+    return update_action(action_id, status="denied", safety_status="denied", explanation=f"Action denied by {denied_by}.", result={"denied_by": denied_by})
 
 
-def cancel_action(action_id: str, cancelled_by: str = "user") -> tuple[dict | None, bool, str | None]:
+def cancel_action(action_id: str, cancelled_by: str = "user") -> dict | None:
     action = get_action(action_id)
-    if not action:
-        return None, False, None
-    if action["status"] not in {"queued", "waiting_approval", "approved"}:
-        return action, False, f"Cannot cancel action in status {action['status']}."
-    return update_action(action_id, status="cancelled", explanation=f"Action cancelled by {cancelled_by}.", result={"cancelled_by": cancelled_by}), True, None
+    if not action or action["status"] in TERMINAL_STATUSES:
+        return action
+    return update_action(action_id, status="cancelled", explanation=f"Action cancelled by {cancelled_by}.", result={"cancelled_by": cancelled_by})
 
 
 __all__ = ["queue_action", "approve_action", "deny_action", "cancel_action", "get_action", "list_actions", "update_action", "find_active_action"]
