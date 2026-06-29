@@ -1,6 +1,6 @@
 # Jarvis-os Architecture
 
-Jarvis-os is a local, safety-first server assistant. The current v0.3 line focuses on observation, memory, recommendations and conservative Docker monitoring.
+Jarvis-os is a local, safety-first server assistant. The current branch focuses on observation, memory, recommendations, policy decisions and a manual Action Queue.
 
 ## Core
 
@@ -9,10 +9,10 @@ The core is a FastAPI application. It exposes the Mission Control UI and JSON AP
 Core responsibilities:
 
 - Start the background worker
-- Serve the dashboard on port `8088`
-- Expose health, Docker, incident, worker and Brain APIs
-- Enforce narrow manual actions
+- Serve Mission Control on port `8088`
+- Expose health, Docker, incident, worker, Brain, Event, Asset, Policy and Action APIs
 - Keep destructive behavior out of the codebase
+- Route executable work through the Action Engine
 
 ## Worker
 
@@ -22,11 +22,12 @@ Each cycle:
 
 1. Reads Docker container state
 2. Reads system health
-3. Updates incidents
-4. Updates Jarvis Brain memory
-5. Evaluates safe auto-start rules
-6. Performs safe database retention cleanup
-7. Logs the check result
+3. Publishes events
+4. Updates incidents, observations and recommendations
+5. Updates Jarvis Brain memory
+6. Evaluates policies through the Event Engine
+7. Performs safe database retention cleanup
+8. Logs the check result
 
 The worker loop catches exceptions and continues running. Worker status tracks last successful check, last failed check, consecutive failures and current task.
 
@@ -34,7 +35,7 @@ The worker loop catches exceptions and continues running. Worker status tracks l
 
 Jarvis memory lives in SQLite at `/data/jarvis.db` by default. The Docker Compose volume keeps this data across container restarts.
 
-Memory tables:
+Memory tables include:
 
 - `service_baselines`
 - `system_baselines`
@@ -43,33 +44,52 @@ Memory tables:
 - `worker_checks`
 - `action_log`
 - `incidents`
+- `events`
+- `assets`
+- `asset_relationships`
+- `policies`
+- `policy_decisions`
+- `actions`
 
 Jarvis only deletes old rows from its own database tables according to retention settings. It does not delete files or Docker data.
 
+## Event Engine
+
+The Event Engine lets plugins, the worker, policies and actions communicate through events. Events describe facts and intent. Events do not grant permission to act.
+
+## Asset Registry
+
+The Asset Registry stores observable items such as Docker containers and system resources as assets. Plugins should register assets without changing the registry schema.
+
+## Policy Engine
+
+The Policy Engine evaluates events and creates explainable decisions. Policies may create recommendations, incidents or queued manual actions, but they do not execute actions directly.
+
+## Action Engine
+
+The Action Engine owns executable work. Actions are queued, optionally approved, checked for safety, executed by a narrow executor, verified, and stored with result and explanation.
+
+Current executable action support is limited to safe `docker.start_container` for optional, exited, non-protected, known Docker assets after approval or explicit allow-listing.
+
 ## Safety model
 
-Jarvis-os is designed to observe first and act only inside narrow safe rules.
+Jarvis-os observes first and acts only inside narrow safe rules.
 
 Allowed behavior:
 
 - Read system health
 - Read Docker container state
 - Log actions
-- Create observations and recommendations
+- Create observations, recommendations and incidents
 - Mark recommendations dismissed
-- Start stopped optional containers only when explicitly allowed in `.env`
+- Queue manual actions
+- Start a stopped optional Docker container only through the Action Engine after safety checks
 
 Auto-start is disabled by default because `ALLOWED_AUTO_START_CONTAINERS=` is empty.
 
 ## Plugin direction
 
-v0.3 includes a minimal plugin skeleton for v0.4:
-
-- `app/plugins/base.py`
-- `app/plugins/docker_plugin.py`
-- `app/plugins/system_plugin.py`
-
-The current plugin direction is read-only collection first. Future plugins should declare capabilities and safety boundaries before any action is allowed.
+Plugins should declare capabilities and safety boundaries before any action is allowed. Read-only collection should be the default starting point for new plugins.
 
 ## What Jarvis is not allowed to do
 
