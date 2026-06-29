@@ -12,6 +12,7 @@ from app.db import (
     log_action,
     log_worker_check,
     resolve_incident,
+    safe_cleanup_old_rows,
 )
 from app.docker_monitor import list_containers, start_container
 from app.health import get_health
@@ -22,6 +23,9 @@ worker_state = {
     "running": False,
     "last_started_at": None,
     "last_finished_at": None,
+    "last_successful_check": None,
+    "last_failed_check": None,
+    "consecutive_failures": 0,
     "last_result": None,
     "last_error": None,
     "current_task": "Afventer næste check",
@@ -118,6 +122,8 @@ def run_check_once():
         learn_from_check(containers, health)
         worker_state["current_task"] = "Vurderer safe mode og self-healing"
         auto_heal(containers)
+        worker_state["current_task"] = "Rydder gamle Jarvis database-rækker"
+        cleanup_result = safe_cleanup_old_rows()
 
         status = "warning" if health["warnings"] or list_incidents(True, 1) else "ok"
         log_worker_check(
@@ -131,12 +137,16 @@ def run_check_once():
             health["disk_root"]["percent"],
             ", ".join(health["warnings"]),
         )
-        log_action("worker_check", "jarvis-os", "ok", f"Docker: {summary['running']} kører, {summary['stopped']} stoppet. Brain learning aktiv.")
+        log_action("worker_check", "jarvis-os", "ok", f"Docker: {summary['running']} kører, {summary['stopped']} stoppet. Cleanup: {cleanup_result}.")
         worker_state["last_result"] = status
+        worker_state["last_successful_check"] = utc_now()
+        worker_state["consecutive_failures"] = 0
         return {"status": status, "health": health, "docker": summary, "learning": True}
     except Exception as exc:
         worker_state["last_error"] = str(exc)
         worker_state["last_result"] = "error"
+        worker_state["last_failed_check"] = utc_now()
+        worker_state["consecutive_failures"] += 1
         log_action("worker_check", "jarvis-os", "error", str(exc))
         raise
     finally:
