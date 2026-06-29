@@ -46,7 +46,7 @@ def can_auto_start(container, containers, recent_failures):
             return False, "qBittorrent må kun startes når gluetun kører."
     if name not in config.ALLOWED_AUTO_START_CONTAINERS:
         return False, "Containeren er ikke på auto-start allow-list."
-    if recent_failures > config.AUTO_START_FAILURE_LIMIT:
+    if recent_failures >= config.AUTO_START_FAILURE_LIMIT:
         return False, "For mange fejl inden for fejlvinduet."
     return True, "Auto-start tilladt af safe mode regler."
 
