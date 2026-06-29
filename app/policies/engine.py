@@ -167,12 +167,7 @@ class PolicyEngine:
             create_recommendation("warning", "policy", asset_id, f"Consider restart for {name}", f"{asset_id} is optional and stopped. Policy recommends manual restart only.")
             return True, action_type, "Manual restart recommendation created; automatic restart denied.", True
         if action_type == "queue_manual_restart":
-            try:
-                from app.actions.engine import action_engine
-                action_engine.queue_action(asset_id=asset_id, action_type="docker.start_container", requested_by="policy", source="policy_engine", reason=f"Policy queued manual restart for optional stopped asset {asset_id}.", requires_approval=True, payload={"event_id": event.id, "policy_id": policy["policy_id"]})
-                return True, action_type, "Waiting-approval docker.start_container action queued. It will not run automatically.", True
-            except Exception as exc:
-                return False, action_type, f"Could not queue action: {exc}", True
+            return True, action_type, "Policy allowed a waiting-approval restart action to be queued after this decision is stored.", True
         if action_type == "ignore":
             ignore()
             return True, action_type, f"Ignored because classification is {classification}.", True
@@ -186,6 +181,20 @@ class PolicyEngine:
                 return False, action_type, f"Denied future auto-start: dependency {dependency} must be {required_state}, got {actual_state}.", True
             return True, action_type, f"Dependency guard passed: {dependency} is {required_state}. No action executed.", True
         return False, action_type, "Unknown policy action denied.", True
+
+    def queue_action_for_decision(self, event: Event, asset_id: str | None, policy: dict[str, Any], decision: dict[str, Any]) -> None:
+        if not asset_id or not decision.get("allowed"):
+            return
+        from app.actions.engine import action_engine
+        action_engine.queue_action(
+            asset_id=asset_id,
+            action_type="docker.start_container",
+            requested_by="policy",
+            source="policy",
+            reason=f"Policy queued manual restart for optional stopped asset {asset_id}.",
+            requires_approval=True,
+            payload={"event_id": event.id, "policy_id": policy["policy_id"], "policy_decision_id": decision["decision_id"]},
+        )
 
     def evaluate_event(self, event: Event) -> list[dict[str, Any]]:
         decisions = []
@@ -202,7 +211,13 @@ class PolicyEngine:
             for action in policy.get("actions", []):
                 allowed, action_name, action_reason, dry_run = self.apply_action(action, event, asset, policy)
                 explanation = explain_match(policy, event, asset, True, allowed, action_name, action_reason)
-                decisions.append(self.store_decision(Decision(policy["policy_id"], asset_id, event.id, True, allowed, action_name, action_reason, explanation, dry_run)))
+                decision = self.store_decision(Decision(policy["policy_id"], asset_id, event.id, True, allowed, action_name, action_reason, explanation, dry_run))
+                decisions.append(decision)
+                if action_name == "queue_manual_restart" and allowed:
+                    try:
+                        self.queue_action_for_decision(event, asset_id, policy, decision)
+                    except Exception:
+                        pass
         return decisions
 
     def on_event(self, event: Event) -> None:
