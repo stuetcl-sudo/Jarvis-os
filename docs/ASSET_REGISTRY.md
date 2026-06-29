@@ -1,20 +1,20 @@
 # Jarvis-os Asset Registry
 
-The Asset Registry is the foundation for Jarvis-os becoming a digital twin of the local environment.
+The Asset Registry is the foundation for Jarvis-os becoming a local digital twin of the observed environment.
 
 ## What is an Asset
 
 An Asset is anything Jarvis can observe, reason about, show in Mission Control or eventually manage through explicit safe policies.
 
-Examples:
+Generic examples:
 
-- `docker:jellyfin`
-- `docker:adguardhome`
+- `docker:example-app`
+- `docker:database`
+- `docker:reverse-proxy`
 - `system:cpu`
 - `system:memory`
 - `system:disk`
-- `ha:light.kitchen`
-- `unifi:ap-livingroom`
+- `plugin:example-device`
 
 Each asset contains:
 
@@ -59,13 +59,21 @@ Supported relationships:
 - `managed_by`
 - `hosted_on`
 
-Examples:
+Generic examples:
 
 ```text
-docker:jellyfin depends_on system:docker
-system:docker contains docker:jellyfin
-docker:qbittorrent depends_on docker:gluetun
+docker:example-app depends_on docker:database
+system:docker contains docker:example-app
+docker:worker depends_on docker:queue
 ```
+
+Docker containers always receive the generic relationship:
+
+```text
+system:docker contains docker:<container-name>
+```
+
+Other dependencies must come from configuration, labels, plugin metadata or future policy configuration.
 
 Relationships are also persisted in SQLite.
 
@@ -82,7 +90,7 @@ Read live Docker Engine state
 ↓
 Register/update docker:<container> assets
 ↓
-Create relationships to system:docker
+Create generic relationship to system:docker
 ↓
 Publish events referencing asset_id
 ↓
@@ -101,9 +109,10 @@ Example:
 {
   "source": "docker",
   "type": "Docker.ContainerStopped",
-  "service": "docker:jellyfin",
+  "service": "docker:example-app",
+  "asset_id": "docker:example-app",
   "payload": {
-    "asset_id": "docker:jellyfin"
+    "asset_id": "docker:example-app"
   }
 }
 ```
@@ -123,23 +132,14 @@ Existing APIs remain available.
 
 ## Future Digital Twin
 
-The Asset Registry is designed for future plugins without changing the core:
-
-- Home Assistant
-- UniFi
-- AdGuard
-- UPS
-- Tailscale
-- Calendar
-- Notifications
-- LLM reasoning
+The Asset Registry is designed for future plugins without changing the core. Product-specific integrations should remain optional plugins with explicit safety boundaries.
 
 The long-term direction is a local digital twin where Jarvis can answer questions such as:
 
-- What depends on my VPN container?
+- What depends on this network-facing container?
 - Which services are hosted on Docker?
-- Which Home Assistant entities belong to the living room?
-- Which network devices are connected to which AP?
+- Which entities belong to a room or zone?
+- Which devices are connected to which network asset?
 
 ## Safety boundaries
 
