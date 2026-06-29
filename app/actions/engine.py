@@ -2,7 +2,7 @@ from app.actions.executors import execute_action
 from app.actions.history import get_action, initialize_action_tables, list_actions
 from app.actions.queue import approve_action, cancel_action, deny_action, queue_action
 from app.actions.safety import check_action_safety
-from app.actions.state_machine import ActionTransitionConflict, claim_approved_action, transition_action
+from app.actions.state_machine import claim_approved_action, transition_action
 from app.events.dispatcher import publish
 
 
@@ -16,7 +16,8 @@ class ActionEngine:
 
     def queue_action(self, **kwargs):
         action = queue_action(**kwargs)
-        publish("action_engine", "Action.Queued", "info", action["asset_id"], {"asset_id": action["asset_id"], "action_id": action["action_id"], "action_type": action["action_type"], "status": action["status"]}, asset_id=action["asset_id"])
+        if not action.get("deduplicated"):
+            publish("action_engine", "Action.Queued", "info", action["asset_id"], {"asset_id": action["asset_id"], "action_id": action["action_id"], "action_type": action["action_type"], "status": action["status"]}, asset_id=action["asset_id"])
         return action
 
     def approve_action(self, action_id: str, approved_by: str = "user"):
