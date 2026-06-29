@@ -19,8 +19,6 @@ The current Policy Engine is intentionally conservative. It can create incidents
 
 ## Decision flow
 
-Typical flow:
-
 ```text
 DockerPlugin
 ↓
@@ -75,47 +73,14 @@ Decisions are stored in SQLite in `policy_decisions`.
 
 ## Default policies
 
-### Unknown container discovered
+Default policies are generic and installation-neutral:
 
-Trigger: `Docker.ContainerUnknown`
+- Unknown asset discovered
+- Critical Docker asset stopped
+- Optional Docker asset stopped
+- Stopped-by-design Docker asset stopped
 
-Condition: `classification == unknown`
-
-Action: create a recommendation to classify the asset. No automatic action.
-
-### Critical Docker container stopped
-
-Trigger: `Docker.ContainerStopped`
-
-Condition: `classification == critical`
-
-Action: create a critical incident and recommendation. No auto restart by default.
-
-### Optional Docker container stopped
-
-Trigger: `Docker.ContainerStopped`
-
-Condition: `classification == optional`
-
-Action: create a recommendation to restart manually. No auto restart by default.
-
-### Stopped-by-design container stopped
-
-Trigger: `Docker.ContainerStopped`
-
-Condition: `classification == stopped_by_design`
-
-Action: ignore with an explanation. No recommendation.
-
-### qBittorrent dependency guard
-
-Trigger: `Docker.*`
-
-Condition: `asset_id == docker:qbittorrent`
-
-Dependency: `docker:gluetun` must be `running` before any future qBittorrent start action is allowed.
-
-Action: deny unsafe auto-start if the dependency is not running. It does not execute any action.
+Service-specific dependency guards belong in local configuration, plugin metadata, or future policy examples. They are not enabled as universal defaults.
 
 ## Safety model
 
@@ -168,4 +133,4 @@ The current rules are Python-defined defaults persisted to SQLite. A future vers
 
 The Policy Engine listens to Event Engine events and uses `asset_id` to look up current Asset Registry state.
 
-This keeps future integrations plugin-neutral. Home Assistant, UniFi, AdGuard, UPS, Tailscale, Calendar, Notifications and LLM reasoning can publish events and register assets without changing the policy core.
+This keeps future integrations plugin-neutral so new plugins can publish events and register assets without changing the policy core.
