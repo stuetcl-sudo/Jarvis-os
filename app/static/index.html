@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jarvis-os v0.1</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">Local server assistant</p>
+        <h1>Jarvis-os v0.1</h1>
+      </div>
+      <button onclick="refreshAll()">Refresh</button>
+    </header>
+
+    <section class="grid" id="health"></section>
+
+    <section class="panel">
+      <h2>Docker containers</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Image</th><th>Status</th><th>Protected</th><th>Action</th></tr>
+          </thead>
+          <tbody id="containers"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Action log</h2>
+      <div id="actions"></div>
+    </section>
+  </main>
+
+<script>
+async function getJson(url, options = {}) {
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || res.statusText);
+  }
+  return res.json();
+}
+
+function pct(value) {
+  return `${Number(value).toFixed(1)}%`;
+}
+
+async function loadHealth() {
+  const data = await getJson('/api/health');
+  document.getElementById('health').innerHTML = `
+    <article class="card"><span>Safe mode</span><strong>${data.safe_mode ? 'ON' : 'OFF'}</strong></article>
+    <article class="card"><span>CPU</span><strong>${pct(data.cpu_percent)}</strong></article>
+    <article class="card"><span>Memory</span><strong>${pct(data.memory.percent)}</strong></article>
+    <article class="card"><span>Swap</span><strong>${pct(data.swap.percent)}</strong></article>
+    <article class="card"><span>Disk /</span><strong>${pct(data.disk_root.percent)}</strong></article>
+  `;
+}
+
+async function restartContainer(name) {
+  if (!confirm(`Start stopped container: ${name}?`)) return;
+  try {
+    await getJson(`/api/containers/${encodeURIComponent(name)}/restart`, { method: 'POST' });
+    await refreshAll();
+  } catch (err) {
+    alert(err.message);
+    await loadActions();
+  }
+}
+
+async function loadContainers() {
+  const data = await getJson('/api/containers');
+  document.getElementById('containers').innerHTML = data.containers.map(c => `
+    <tr>
+      <td>${c.name}</td>
+      <td>${c.image}</td>
+      <td><span class="status ${c.status}">${c.status}</span></td>
+      <td>${c.protected ? 'yes' : 'no'}</td>
+      <td>${c.status === 'exited' ? `<button onclick="restartContainer('${c.name}')">Start</button>` : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+async function loadActions() {
+  const data = await getJson('/api/actions?limit=25');
+  document.getElementById('actions').innerHTML = data.actions.map(a => `
+    <div class="logline">
+      <b>${a.status}</b> ${a.action} <span>${a.target || ''}</span>
+      <small>${a.created_at}</small>
+      <em>${a.reason || ''}</em>
+    </div>
+  `).join('');
+}
+
+async function refreshAll() {
+  await Promise.all([loadHealth(), loadContainers(), loadActions()]);
+}
+
+refreshAll();
+setInterval(refreshAll, 30000);
+</script>
+</body>
+</html>
