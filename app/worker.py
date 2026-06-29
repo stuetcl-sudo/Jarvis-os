@@ -11,10 +11,12 @@ from app.db import (
     list_incidents,
     log_action,
     log_worker_check,
-    resolve_incident,
     safe_cleanup_old_rows,
+    resolve_incident,
 )
 from app.docker_monitor import list_containers, start_container
+from app.events.dispatcher import publish
+from app.events.types import EventTypes
 from app.health import get_health
 from app.safety import can_auto_start
 
@@ -71,14 +73,15 @@ def evaluate_incidents(containers, health):
             resolve_incident(item["name"], title)
 
     system_checks = [
-        ("CPU høj", health["cpu_percent"], config.CPU_WARN_PERCENT),
-        ("RAM høj", health["memory"]["percent"], config.MEMORY_WARN_PERCENT),
-        ("Swap høj", health["swap"]["percent"], config.SWAP_WARN_PERCENT),
-        ("Disk høj", health["disk_root"]["percent"], config.DISK_WARN_PERCENT),
+        ("CPU høj", EventTypes.HIGH_CPU, health["cpu_percent"], config.CPU_WARN_PERCENT),
+        ("RAM høj", EventTypes.HIGH_RAM, health["memory"]["percent"], config.MEMORY_WARN_PERCENT),
+        ("Swap høj", EventTypes.HIGH_SWAP, health["swap"]["percent"], config.SWAP_WARN_PERCENT),
+        ("Disk høj", EventTypes.HIGH_DISK, health["disk_root"]["percent"], config.DISK_WARN_PERCENT),
     ]
-    for title, value, threshold in system_checks:
+    for title, event_type, value, threshold in system_checks:
         if value >= threshold:
             create_incident("warning", "system", title, f"Målt {value:.1f}% over grænse {threshold}%.")
+            publish("worker", event_type, "warning", "system", {"value": value, "threshold": threshold})
         else:
             resolve_incident("system", title)
 
@@ -108,9 +111,11 @@ def run_check_once():
     worker_state["last_started_at"] = utc_now()
     worker_state["current_task"] = "Tjekker Docker og system health"
     worker_state["last_error"] = None
+    publish("worker", EventTypes.WORKER_STARTED, "info", "jarvis-os", {"task": worker_state["current_task"]})
     try:
         containers, docker_error = list_containers()
         health = get_health()
+        publish("worker", EventTypes.HEALTH_COLLECTED, "info", "system", health)
         if docker_error:
             create_incident("critical", "docker", "Docker kan ikke læses", docker_error)
             log_action("worker_check", "docker", "error", docker_error)
@@ -141,6 +146,7 @@ def run_check_once():
         worker_state["last_result"] = status
         worker_state["last_successful_check"] = utc_now()
         worker_state["consecutive_failures"] = 0
+        publish("worker", EventTypes.WORKER_COMPLETED, "info", "jarvis-os", {"status": status, "docker": summary})
         return {"status": status, "health": health, "docker": summary, "learning": True}
     except Exception as exc:
         worker_state["last_error"] = str(exc)
@@ -148,6 +154,7 @@ def run_check_once():
         worker_state["last_failed_check"] = utc_now()
         worker_state["consecutive_failures"] += 1
         log_action("worker_check", "jarvis-os", "error", str(exc))
+        publish("worker", EventTypes.WORKER_FAILED, "error", "jarvis-os", {"error": str(exc)})
         raise
     finally:
         worker_state["running"] = False
