@@ -8,14 +8,39 @@ def env_bool(name, default):
     return value.strip().lower() in ["1", "true", "yes", "on"]
 
 
+def env_int(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
 def env_csv(name):
     value = os.getenv(name, "")
     return set([item.strip() for item in value.split(",") if item.strip()])
 
 
 APP_NAME = os.getenv("APP_NAME", "Jarvis-os")
+VERSION = "0.2.0"
 SAFE_MODE = env_bool("SAFE_MODE", True)
 ALLOW_RESTART_STOPPED = env_bool("ALLOW_RESTART_STOPPED", True)
-ALLOWED_RESTART_CONTAINERS = env_csv("ALLOWED_RESTART_CONTAINERS")
-PROTECTED_CONTAINERS = env_csv("PROTECTED_CONTAINERS") or {"jarvis-os", "adguardhome", "caddy", "gluetun"}
+WORKER_ENABLED = env_bool("WORKER_ENABLED", True)
+WORKER_INTERVAL_SECONDS = env_int("WORKER_INTERVAL_SECONDS", 60)
+AUTO_START_FAILURE_LIMIT = env_int("AUTO_START_FAILURE_LIMIT", 3)
+AUTO_START_FAILURE_WINDOW_MINUTES = env_int("AUTO_START_FAILURE_WINDOW_MINUTES", 30)
 DB_PATH = os.getenv("DB_PATH", "/data/jarvis.db")
+
+CRITICAL_SERVICES = env_csv("CRITICAL_SERVICES") or {"jarvis-os", "adguardhome", "caddy", "homeassistant"}
+PROTECTED_CONTAINERS = env_csv("PROTECTED_CONTAINERS") or {"jarvis-os", "adguardhome", "caddy", "gluetun"}
+OPTIONAL_SERVICES = env_csv("OPTIONAL_SERVICES") or {"sonarr", "radarr", "readarr", "prowlarr", "jellyfin", "filebrowser", "glances"}
+IGNORED_SERVICES = env_csv("IGNORED_SERVICES")
+ALLOWED_RESTART_CONTAINERS = env_csv("ALLOWED_RESTART_CONTAINERS")
+ALLOWED_AUTO_START_CONTAINERS = env_csv("ALLOWED_AUTO_START_CONTAINERS")
+
+CPU_WARN_PERCENT = env_int("CPU_WARN_PERCENT", 90)
+MEMORY_WARN_PERCENT = env_int("MEMORY_WARN_PERCENT", 90)
+SWAP_WARN_PERCENT = env_int("SWAP_WARN_PERCENT", 80)
+DISK_WARN_PERCENT = env_int("DISK_WARN_PERCENT", 85)
