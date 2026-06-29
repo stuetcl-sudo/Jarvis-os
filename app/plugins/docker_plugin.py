@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import docker
-from docker.errors import DockerException, NotFound
+from docker.errors import DockerException
 
 from app import config
 from app.assets.asset import Asset
@@ -164,17 +164,6 @@ class DockerPlugin(PluginBase):
             return items, None
         except DockerException as exc:
             return [], str(exc)
-
-    def start_container(self, name: str):
-        try:
-            container = self.client().containers.get(name)
-            container.start()
-            self.publish(EventTypes.CONTAINER_STARTED, "info", f"docker:{name}", {"asset_id": f"docker:{name}", "reason": "manual_or_safe_start"})
-            return True, "Container started."
-        except NotFound:
-            return False, "Container not found."
-        except DockerException as exc:
-            return False, str(exc)
 
     def collect(self) -> dict[str, Any]:
         containers, error = self.list_containers()
