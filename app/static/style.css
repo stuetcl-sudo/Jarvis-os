@@ -16,8 +16,9 @@ h2 { margin: 0 0 16px; font-size: 22px; }
 .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 button { border: 0; border-radius: 999px; padding: 12px 18px; font-weight: 800; cursor: pointer; background: #38bdf8; color: #082f49; }
 button.secondary { background: rgba(148,163,184,.18); color: #e5e7eb; border: 1px solid rgba(148,163,184,.25); }
+button.link-button { background: transparent; color: #7dd3fc; padding: 0; border-radius: 0; }
 button:hover { filter: brightness(1.08); }
-select { background: rgba(15, 23, 42, .9); color: #e5e7eb; border: 1px solid rgba(148,163,184,.35); border-radius: 12px; padding: 9px 10px; }
+select, input { background: rgba(15, 23, 42, .9); color: #e5e7eb; border: 1px solid rgba(148,163,184,.35); border-radius: 12px; padding: 9px 10px; }
 label { color: #cbd5e1; display: inline-flex; gap: 6px; align-items: center; }
 .mission-grid { display: grid; grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 14px; margin-bottom: 16px; }
 .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
@@ -35,6 +36,13 @@ label { color: #cbd5e1; display: inline-flex; gap: 6px; align-items: center; }
 .large-text { font-size: clamp(22px, 4vw, 36px); margin: 10px 0 0; font-weight: 800; }
 .pill { display: inline-flex; align-items: center; padding: 7px 12px; border-radius: 999px; background: rgba(148,163,184,.18); color: #cbd5e1; font-weight: 800; white-space: nowrap; }
 .pill.working { background: rgba(56,189,248,.2); color: #7dd3fc; }
+.asset-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
+.asset-group { border: 1px solid rgba(148,163,184,.18); border-radius: 18px; padding: 14px; background: rgba(148,163,184,.06); }
+.asset-group h3 { margin: 0 0 10px; color: #93c5fd; }
+.asset-pill { width: 100%; text-align: left; display: block; margin: 8px 0; background: rgba(15,23,42,.74); color: #e5e7eb; border: 1px solid rgba(148,163,184,.18); border-radius: 14px; }
+.asset-pill b, .asset-pill small { display: block; }
+.asset-pill small { color: #94a3b8; margin-top: 4px; }
+.asset-detail { margin-top: 14px; border-top: 1px solid rgba(148,163,184,.18); padding-top: 14px; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 1050px; }
 th, td { padding: 13px 12px; border-bottom: 1px solid rgba(148, 163, 184, .16); text-align: left; vertical-align: top; }
