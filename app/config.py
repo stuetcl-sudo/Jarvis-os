@@ -33,6 +33,34 @@ def env_csv(name):
     return set([item.strip() for item in value.split(",") if item.strip()])
 
 
+def normalize_asset_id(value, default_plugin="docker"):
+    value = value.strip()
+    if not value:
+        return ""
+    return value if ":" in value else f"{default_plugin}:{value}"
+
+
+def env_relationships(name):
+    """Parse ASSET_DEPENDENCIES style values.
+
+    Format examples:
+    ASSET_DEPENDENCIES=docker:app>docker:network,docker:worker>docker:database
+    ASSET_DEPENDENCIES=app>network,worker>database
+    """
+    value = os.getenv(name, "")
+    relationships = []
+    for item in value.split(","):
+        item = item.strip()
+        if not item or ">" not in item:
+            continue
+        source, target = item.split(">", 1)
+        source_id = normalize_asset_id(source)
+        target_id = normalize_asset_id(target)
+        if source_id and target_id:
+            relationships.append((source_id, target_id))
+    return relationships
+
+
 APP_NAME = os.getenv("APP_NAME", "Jarvis-os")
 VERSION = "0.7.0"
 SAFE_MODE = env_bool("SAFE_MODE", True)
@@ -49,6 +77,7 @@ OPTIONAL_SERVICES = env_csv("OPTIONAL_SERVICES")
 IGNORED_SERVICES = env_csv("IGNORED_SERVICES")
 ALLOWED_RESTART_CONTAINERS = env_csv("ALLOWED_RESTART_CONTAINERS")
 ALLOWED_AUTO_START_CONTAINERS = env_csv("ALLOWED_AUTO_START_CONTAINERS")
+ASSET_DEPENDENCIES = env_relationships("ASSET_DEPENDENCIES")
 
 CPU_WARN_PERCENT = env_int("CPU_WARN_PERCENT", 90)
 MEMORY_WARN_PERCENT = env_int("MEMORY_WARN_PERCENT", 90)
