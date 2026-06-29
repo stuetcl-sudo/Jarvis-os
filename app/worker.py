@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app import config
 from app.db import (
@@ -26,9 +26,23 @@ worker_state = {
     "current_task": "Afventer næste check",
 }
 
+_last_throttled_logs = {}
+THROTTLE_WINDOW = timedelta(hours=1)
+
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def log_throttled(action, target, status, reason):
+    key = (action, target, status, reason)
+    now = datetime.now(timezone.utc)
+    last_logged = _last_throttled_logs.get(key)
+    if last_logged and now - last_logged < THROTTLE_WINDOW:
+        return False
+    _last_throttled_logs[key] = now
+    log_action(action, target, status, reason)
+    return True
 
 
 def summarize_containers(containers):
@@ -68,7 +82,7 @@ def auto_heal(containers):
         if item["status"] != "exited":
             continue
         if item["classification"] == "stopped_by_design":
-            log_action("auto_start", item["name"], "skipped", "Service er stoppet med vilje.")
+            log_throttled("auto_start", item["name"], "skipped", "Service er stoppet med vilje.")
             continue
         recent_failures = count_recent_failed_actions(
             "auto_start",
@@ -77,7 +91,7 @@ def auto_heal(containers):
         )
         allowed, reason = can_auto_start(item, containers, recent_failures)
         if not allowed:
-            log_action("auto_start", item["name"], "denied", reason)
+            log_throttled("auto_start", item["name"], "denied", reason)
             continue
         ok, result = start_container(item["name"])
         log_action("auto_start", item["name"], "ok" if ok else "error", result)
