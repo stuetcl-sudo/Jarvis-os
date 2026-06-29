@@ -5,11 +5,16 @@ import docker
 from docker.errors import DockerException, NotFound
 
 from app import config
+from app.assets.asset import Asset
+from app.assets.registry import asset_registry
+from app.assets.relationships import add_relationship
+from app.assets.types import AssetTypes, RelationshipTypes
 from app.db import get_service_classification
 from app.events.types import EventTypes
 from app.plugins.base import PluginBase
 
 VALID_DOCKER_STATES = {"running", "exited", "created", "restarting", "paused", "dead"}
+DOCKER_HOST_ASSET_ID = "system:docker"
 
 
 class DockerPlugin(PluginBase):
@@ -38,11 +43,59 @@ class DockerPlugin(PluginBase):
             allowed = False
         return classification, protected, allowed
 
+    def register_docker_host_asset(self):
+        asset_registry.register_asset(
+            Asset(
+                asset_id=DOCKER_HOST_ASSET_ID,
+                asset_type=AssetTypes.SYSTEM_RESOURCE,
+                plugin="system",
+                name="docker",
+                display_name="Docker Engine",
+                state="observed",
+                health=None,
+                classification="critical",
+                protected=True,
+                auto_actions_allowed=False,
+                metadata={"source": "docker_plugin"},
+            )
+        )
+
+    def register_container_asset(self, item):
+        asset_id = f"docker:{item['name']}"
+        item["asset_id"] = asset_id
+        asset_registry.register_asset(
+            Asset(
+                asset_id=asset_id,
+                asset_type=AssetTypes.DOCKER_CONTAINER,
+                plugin="docker",
+                name=item["name"],
+                display_name=item["name"],
+                state=item["docker_state"],
+                health=item.get("health_status"),
+                classification=item["classification"],
+                protected=item["protected"],
+                auto_actions_allowed=item["auto_start_allowed"],
+                metadata={
+                    "container_id": item["id"],
+                    "image": item["image"],
+                    "docker_status": item.get("docker_status"),
+                    "read_at": item.get("read_at"),
+                    "restart_count": item.get("restart_count", 0),
+                },
+            )
+        )
+        add_relationship(DOCKER_HOST_ASSET_ID, RelationshipTypes.CONTAINS, asset_id)
+        if item["name"].lower() == "qbittorrent":
+            add_relationship(asset_id, RelationshipTypes.DEPENDS_ON, "docker:gluetun")
+        if item["name"].lower() == "jellyfin":
+            add_relationship(asset_id, RelationshipTypes.DEPENDS_ON, "system:docker")
+
     def list_containers(self):
         items = []
         docker_read_at = datetime.now(timezone.utc).isoformat()
         try:
             api_client = self.client()
+            self.register_docker_host_asset()
             for container in api_client.containers.list(all=True):
                 container.reload()
                 inspected = api_client.api.inspect_container(container.id)
@@ -58,6 +111,7 @@ class DockerPlugin(PluginBase):
                 item = {
                     "id": container.short_id,
                     "name": name,
+                    "asset_id": f"docker:{name}",
                     "image": inspected.get("Config", {}).get("Image", "unknown"),
                     "status": docker_state,
                     "docker_state": docker_state,
@@ -70,17 +124,19 @@ class DockerPlugin(PluginBase):
                     "classification": classification,
                     "auto_start_allowed": allowed,
                 }
+                self.register_container_asset(item)
                 items.append(item)
             items = sorted(items, key=lambda c: c["name"])
-            self.publish(EventTypes.DOCKER_COLLECTED, "info", "docker", {"total": len(items), "docker_read_at": docker_read_at})
+            self.publish(EventTypes.DOCKER_COLLECTED, "info", DOCKER_HOST_ASSET_ID, {"asset_id": DOCKER_HOST_ASSET_ID, "total": len(items), "docker_read_at": docker_read_at})
             for item in items:
+                payload = {**item, "asset_id": item["asset_id"]}
                 if item["docker_state"] == "exited":
                     severity = "critical" if item["classification"] == "critical" else "warning"
-                    self.publish(EventTypes.CONTAINER_STOPPED, severity, item["name"], item)
+                    self.publish(EventTypes.CONTAINER_STOPPED, severity, item["asset_id"], payload)
                 elif item["docker_state"] == "running":
-                    self.publish(EventTypes.CONTAINER_STARTED, "info", item["name"], item)
+                    self.publish(EventTypes.CONTAINER_STARTED, "info", item["asset_id"], payload)
                 if item["classification"] == "unknown":
-                    self.publish(EventTypes.CONTAINER_UNKNOWN, "info", item["name"], item)
+                    self.publish(EventTypes.CONTAINER_UNKNOWN, "info", item["asset_id"], payload)
             return items, None
         except DockerException as exc:
             return [], str(exc)
@@ -89,7 +145,7 @@ class DockerPlugin(PluginBase):
         try:
             container = self.client().containers.get(name)
             container.start()
-            self.publish(EventTypes.CONTAINER_STARTED, "info", name, {"reason": "manual_or_safe_auto_start"})
+            self.publish(EventTypes.CONTAINER_STARTED, "info", f"docker:{name}", {"asset_id": f"docker:{name}", "reason": "manual_or_safe_auto_start"})
             return True, "Container started."
         except NotFound:
             return False, "Container not found."
