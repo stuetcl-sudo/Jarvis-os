@@ -28,13 +28,13 @@ def default_policies():
         {
             "policy_id": "policy.optional_container_stopped",
             "name": "Optional Docker container stopped",
-            "description": "Recommend a manual restart for optional stopped Docker assets. No automatic restart.",
+            "description": "Recommend and queue a waiting-approval manual restart for optional stopped Docker assets. No automatic restart.",
             "enabled": True,
             "priority": 30,
             "trigger_event_type": EventTypes.CONTAINER_STOPPED,
             "conditions": {"classification": "optional"},
-            "actions": [{"type": "recommend_restart"}],
-            "safety_level": "safe_observation",
+            "actions": [{"type": "recommend_restart"}, {"type": "queue_manual_restart"}],
+            "safety_level": "safe_manual_queue",
         },
         {
             "policy_id": "policy.stopped_by_design_container_stopped",
