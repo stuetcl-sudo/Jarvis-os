@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_URL="${APP_URL:-http://localhost:8088}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-90}"
-ENDPOINTS=("/api/health" "/api/mission" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations")
+ENDPOINTS=("/api/health" "/api/mission" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations" "/api/events" "/api/events/latest" "/api/events/types" "/api/events/statistics")
 
 show_logs() {
   echo ""
@@ -86,4 +86,4 @@ for endpoint in "${ENDPOINTS[@]}"; do
   echo "OK: ${endpoint} returned HTTP 200"
 done
 
-echo "Validation OK: Dockerized Jarvis-os is running and API endpoints are healthy."
+echo "Validation OK: Dockerized Jarvis-os and Event Engine endpoints are healthy."
