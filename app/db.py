@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app import config
 
@@ -145,10 +145,11 @@ def list_incidents(active_only=True, limit=100):
 
 
 def count_recent_failed_actions(action, target, minutes):
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=int(minutes))).isoformat()
     conn = connect()
-    rows = conn.execute(
-        "SELECT COUNT(*) AS total FROM action_log WHERE action = ? AND target = ? AND status = 'error' AND created_at >= datetime('now', ?)",
-        (action, target, f"-{int(minutes)} minutes"),
+    row = conn.execute(
+        "SELECT COUNT(*) AS total FROM action_log WHERE action = ? AND target = ? AND status = 'error' AND created_at >= ?",
+        (action, target, cutoff),
     ).fetchone()
     conn.close()
-    return int(rows["total"] if rows else 0)
+    return int(row["total"] if row else 0)
