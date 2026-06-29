@@ -1,0 +1,61 @@
+from app.events.types import EventTypes
+
+
+def default_policies():
+    return [
+        {
+            "policy_id": "policy.unknown_container_discovered",
+            "name": "Unknown container discovered",
+            "description": "Recommend classification when Docker reports an unknown container.",
+            "enabled": True,
+            "priority": 10,
+            "trigger_event_type": EventTypes.CONTAINER_UNKNOWN,
+            "conditions": {"classification": "unknown"},
+            "actions": [{"type": "recommend_classification"}],
+            "safety_level": "safe_observation",
+        },
+        {
+            "policy_id": "policy.critical_container_stopped",
+            "name": "Critical Docker container stopped",
+            "description": "Create a critical incident and recommendation when a critical Docker asset stops.",
+            "enabled": True,
+            "priority": 20,
+            "trigger_event_type": EventTypes.CONTAINER_STOPPED,
+            "conditions": {"classification": "critical"},
+            "actions": [{"type": "create_critical_incident"}, {"type": "recommend_manual_investigation"}],
+            "safety_level": "safe_observation",
+        },
+        {
+            "policy_id": "policy.optional_container_stopped",
+            "name": "Optional Docker container stopped",
+            "description": "Recommend a manual restart for optional stopped Docker assets. No automatic restart.",
+            "enabled": True,
+            "priority": 30,
+            "trigger_event_type": EventTypes.CONTAINER_STOPPED,
+            "conditions": {"classification": "optional"},
+            "actions": [{"type": "recommend_restart"}],
+            "safety_level": "safe_observation",
+        },
+        {
+            "policy_id": "policy.stopped_by_design_container_stopped",
+            "name": "Stopped-by-design container stopped",
+            "description": "Ignore stopped-by-design assets with an explanation.",
+            "enabled": True,
+            "priority": 40,
+            "trigger_event_type": EventTypes.CONTAINER_STOPPED,
+            "conditions": {"classification": "stopped_by_design"},
+            "actions": [{"type": "ignore"}],
+            "safety_level": "safe_observation",
+        },
+        {
+            "policy_id": "policy.qbittorrent_dependency_guard",
+            "name": "qBittorrent dependency guard",
+            "description": "Deny unsafe future qBittorrent auto-start unless docker:gluetun is running.",
+            "enabled": True,
+            "priority": 5,
+            "trigger_event_type": "Docker.*",
+            "conditions": {"asset_id": "docker:qbittorrent"},
+            "actions": [{"type": "dependency_guard", "dependency": "docker:gluetun", "required_state": "running"}],
+            "safety_level": "deny_unsafe_auto_action",
+        },
+    ]
