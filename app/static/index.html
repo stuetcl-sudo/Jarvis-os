@@ -10,9 +10,9 @@
   <main>
     <header class="hero">
       <div>
-        <p class="eyebrow">Mission Control</p>
+        <p class="eyebrow">Mission Control + Brain</p>
         <h1>Jarvis-os</h1>
-        <p class="subtitle">Lokal assistent til Docker, system health og sikker self-healing.</p>
+        <p class="subtitle">Lokal assistent til Docker, system health, sikker self-healing og læring af normal serveradfærd.</p>
       </div>
       <div class="hero-actions">
         <button onclick="runOnce()">Kør check nu</button>
@@ -28,6 +28,34 @@
         <span id="workerBadge" class="pill">Indlæser</span>
       </div>
       <p id="workerText" class="large-text">Indlæser worker status...</p>
+    </section>
+
+    <section class="panel wide">
+      <div class="panel-head">
+        <h2>Jarvis Brain</h2>
+        <span id="learningBadge" class="pill working">Jarvis lærer</span>
+      </div>
+      <div class="columns brain-columns">
+        <article>
+          <h3>Hvad Jarvis har lært</h3>
+          <div id="brainSummary" class="metric-list"></div>
+        </article>
+        <article>
+          <h3>Normal adfærd</h3>
+          <div id="normalBehavior" class="metric-list"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="columns">
+      <article class="panel">
+        <h2>Observationer</h2>
+        <div id="observations"></div>
+      </article>
+      <article class="panel">
+        <h2>Anbefalinger</h2>
+        <div id="recommendations"></div>
+      </article>
     </section>
 
     <section class="columns">
@@ -112,6 +140,15 @@ async function restartContainer(name) {
   }
 }
 
+async function dismissRecommendation(id) {
+  try {
+    await getJson(`/api/recommendations/${id}/dismiss`, { method: 'POST' });
+    await refreshAll();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
 function renderService(service) {
   return `<div class="service-row"><b>${escapeHtml(service.name)}</b><span class="status ${service.status}">${escapeHtml(service.status)}</span></div>`;
 }
@@ -121,8 +158,16 @@ function renderAction(action) {
   return `<div class="logline"><b>${escapeHtml(action.status)}</b> ${escapeHtml(action.action)} <span>${escapeHtml(action.target || '')}</span><small>${escapeHtml(action.created_at)}</small><em>${escapeHtml(action.reason || '')}</em></div>`;
 }
 
+function renderObservation(item) {
+  return `<div class="incident ${item.severity}"><b>${escapeHtml(item.title)}</b><span>${escapeHtml(item.service || item.category)}</span><p>${escapeHtml(item.detail)}</p></div>`;
+}
+
+function renderRecommendation(item) {
+  return `<div class="incident ${item.severity}"><b>${escapeHtml(item.title)}</b><span>${escapeHtml(item.service || item.category)}</span><p>${escapeHtml(item.detail)}</p><button class="secondary" onclick="dismissRecommendation(${item.id})">Skjul</button></div>`;
+}
+
 async function refreshAll() {
-  const data = await getJson('/api/mission');
+  const [data, brain] = await Promise.all([getJson('/api/mission'), getJson('/api/brain')]);
   const workerRunning = data.worker.running;
 
   document.getElementById('missionCards').innerHTML = `
@@ -130,13 +175,29 @@ async function refreshAll() {
     <article class="card"><span>Safe mode</span><strong>${data.safe_mode ? 'ON' : 'OFF'}</strong></article>
     <article class="card"><span>Kritiske services</span><strong>${data.critical_ok ? 'OK' : 'Fejl'}</strong></article>
     <article class="card"><span>Docker</span><strong>${data.docker.running}/${data.docker.total}</strong><small>${data.docker.stopped} stoppet</small></article>
-    <article class="card"><span>Incidents</span><strong>${data.active_incidents.length}</strong></article>
+    <article class="card"><span>Brain samples</span><strong>${brain.normal_behavior_summary.system_samples}</strong></article>
   `;
 
   document.getElementById('workerBadge').textContent = workerRunning ? 'Jarvis arbejder' : 'Afventer';
   document.getElementById('workerBadge').className = workerRunning ? 'pill working' : 'pill';
   document.getElementById('workerText').textContent = data.what_jarvis_is_doing_now;
+  document.getElementById('learningBadge').textContent = brain.learning ? 'Jarvis lærer' : 'Læring pause';
 
+  const baseline = brain.system_baseline;
+  document.getElementById('brainSummary').innerHTML = `
+    <div><span>Services lært</span><b>${brain.normal_behavior_summary.services_learned}</b></div>
+    <div><span>System samples</span><b>${brain.normal_behavior_summary.system_samples}</b></div>
+    <div><span>Aktive anbefalinger</span><b>${brain.normal_behavior_summary.active_recommendations}</b></div>
+  `;
+  document.getElementById('normalBehavior').innerHTML = baseline ? `
+    <div><span>Normal CPU</span><b>${pct(baseline.avg_cpu_percent)}</b></div>
+    <div><span>Normal RAM</span><b>${pct(baseline.avg_memory_percent)}</b></div>
+    <div><span>Normal swap</span><b>${pct(baseline.avg_swap_percent)}</b></div>
+    <div><span>Normal disk</span><b>${pct(baseline.avg_disk_percent)}</b></div>
+  ` : '<p class="muted">Jarvis samler de første målinger.</p>';
+
+  document.getElementById('observations').innerHTML = brain.observations.length ? brain.observations.slice(0, 6).map(renderObservation).join('') : '<p class="muted">Ingen observationer endnu.</p>';
+  document.getElementById('recommendations').innerHTML = brain.recommendations.length ? brain.recommendations.slice(0, 6).map(renderRecommendation).join('') : '<p class="muted">Ingen aktive anbefalinger.</p>';
   document.getElementById('criticalServices').innerHTML = data.critical_services.length ? data.critical_services.map(renderService).join('') : '<p class="muted">Ingen kritiske containere fundet.</p>';
 
   document.getElementById('systemHealth').innerHTML = `
