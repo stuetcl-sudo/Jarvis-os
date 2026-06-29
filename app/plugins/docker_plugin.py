@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any
 
 import docker
@@ -39,14 +40,16 @@ class DockerPlugin(PluginBase):
 
     def list_containers(self):
         items = []
+        docker_read_at = datetime.now(timezone.utc).isoformat()
         try:
-            for container in self.client().containers.list(all=True):
+            api_client = self.client()
+            for container in api_client.containers.list(all=True):
                 container.reload()
-                attrs = container.attrs
-                state = attrs.get("State", {})
-                name = container.name
+                inspected = api_client.api.inspect_container(container.id)
+                state = inspected.get("State", {})
+                name = inspected.get("Name", container.name).lstrip("/")
                 classification, protected, allowed = self.classify(name)
-                docker_state = state.get("Status") or container.status or "unknown"
+                docker_state = state.get("Status") or "unknown"
                 if docker_state not in VALID_DOCKER_STATES:
                     docker_state = docker_state or "unknown"
                 health_status = None
@@ -55,12 +58,13 @@ class DockerPlugin(PluginBase):
                 item = {
                     "id": container.short_id,
                     "name": name,
-                    "image": attrs.get("Config", {}).get("Image", "unknown"),
+                    "image": inspected.get("Config", {}).get("Image", "unknown"),
                     "status": docker_state,
                     "docker_state": docker_state,
                     "docker_status": container.status,
                     "health_status": health_status,
-                    "created": attrs.get("Created"),
+                    "read_at": docker_read_at,
+                    "created": inspected.get("Created"),
                     "restart_count": state.get("RestartCount", 0),
                     "protected": protected,
                     "classification": classification,
@@ -68,7 +72,7 @@ class DockerPlugin(PluginBase):
                 }
                 items.append(item)
             items = sorted(items, key=lambda c: c["name"])
-            self.publish(EventTypes.DOCKER_COLLECTED, "info", "docker", {"total": len(items)})
+            self.publish(EventTypes.DOCKER_COLLECTED, "info", "docker", {"total": len(items), "docker_read_at": docker_read_at})
             for item in items:
                 if item["docker_state"] == "exited":
                     severity = "critical" if item["classification"] == "critical" else "warning"
