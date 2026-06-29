@@ -5,7 +5,7 @@ from unittest.mock import patch
 from app import config
 from app.assets.registry import initialize_asset_tables
 from app.assets.relationships import initialize_relationship_tables
-from app.db import init_db, upsert_service_classification
+from app.db import init_db
 from app.events.types import EventTypes
 from app.plugins.docker_plugin import DockerPlugin
 from app.policies.rules import default_policies
@@ -51,26 +51,40 @@ class FakeDockerClient:
         self.api = FakeAPI(containers)
 
 
-def reset_db():
-    tmp = tempfile.NamedTemporaryFile(delete=False)
-    tmp.close()
-    config.DB_PATH = tmp.name
+def reset_config():
     config.CRITICAL_SERVICES = set()
     config.OPTIONAL_SERVICES = set()
     config.IGNORED_SERVICES = set()
     config.PROTECTED_CONTAINERS = set()
     config.ALLOWED_AUTO_START_CONTAINERS = set()
     config.ASSET_DEPENDENCIES = []
+
+
+def reset_db():
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    tmp.close()
+    config.DB_PATH = tmp.name
+    reset_config()
     init_db()
     initialize_asset_tables()
     initialize_relationship_tables()
     return Path(tmp.name)
 
 
-def collect_for(container, classifications=None):
+def set_classifications(classifications=None):
+    reset_config()
     classifications = classifications or {}
     for name, classification in classifications.items():
-        upsert_service_classification(name, classification, False, False)
+        if classification == "critical":
+            config.CRITICAL_SERVICES.add(name)
+        elif classification == "optional":
+            config.OPTIONAL_SERVICES.add(name)
+        elif classification == "stopped_by_design":
+            config.IGNORED_SERVICES.add(name)
+
+
+def collect_for(container, classifications=None):
+    set_classifications(classifications)
     plugin = DockerPlugin()
     events = []
     plugin.publish = lambda event_type, severity="info", service=None, payload=None, asset_id=None: events.append(event_type)
@@ -157,8 +171,10 @@ def test_classified_to_unknown_publishes_unknown_once():
     path = reset_db()
     try:
         collect_for(FakeContainer("example-app", "running"), {"example-app": "optional"})
-        events = collect_for(FakeContainer("different-name", "running"))
-        assert count(events, EventTypes.CONTAINER_UNKNOWN) == 1
+        first_unknown = collect_for(FakeContainer("example-app", "running"))
+        repeated_unknown = collect_for(FakeContainer("example-app", "running"))
+        assert count(first_unknown, EventTypes.CONTAINER_UNKNOWN) == 1
+        assert count(repeated_unknown, EventTypes.CONTAINER_UNKNOWN) == 0
     finally:
         path.unlink(missing_ok=True)
 
