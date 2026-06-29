@@ -20,12 +20,14 @@ v0.2 changes Jarvis from a simple dashboard into a real background assistant. Th
 
 Jarvis-os v0.2 is safety-first.
 
+Auto-start is disabled by default. A container must be explicitly added to `ALLOWED_AUTO_START_CONTAINERS` before Jarvis may auto-start it.
+
 It may auto-start stopped optional containers only when all of these are true:
 
 - `SAFE_MODE=true`
 - Container is not protected
 - Container is listed in `ALLOWED_AUTO_START_CONTAINERS`
-- Container has not failed more than 3 times inside 30 minutes
+- Container has fewer than 3 failed auto-start attempts inside 30 minutes
 
 Jarvis must never auto-start:
 
@@ -35,7 +37,7 @@ Jarvis must never auto-start:
 
 Jarvis does not contain destructive actions. It does not delete files, delete containers, delete Docker volumes, prune Docker, change firewall rules, change DNS settings or run arbitrary shell commands.
 
-All allowed, denied, skipped and failed automated actions are logged.
+Allowed and failed automated actions are logged. Repeated denied or skipped auto-start decisions are rate-limited to at most once per hour per container and reason.
 
 ## Default service classes
 
@@ -62,6 +64,12 @@ OPTIONAL_SERVICES=sonarr,radarr,readarr,prowlarr,jellyfin,filebrowser,glances
 ```
 
 Optional services may be auto-started only if they are also listed in `ALLOWED_AUTO_START_CONTAINERS`.
+
+Default:
+
+```env
+ALLOWED_AUTO_START_CONTAINERS=
+```
 
 ### Stopped-by-design services
 
@@ -118,7 +126,7 @@ CRITICAL_SERVICES=jarvis-os,adguardhome,caddy,homeassistant
 PROTECTED_CONTAINERS=jarvis-os,adguardhome,caddy,gluetun
 OPTIONAL_SERVICES=sonarr,radarr,readarr,prowlarr,jellyfin,filebrowser,glances
 IGNORED_SERVICES=
-ALLOWED_AUTO_START_CONTAINERS=sonarr,radarr,readarr,prowlarr,jellyfin,filebrowser,glances
+ALLOWED_AUTO_START_CONTAINERS=
 AUTO_START_FAILURE_LIMIT=3
 AUTO_START_FAILURE_WINDOW_MINUTES=30
 DB_PATH=/data/jarvis.db
@@ -129,10 +137,16 @@ Recommended first run:
 ```env
 SAFE_MODE=true
 WORKER_ENABLED=true
-ALLOWED_AUTO_START_CONTAINERS=filebrowser,glances
+ALLOWED_AUTO_START_CONTAINERS=
 ```
 
-When the system has proven stable, add more optional services to `ALLOWED_AUTO_START_CONTAINERS`.
+When the system has proven stable, explicitly add selected optional services to `ALLOWED_AUTO_START_CONTAINERS`.
+
+Example:
+
+```env
+ALLOWED_AUTO_START_CONTAINERS=filebrowser,glances
+```
 
 ## API
 
