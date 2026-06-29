@@ -90,8 +90,35 @@ class DockerPlugin(PluginBase):
         )
         add_relationship(DOCKER_HOST_ASSET_ID, RelationshipTypes.CONTAINS, asset_id)
 
+    def transition_events_for(self, previous_asset, item):
+        events = []
+        payload = {**item, "asset_id": item["asset_id"]}
+        previous_state = previous_asset.get("state") if previous_asset else None
+        previous_classification = previous_asset.get("classification") if previous_asset else None
+        current_state = item["docker_state"]
+        current_classification = item["classification"]
+
+        if previous_asset is None:
+            events.append((EventTypes.CONTAINER_DISCOVERED, "info", payload))
+            if current_classification == "unknown":
+                events.append((EventTypes.CONTAINER_UNKNOWN, "info", payload))
+            return events
+
+        if previous_state != current_state:
+            if previous_state == "running" and current_state == "exited":
+                severity = "critical" if current_classification == "critical" else "warning"
+                events.append((EventTypes.CONTAINER_STOPPED, severity, payload))
+            elif previous_state == "exited" and current_state == "running":
+                events.append((EventTypes.CONTAINER_STARTED, "info", payload))
+
+        if previous_classification != "unknown" and current_classification == "unknown":
+            events.append((EventTypes.CONTAINER_UNKNOWN, "info", payload))
+
+        return events
+
     def list_containers(self):
         items = []
+        pending_events = []
         docker_read_at = datetime.now(timezone.utc).isoformat()
         try:
             api_client = self.client()
@@ -102,6 +129,8 @@ class DockerPlugin(PluginBase):
                 inspected = api_client.api.inspect_container(container.id)
                 state = inspected.get("State", {})
                 name = inspected.get("Name", container.name).lstrip("/")
+                asset_id = f"docker:{name}"
+                previous_asset = asset_registry.get_asset(asset_id)
                 classification, protected, allowed = self.classify(name)
                 docker_state = state.get("Status") or "unknown"
                 if docker_state not in VALID_DOCKER_STATES:
@@ -112,7 +141,7 @@ class DockerPlugin(PluginBase):
                 item = {
                     "id": container.short_id,
                     "name": name,
-                    "asset_id": f"docker:{name}",
+                    "asset_id": asset_id,
                     "image": inspected.get("Config", {}).get("Image", "unknown"),
                     "status": docker_state,
                     "docker_state": docker_state,
@@ -125,19 +154,13 @@ class DockerPlugin(PluginBase):
                     "classification": classification,
                     "auto_start_allowed": allowed,
                 }
+                pending_events.extend(self.transition_events_for(previous_asset, item))
                 self.register_container_asset(item)
                 items.append(item)
             items = sorted(items, key=lambda c: c["name"])
             self.publish(EventTypes.DOCKER_COLLECTED, "info", DOCKER_HOST_ASSET_ID, {"asset_id": DOCKER_HOST_ASSET_ID, "total": len(items), "docker_read_at": docker_read_at})
-            for item in items:
-                payload = {**item, "asset_id": item["asset_id"]}
-                if item["docker_state"] == "exited":
-                    severity = "critical" if item["classification"] == "critical" else "warning"
-                    self.publish(EventTypes.CONTAINER_STOPPED, severity, item["asset_id"], payload)
-                elif item["docker_state"] == "running":
-                    self.publish(EventTypes.CONTAINER_STARTED, "info", item["asset_id"], payload)
-                if item["classification"] == "unknown":
-                    self.publish(EventTypes.CONTAINER_UNKNOWN, "info", item["asset_id"], payload)
+            for event_type, severity, payload in pending_events:
+                self.publish(event_type, severity, payload["asset_id"], payload)
             return items, None
         except DockerException as exc:
             return [], str(exc)
