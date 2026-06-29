@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_URL="${APP_URL:-http://localhost:8088}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-90}"
-ENDPOINTS=("/api/health" "/api/mission" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations" "/api/events" "/api/events/latest" "/api/events/types" "/api/events/statistics" "/api/service-classifications" "/api/assets" "/api/assets/search" "/api/assets/relationships")
+ENDPOINTS=("/api/health" "/api/mission" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations" "/api/events" "/api/events/latest" "/api/events/types" "/api/events/statistics" "/api/service-classifications" "/api/assets" "/api/assets/search" "/api/assets/relationships" "/api/policies" "/api/policy-decisions" "/api/policy-decisions/latest")
 
 show_logs() {
   echo ""
@@ -61,12 +61,15 @@ for endpoint in "${ENDPOINTS[@]}"; do
   echo "OK: ${endpoint} returned HTTP 200"
 done
 
-echo "[6/7] Reading live Docker and asset snapshots"
+echo "[6/7] Reading live Docker, asset, event, and policy snapshots"
 curl -fsS --max-time 10 "${APP_URL}/api/containers" -o /tmp/jarvis-containers.json || fail "Could not read /api/containers"
 curl -fsS --max-time 10 "${APP_URL}/api/mission" -o /tmp/jarvis-mission.json || fail "Could not read /api/mission"
 curl -fsS --max-time 10 "${APP_URL}/api/assets" -o /tmp/jarvis-assets.json || fail "Could not read /api/assets"
+curl -fsS --max-time 10 "${APP_URL}/api/events/latest" -o /tmp/jarvis-events.json || fail "Could not read /api/events/latest"
+curl -fsS --max-time 10 "${APP_URL}/api/policies" -o /tmp/jarvis-policies.json || fail "Could not read /api/policies"
+curl -fsS --max-time 10 "${APP_URL}/api/policy-decisions/latest" -o /tmp/jarvis-policy-decisions.json || fail "Could not read /api/policy-decisions/latest"
 
-echo "[7/7] Checking live Docker and Asset Registry consistency"
+echo "[7/7] Checking live Docker, Asset Registry, Event Engine, and Policy Engine consistency"
 if [ -n "$PYTHON_BIN" ]; then
   "$PYTHON_BIN" - <<'PY'
 import json
@@ -75,9 +78,22 @@ containers_response = json.loads(Path('/tmp/jarvis-containers.json').read_text()
 containers = containers_response['containers']
 mission = json.loads(Path('/tmp/jarvis-mission.json').read_text())
 assets = json.loads(Path('/tmp/jarvis-assets.json').read_text())['assets']
+events = json.loads(Path('/tmp/jarvis-events.json').read_text())['events']
+policies = json.loads(Path('/tmp/jarvis-policies.json').read_text())['policies']
+decisions = json.loads(Path('/tmp/jarvis-policy-decisions.json').read_text())['decisions']
 asset_ids = {a['asset_id'] for a in assets}
 mission_containers = mission.get('containers', [])
 mission_by_name = {c['name']: c for c in mission_containers}
+if not policies:
+    raise SystemExit('Policy Engine has no policies')
+for p in policies:
+    for field in ['policy_id','name','enabled','priority','trigger_event_type','conditions','actions','safety_level']:
+        if field not in p:
+            raise SystemExit(f'Missing {field} on policy')
+for d in decisions:
+    for field in ['decision_id','policy_id','timestamp','matched','allowed','action','reason','explanation','dry_run']:
+        if field not in d:
+            raise SystemExit(f'Missing {field} on policy decision')
 if 'docker_read_at' not in containers_response:
     raise SystemExit('Missing docker_read_at in /api/containers')
 if 'docker_read_at' not in mission.get('docker', {}):
@@ -109,7 +125,7 @@ if sum(1 for c in containers if c.get('docker_state') == 'running') != mission['
     raise SystemExit('Docker running count disagrees')
 if sum(1 for c in containers if c.get('docker_state') == 'exited') != mission['docker']['stopped']:
     raise SystemExit('Docker stopped count disagrees')
-print('Live Docker + Asset Registry regression OK')
+print('Live Docker + Asset Registry + Event Engine + Policy Engine regression OK')
 PY
 else
   echo "WARNING: skipped JSON consistency check because host Python is unavailable."
