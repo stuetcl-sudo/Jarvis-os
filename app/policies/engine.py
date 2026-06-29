@@ -149,7 +149,7 @@ class PolicyEngine:
         conn.close()
         return data
 
-    def apply_action(self, action: dict[str, Any], event: Event, asset: dict[str, Any] | None) -> tuple[bool, str, str, bool]:
+    def apply_action(self, action: dict[str, Any], event: Event, asset: dict[str, Any] | None, policy: dict[str, Any]) -> tuple[bool, str, str, bool]:
         action_type = action.get("type", "unknown")
         asset_id = event.asset_id or event.service or event.payload.get("asset_id")
         name = (asset or {}).get("name") or asset_id
@@ -169,7 +169,7 @@ class PolicyEngine:
         if action_type == "queue_manual_restart":
             try:
                 from app.actions.engine import action_engine
-                action_engine.queue_action(asset_id=asset_id, action_type="docker.start_container", requested_by="policy", source="policy", reason=f"Policy queued manual restart for optional stopped asset {asset_id}.", requires_approval=True, payload={"event_id": event.id})
+                action_engine.queue_action(asset_id=asset_id, action_type="docker.start_container", requested_by="policy", source="policy_engine", reason=f"Policy queued manual restart for optional stopped asset {asset_id}.", requires_approval=True, payload={"event_id": event.id, "policy_id": policy["policy_id"]})
                 return True, action_type, "Waiting-approval docker.start_container action queued. It will not run automatically.", True
             except Exception as exc:
                 return False, action_type, f"Could not queue action: {exc}", True
@@ -200,7 +200,7 @@ class PolicyEngine:
                 decisions.append(self.store_decision(Decision(policy["policy_id"], asset_id, event.id, False, False, "none", reason, explanation, True)))
                 continue
             for action in policy.get("actions", []):
-                allowed, action_name, action_reason, dry_run = self.apply_action(action, event, asset)
+                allowed, action_name, action_reason, dry_run = self.apply_action(action, event, asset, policy)
                 explanation = explain_match(policy, event, asset, True, allowed, action_name, action_reason)
                 decisions.append(self.store_decision(Decision(policy["policy_id"], asset_id, event.id, True, allowed, action_name, action_reason, explanation, dry_run)))
         return decisions
