@@ -9,6 +9,18 @@ from app.policies.explain import explain_match
 from app.policies.policy import Decision, now_iso
 from app.policies.rules import default_policies
 
+POLICY_SEED_VERSION = 2
+JARVIS_MANAGED_BY = "jarvis"
+OBSOLETE_SYSTEM_POLICY_IDS = {
+    "policy.unknown_container_discovered",
+    "policy.critical_container_stopped",
+    "policy.optional_container_stopped",
+    "policy.stopped_by_design_container_stopped",
+    "policy.qbittorrent_dependency_guard",
+}
+CURRENT_SYSTEM_POLICY_IDS = {policy["policy_id"] for policy in default_policies()}
+KNOWN_SYSTEM_POLICY_IDS = OBSOLETE_SYSTEM_POLICY_IDS | CURRENT_SYSTEM_POLICY_IDS
+
 POLICY_SCHEMA = """
 CREATE TABLE IF NOT EXISTS policies (
     policy_id TEXT PRIMARY KEY,
@@ -42,10 +54,22 @@ CREATE TABLE IF NOT EXISTS policy_decisions (
 """
 
 
+def _columns(conn, table: str) -> set[str]:
+    return {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+
+
+def _ensure_column(conn, table: str, column: str, definition: str) -> None:
+    if column not in _columns(conn, table):
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
 def initialize_policy_tables() -> None:
     conn = connect()
     conn.execute(POLICY_SCHEMA)
     conn.execute(DECISION_SCHEMA)
+    _ensure_column(conn, "policies", "managed_by", "TEXT")
+    _ensure_column(conn, "policies", "seed_version", "INTEGER")
+    _ensure_column(conn, "policies", "retired", "INTEGER NOT NULL DEFAULT 0")
     conn.commit()
     conn.close()
 
@@ -64,6 +88,7 @@ def _loads(value, default):
 def _policy_from_row(row) -> dict[str, Any]:
     item = dict(row)
     item["enabled"] = bool(item["enabled"])
+    item["retired"] = bool(item.get("retired", 0))
     item["conditions"] = _loads(item.get("conditions"), {})
     item["actions"] = _loads(item.get("actions"), [])
     return item
@@ -84,25 +109,76 @@ class PolicyEngine:
 
     def ensure_default_policies(self) -> None:
         conn = connect()
-        for policy in default_policies():
-            now = now_iso()
-            existing = conn.execute("SELECT policy_id FROM policies WHERE policy_id = ?", (policy["policy_id"],)).fetchone()
+        now = now_iso()
+        default_by_id = {policy["policy_id"]: policy for policy in default_policies()}
+
+        # Adopt only known historical/current system policy IDs. Unknown policies remain user-owned.
+        for policy_id in KNOWN_SYSTEM_POLICY_IDS:
+            conn.execute(
+                "UPDATE policies SET managed_by = COALESCE(managed_by, ?), seed_version = COALESCE(seed_version, ?) WHERE policy_id = ? AND (managed_by IS NULL OR managed_by = ?)",
+                (JARVIS_MANAGED_BY, POLICY_SEED_VERSION, policy_id, JARVIS_MANAGED_BY),
+            )
+
+        # Retire obsolete Jarvis-managed defaults for audit, without deleting rows.
+        for policy_id in OBSOLETE_SYSTEM_POLICY_IDS:
+            conn.execute(
+                "UPDATE policies SET enabled = 0, retired = 1, managed_by = ?, seed_version = ?, updated_at = ? WHERE policy_id = ? AND managed_by = ?",
+                (JARVIS_MANAGED_BY, POLICY_SEED_VERSION, now, policy_id, JARVIS_MANAGED_BY),
+            )
+
+        # Insert/update current defaults. Preserve enabled state for existing policies.
+        for policy_id, policy in default_by_id.items():
+            existing = conn.execute("SELECT policy_id FROM policies WHERE policy_id = ?", (policy_id,)).fetchone()
             if existing:
                 conn.execute(
-                    "UPDATE policies SET name = ?, description = ?, priority = ?, trigger_event_type = ?, conditions = ?, actions = ?, safety_level = ?, updated_at = ? WHERE policy_id = ?",
-                    (policy["name"], policy["description"], policy["priority"], policy["trigger_event_type"], _json(policy["conditions"]), _json(policy["actions"]), policy["safety_level"], now, policy["policy_id"]),
+                    """
+                    UPDATE policies
+                    SET name = ?, description = ?, priority = ?, trigger_event_type = ?, conditions = ?, actions = ?, safety_level = ?, managed_by = ?, seed_version = ?, retired = 0, updated_at = ?
+                    WHERE policy_id = ? AND managed_by = ?
+                    """,
+                    (
+                        policy["name"],
+                        policy["description"],
+                        policy["priority"],
+                        policy["trigger_event_type"],
+                        _json(policy["conditions"]),
+                        _json(policy["actions"]),
+                        policy["safety_level"],
+                        JARVIS_MANAGED_BY,
+                        POLICY_SEED_VERSION,
+                        now,
+                        policy_id,
+                        JARVIS_MANAGED_BY,
+                    ),
                 )
             else:
                 conn.execute(
-                    "INSERT INTO policies (policy_id, name, description, enabled, priority, trigger_event_type, conditions, actions, safety_level, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (policy["policy_id"], policy["name"], policy["description"], 1 if policy.get("enabled", True) else 0, policy["priority"], policy["trigger_event_type"], _json(policy["conditions"]), _json(policy["actions"]), policy["safety_level"], now, now),
+                    """
+                    INSERT INTO policies (policy_id, name, description, enabled, priority, trigger_event_type, conditions, actions, safety_level, created_at, updated_at, managed_by, seed_version, retired)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                    """,
+                    (
+                        policy_id,
+                        policy["name"],
+                        policy["description"],
+                        1 if policy.get("enabled", True) else 0,
+                        policy["priority"],
+                        policy["trigger_event_type"],
+                        _json(policy["conditions"]),
+                        _json(policy["actions"]),
+                        policy["safety_level"],
+                        now,
+                        now,
+                        JARVIS_MANAGED_BY,
+                        POLICY_SEED_VERSION,
+                    ),
                 )
         conn.commit()
         conn.close()
 
     def list_policies(self) -> list[dict[str, Any]]:
         conn = connect()
-        rows = conn.execute("SELECT * FROM policies ORDER BY priority ASC, policy_id ASC").fetchall()
+        rows = conn.execute("SELECT * FROM policies ORDER BY retired ASC, priority ASC, policy_id ASC").fetchall()
         conn.close()
         return [_policy_from_row(row) for row in rows]
 
@@ -201,7 +277,7 @@ class PolicyEngine:
         asset_id = event.asset_id or event.service or event.payload.get("asset_id")
         asset = asset_registry.get_asset(asset_id) if asset_id else None
         for policy in self.list_policies():
-            if not policy["enabled"] or not self.event_matches_policy(event, policy):
+            if policy.get("retired") or not policy["enabled"] or not self.event_matches_policy(event, policy):
                 continue
             matched, reason = self.conditions_match(policy, event, asset)
             if not matched:
