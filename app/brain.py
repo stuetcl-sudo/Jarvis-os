@@ -36,7 +36,18 @@ def _active_recommendation_exists(title, service):
     return row is not None
 
 
+def _recent_observation_exists(title, service, minutes=60):
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+    row = _one(
+        "SELECT id FROM observations WHERE title = ? AND service IS ? AND created_at >= ? LIMIT 1",
+        (title, service, cutoff),
+    )
+    return row is not None
+
+
 def add_observation(severity, category, service, title, detail):
+    if _recent_observation_exists(title, service):
+        return
     conn = connect()
     conn.execute(
         "INSERT INTO observations (created_at, severity, category, service, title, detail) VALUES (?, ?, ?, ?, ?, ?)",
@@ -132,7 +143,7 @@ def update_service_baselines(containers):
     for item in containers:
         name = item["name"]
         classification = item["classification"]
-        status = item["status"]
+        status = item.get("docker_state") or item.get("status")
         row = conn.execute("SELECT * FROM service_baselines WHERE service = ?", (name,)).fetchone()
         if not row:
             running_count = 1 if status == "running" else 0
@@ -172,19 +183,19 @@ def detect_anomalies(containers, health):
 
     for item in containers:
         name = item["name"]
-        status = item["status"]
+        status = item.get("docker_state") or item.get("status")
         classification = item["classification"]
         baseline = services.get(name)
 
         if classification == "critical" and status != "running":
-            add_observation("critical", "service", name, "Kritisk service stoppet", f"{name} har status {status}.")
+            add_observation("critical", "service", name, "Kritisk service stoppet", f"{name} har Docker state {status}.")
             add_recommendation("critical", "service", name, "Undersøg kritisk service", f"{name} er kritisk og kører ikke. Jarvis auto-fixer ikke dette i v0.3.")
         elif classification == "critical" and status == "running":
             resolve_recommendation("Undersøg kritisk service", name)
 
         if classification == "unknown":
-            add_observation("info", "service", name, "Ukendt container fundet", f"{name} er ikke klassificeret som critical, optional eller stopped-by-design.")
-            add_recommendation("info", "service", name, "Klassificér ukendt container", f"Tilføj {name} til CRITICAL_SERVICES, OPTIONAL_SERVICES eller IGNORED_SERVICES i .env.")
+            add_observation("info", "service", name, f"New unknown container discovered: {name}", f"{name} er ikke klassificeret som critical, optional eller stopped-by-design.")
+            add_recommendation("info", "service", name, f"Classify container {name} as critical, optional, or stopped-by-design.", f"Brug Mission Control eller API'et til at klassificere {name}.")
 
         if baseline and int(baseline["sample_count"]) >= config.BASELINE_MIN_SAMPLES:
             normal_status = baseline["normal_status"]
