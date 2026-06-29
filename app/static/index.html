@@ -23,11 +23,24 @@
     <section class="mission-grid" id="missionCards"></section>
     <section class="panel wide"><div class="panel-head"><h2>Hvad Jarvis gør nu</h2><span id="workerBadge" class="pill">Indlæser</span></div><p id="workerText" class="large-text">Indlæser worker status...</p></section>
     <section class="panel wide"><div class="panel-head"><h2>Live event feed</h2><span class="pill working">Event Engine</span></div><div id="eventFeed" class="event-list"></div></section>
-    <section class="panel wide"><div class="panel-head"><h2>Ukendte containere</h2><span class="pill">Skal klassificeres</span></div><div id="unknownContainers" class="service-list"></div></section>
+
+    <section class="panel wide unknown-panel">
+      <div class="panel-head">
+        <div><h2>Ukendte containere</h2><p class="muted">Nye containere bliver ikke auto-startet. Klassificér dem først, så Jarvis ved hvordan de skal behandles.</p></div>
+        <span class="pill">Skal klassificeres</span>
+      </div>
+      <div id="unknownContainers" class="unknown-grid"></div>
+    </section>
+
     <section class="panel wide"><div class="panel-head"><h2>Jarvis Brain</h2><span id="learningBadge" class="pill working">Jarvis lærer</span></div><div class="columns brain-columns"><article><h3>Hvad Jarvis har lært</h3><div id="brainSummary" class="metric-list"></div></article><article><h3>Normal adfærd</h3><div id="normalBehavior" class="metric-list"></div></article></div></section>
     <section class="columns"><article class="panel"><h2>Observationer</h2><div id="observations"></div></article><article class="panel"><h2>Anbefalinger</h2><div id="recommendations"></div></article></section>
     <section class="columns"><article class="panel"><h2>Kritiske services</h2><div id="criticalServices" class="service-list"></div></article><article class="panel"><h2>System health</h2><div id="systemHealth" class="metric-list"></div></article></section>
-    <section class="panel"><h2>Alle Docker-containere</h2><div class="table-wrap"><table><thead><tr><th>Navn</th><th>Type</th><th>Docker state</th><th>SDK status</th><th>Health</th><th>Beskyttet</th><th>Auto-start</th><th>Klassificér</th><th>Handling</th></tr></thead><tbody id="containers"></tbody></table></div></section>
+
+    <section class="panel">
+      <h2>Docker status</h2>
+      <div class="table-wrap"><table><thead><tr><th>Navn</th><th>Type</th><th>Docker state</th><th>SDK status</th><th>Health</th><th>Beskyttet</th><th>Auto-start</th><th>Klassificér</th><th>Handling</th></tr></thead><tbody id="containers"></tbody></table></div>
+    </section>
+
     <section class="panel"><h2>Stoppet med vilje</h2><div id="stoppedByDesign" class="service-list"></div></section>
     <section class="columns"><article class="panel"><h2>Aktive incidents</h2><div id="incidents"></div></article><article class="panel"><h2>Seneste Jarvis handling</h2><div id="latestAction"></div></article></section>
   </main>
@@ -45,11 +58,21 @@ function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, c =>
 async function runOnce() { try { await getJson('/api/worker/run-once', { method: 'POST' }); await refreshAll(); } catch (err) { alert(err.message); await refreshAll(); } }
 async function restartContainer(name) { if (!confirm(`Start stoppet container: ${name}?`)) return; try { await getJson(`/api/containers/${encodeURIComponent(name)}/restart`, { method: 'POST' }); await refreshAll(); } catch (err) { alert(err.message); await refreshAll(); } }
 async function dismissRecommendation(id) { try { await getJson(`/api/recommendations/${id}/dismiss`, { method: 'POST' }); await refreshAll(); } catch (err) { alert(err.message); } }
-async function classifyContainer(index) {
+function recommendedClassification(c) {
+  const name = String(c.name || '').toLowerCase();
+  if (name.includes('gluetun') || name.includes('vpn')) return 'stopped_by_design';
+  if (name.includes('qbittorrent') || name.includes('torrent')) return 'stopped_by_design';
+  if (name.includes('jellyseerr') || name.includes('jellyfin') || name.includes('bazarr') || name.includes('sonarr') || name.includes('radarr') || name.includes('prowlarr')) return 'optional';
+  if (name.includes('adguard') || name.includes('caddy') || name.includes('homeassistant')) return 'critical';
+  return 'optional';
+}
+async function classifyContainer(index, preset = null) {
   const c = containerRows[index];
-  const classification = document.getElementById(`cls-${index}`).value;
-  const protectedValue = document.getElementById(`prot-${index}`).checked;
-  const autoStart = document.getElementById(`auto-${index}`).checked;
+  const classification = preset || document.getElementById(`cls-${index}`).value;
+  const protectedBox = document.getElementById(`prot-${index}`);
+  const autoBox = document.getElementById(`auto-${index}`);
+  const protectedValue = protectedBox ? protectedBox.checked : false;
+  const autoStart = autoBox ? autoBox.checked : false;
   try {
     await getJson(`/api/service-classifications/${encodeURIComponent(c.name)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ classification, protected: protectedValue, auto_start_allowed: autoStart }) });
     await refreshAll();
@@ -65,7 +88,12 @@ function renderContainerRow(c, index) {
   const state = c.docker_state || c.status;
   return `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(c.classification)}</td><td><span class="status ${escapeHtml(state)}">${escapeHtml(state)}</span></td><td>${escapeHtml(c.docker_status || '')}</td><td>${escapeHtml(c.health_status || '—')}</td><td><input id="prot-${index}" type="checkbox" ${c.protected ? 'checked' : ''}></td><td><input id="auto-${index}" type="checkbox" ${c.auto_start_allowed ? 'checked' : ''}></td><td>${classSelect(index, c.classification)} <button class="secondary" onclick="classifyContainer(${index})">Gem</button></td><td>${state === 'exited' && !c.protected ? `<button onclick="restartContainer('${escapeHtml(c.name)}')">Start</button>` : '—'}</td></tr>`;
 }
-function renderUnknown(c, index) { const state = c.docker_state || c.status; return `<div class="service-row"><div><b>${escapeHtml(c.name)}</b><small>Docker state: ${escapeHtml(state)}</small></div><div>${classSelect(index, c.classification)} <button class="secondary" onclick="classifyContainer(${index})">Gem</button></div></div>`; }
+function renderUnknown(c) {
+  const index = containerRows.findIndex(x => x.name === c.name);
+  const state = c.docker_state || c.status;
+  const rec = recommendedClassification(c);
+  return `<article class="unknown-card"><div class="unknown-top"><div><b>${escapeHtml(c.name)}</b><small>${escapeHtml(c.image || 'unknown image')}</small></div><span class="status ${escapeHtml(state)}">${escapeHtml(state)}</span></div><div class="recommendation-line">Anbefaling: <strong>${escapeHtml(rec)}</strong></div><div class="quick-buttons"><button onclick="classifyContainer(${index}, 'critical')">Critical</button><button onclick="classifyContainer(${index}, 'optional')">Optional</button><button onclick="classifyContainer(${index}, 'stopped_by_design')">Stopped-by-design</button></div><div class="classification-controls"><label>Type ${classSelect(index, c.classification)}</label><label><input id="prot-${index}" type="checkbox" ${c.protected ? 'checked' : ''}> Protected</label><label><input id="auto-${index}" type="checkbox" ${c.auto_start_allowed ? 'checked' : ''}> Auto-start</label><button class="secondary" onclick="classifyContainer(${index})">Gem valg</button></div><p class="muted">Ukendte containere auto-startes aldrig.</p></article>`;
+}
 async function refreshAll() {
   const [data, brain, events] = await Promise.all([getJson('/api/mission'), getJson('/api/brain'), getJson('/api/events/latest?limit=20')]);
   containerRows = data.containers || [];
@@ -75,7 +103,7 @@ async function refreshAll() {
   document.getElementById('workerBadge').className = workerRunning ? 'pill working' : 'pill';
   document.getElementById('workerText').textContent = data.what_jarvis_is_doing_now;
   document.getElementById('eventFeed').innerHTML = events.events.length ? events.events.map(renderEvent).join('') : '<p class="muted">Ingen events endnu.</p>';
-  document.getElementById('unknownContainers').innerHTML = data.unknown_containers.length ? data.unknown_containers.map(c => renderUnknown(c, containerRows.findIndex(x => x.name === c.name))).join('') : '<p class="muted">Ingen ukendte containere.</p>';
+  document.getElementById('unknownContainers').innerHTML = data.unknown_containers.length ? data.unknown_containers.map(renderUnknown).join('') : '<p class="muted">Ingen ukendte containere.</p>';
   document.getElementById('learningBadge').textContent = brain.learning ? 'Jarvis lærer' : 'Læring pause';
   const baseline = brain.system_baseline;
   document.getElementById('brainSummary').innerHTML = `<div><span>Services lært</span><b>${brain.normal_behavior_summary.services_learned}</b></div><div><span>System samples</span><b>${brain.normal_behavior_summary.system_samples}</b></div><div><span>Aktive anbefalinger</span><b>${brain.normal_behavior_summary.active_recommendations}</b></div>`;
