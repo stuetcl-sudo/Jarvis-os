@@ -18,13 +18,23 @@ def env_int(name, default):
         return default
 
 
+def env_float(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
+
 def env_csv(name):
     value = os.getenv(name, "")
     return set([item.strip() for item in value.split(",") if item.strip()])
 
 
 APP_NAME = os.getenv("APP_NAME", "Jarvis-os")
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 SAFE_MODE = env_bool("SAFE_MODE", True)
 ALLOW_RESTART_STOPPED = env_bool("ALLOW_RESTART_STOPPED", True)
 WORKER_ENABLED = env_bool("WORKER_ENABLED", True)
@@ -44,3 +54,8 @@ CPU_WARN_PERCENT = env_int("CPU_WARN_PERCENT", 90)
 MEMORY_WARN_PERCENT = env_int("MEMORY_WARN_PERCENT", 90)
 SWAP_WARN_PERCENT = env_int("SWAP_WARN_PERCENT", 80)
 DISK_WARN_PERCENT = env_int("DISK_WARN_PERCENT", 85)
+
+BASELINE_MIN_SAMPLES = env_int("BASELINE_MIN_SAMPLES", 3)
+ANOMALY_RAM_DELTA_PERCENT = env_float("ANOMALY_RAM_DELTA_PERCENT", 20.0)
+ANOMALY_SWAP_DELTA_PERCENT = env_float("ANOMALY_SWAP_DELTA_PERCENT", 20.0)
+DISK_TREND_DELTA_PERCENT = env_float("DISK_TREND_DELTA_PERCENT", 2.0)
