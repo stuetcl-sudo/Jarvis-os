@@ -1,8 +1,8 @@
 from app.actions.action import Action, now_iso
-from app.actions.history import get_action, insert_action, list_actions, update_action
+from app.actions.history import get_action, insert_action, list_actions
+from app.actions.state_machine import transition_action
 
 ACTIVE_STATUSES = {"queued", "waiting_approval", "approved", "running"}
-TERMINAL_STATUSES = {"completed", "failed", "denied", "cancelled"}
 
 
 def find_active_action(asset_id: str, action_type: str) -> dict | None:
@@ -45,13 +45,10 @@ def queue_action(
     return insert_action(action)
 
 
-def approve_action(action_id: str, approved_by: str = "user") -> dict | None:
-    action = get_action(action_id)
-    if not action or action["status"] != "waiting_approval":
-        return action
-    return update_action(
+def approve_action(action_id: str, approved_by: str = "user"):
+    return transition_action(
         action_id,
-        status="approved",
+        "approved",
         approved=True,
         approved_by=approved_by,
         approved_at=now_iso(),
@@ -59,18 +56,12 @@ def approve_action(action_id: str, approved_by: str = "user") -> dict | None:
     )
 
 
-def deny_action(action_id: str, denied_by: str = "user") -> dict | None:
-    action = get_action(action_id)
-    if not action or action["status"] in TERMINAL_STATUSES:
-        return action
-    return update_action(action_id, status="denied", safety_status="denied", explanation=f"Action denied by {denied_by}.", result={"denied_by": denied_by})
+def deny_action(action_id: str, denied_by: str = "user"):
+    return transition_action(action_id, "denied", safety_status="denied", explanation=f"Action denied by {denied_by}.", result={"denied_by": denied_by})
 
 
-def cancel_action(action_id: str, cancelled_by: str = "user") -> dict | None:
-    action = get_action(action_id)
-    if not action or action["status"] in TERMINAL_STATUSES:
-        return action
-    return update_action(action_id, status="cancelled", explanation=f"Action cancelled by {cancelled_by}.", result={"cancelled_by": cancelled_by})
+def cancel_action(action_id: str, cancelled_by: str = "user"):
+    return transition_action(action_id, "cancelled", explanation=f"Action cancelled by {cancelled_by}.", result={"cancelled_by": cancelled_by})
 
 
-__all__ = ["queue_action", "approve_action", "deny_action", "cancel_action", "get_action", "list_actions", "update_action", "find_active_action"]
+__all__ = ["queue_action", "approve_action", "deny_action", "cancel_action", "get_action", "list_actions", "find_active_action"]
