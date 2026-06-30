@@ -9,88 +9,53 @@
   <link rel="stylesheet" href="/static/css/common.css" />
   <link rel="stylesheet" href="/static/css/family.css" />
 </head>
-<body>
+<body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false">
   <main class="family-shell">
     <header class="family-header" aria-labelledby="greeting">
       <div>
         <p class="family-kicker" id="currentDate">Indlæser dato…</p>
+        <p class="family-view-label" id="familyViewLabel">Fælles overblik</p>
         <h1 id="greeting">Goddag</h1>
-        <p class="family-subtitle">Her er et roligt overblik over hjemmet.</p>
+        <p class="family-subtitle" id="familySubtitle">Her er et roligt overblik over hjemmet.</p>
       </div>
       <time class="family-clock" id="currentTime" aria-label="Aktuelt klokkeslæt">--:--</time>
     </header>
 
-    <section class="status-strip" aria-label="Status for Jarvis og hjemmet">
-      <article class="status-tile" id="jarvisStatusCard">
-        <span class="status-dot neutral" id="jarvisStatusDot" aria-hidden="true"></span>
-        <div>
-          <span class="tile-label">Jarvis</span>
-          <strong id="jarvisStatus">Forbinder…</strong>
-        </div>
-      </article>
-      <article class="status-tile">
-        <span class="tile-label">Sikker tilstand</span>
-        <strong id="safeMode">–</strong>
-      </article>
-      <article class="status-tile">
-        <span class="tile-label">Systemer online</span>
-        <strong id="systemsOnline">–</strong>
-      </article>
-      <article class="status-tile">
-        <span class="tile-label">Aktive hændelser</span>
-        <strong id="incidentCount">–</strong>
-      </article>
-    </section>
+<!-- FAMILY_TECHNICAL_STATUS -->
 
     <section class="family-grid" aria-label="Familiens oversigt">
-      <article class="family-card placeholder-card">
+      <article class="family-card placeholder-card" data-family-card="calendar">
         <div class="card-icon" aria-hidden="true">📅</div>
         <div class="card-heading"><p class="card-eyebrow">Kalender</p><h2>Dagens aftaler</h2></div>
         <p class="disconnected">Ikke tilsluttet endnu</p>
       </article>
 
-      <article class="family-card placeholder-card">
+      <article class="family-card placeholder-card" data-family-card="weather">
         <div class="card-icon" aria-hidden="true">☁️</div>
         <div class="card-heading"><p class="card-eyebrow">Vejret</p><h2>Udenfor lige nu</h2></div>
         <p class="disconnected">Ikke tilsluttet endnu</p>
       </article>
 
-      <article class="family-card home-card">
-        <div class="card-icon" aria-hidden="true">🏠</div>
-        <div class="card-heading"><p class="card-eyebrow">Hjemmet</p><h2>Status</h2></div>
-        <dl class="home-status-list">
-          <div><dt>Kritiske systemer</dt><dd id="criticalSystems">Kontrollerer…</dd></div>
-          <div><dt>Jarvis arbejder med</dt><dd id="currentTask">–</dd></div>
-          <div><dt>Senest opdateret</dt><dd id="lastUpdated">–</dd></div>
-        </dl>
-      </article>
+<!-- FAMILY_HOME_CARD -->
 
-      <article class="family-card placeholder-card">
+      <article class="family-card placeholder-card" data-family-card="meal">
         <div class="card-icon" aria-hidden="true">🍽️</div>
         <div class="card-heading"><p class="card-eyebrow">Madplan</p><h2>Aftensmad</h2></div>
         <p class="disconnected">Ikke tilsluttet endnu</p>
       </article>
 
-      <article class="family-card placeholder-card">
+      <article class="family-card placeholder-card" data-family-card="tasks">
         <div class="card-icon" aria-hidden="true">✏️</div>
         <div class="card-heading"><p class="card-eyebrow">Lektier og opgaver</p><h2>Det næste</h2></div>
         <p class="disconnected">Ikke tilsluttet endnu</p>
       </article>
 
-      <article class="family-card system-card">
-        <div class="card-icon" aria-hidden="true">⚙️</div>
-        <div class="card-heading"><p class="card-eyebrow">System</p><h2>Jarvis-os</h2></div>
-        <dl class="system-metrics">
-          <div><dt>CPU</dt><dd id="cpuMetric">–</dd></div>
-          <div><dt>Hukommelse</dt><dd id="memoryMetric">–</dd></div>
-          <div><dt>Disk</dt><dd id="diskMetric">–</dd></div>
-        </dl>
-      </article>
+<!-- FAMILY_TECHNICAL_CARD -->
     </section>
 
     <footer class="family-footer">
-      <p>Familievisningen er skrivebeskyttet. Login, roller og reel adgangskontrol kommer i en senere version.</p>
-      <a class="admin-link" href="/admin">Mission Control</a>
+      <p>Familievisningen tilpasser sig den aktive rolle. Administrative kontroller kræver en ejerkonto.</p>
+<!-- FAMILY_NAVIGATION -->
     </footer>
   </main>
   <script src="/static/js/family.js" defer></script>
