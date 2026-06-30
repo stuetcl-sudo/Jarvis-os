@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jarvis-os Mission Control</title>
+  <link rel="stylesheet" href="/static/css/common.css" />
+  <link rel="stylesheet" href="/static/css/admin.css" />
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Mission Control + Action Engine</p>
+        <h1>Jarvis-os</h1>
+        <p class="subtitle">Event-driven platform with Asset Registry, Policy Engine and safe manual Action Queue.</p>
+        <p class="security-note">Visuel adskillelse – ikke en sikkerhedsgrænse. Login og roller kommer i en senere version.</p>
+      </div>
+      <div class="hero-actions"><a class="family-link" href="/">Familievisning</a><button onclick="runOnce()">Run check now</button><button class="secondary" onclick="refreshAll()">Refresh</button></div>
+    </header>
+    <section class="mission-grid" id="missionCards"></section>
+    <section class="panel wide"><div class="panel-head"><h2>Worker status</h2><span id="workerBadge" class="pill">Loading</span></div><p id="workerText" class="large-text">Loading worker status...</p></section>
+    <section class="panel wide"><div class="panel-head"><h2>Action Queue</h2><span class="pill working">Manual approval</span></div><div id="actionQueue" class="policy-list"></div><div class="asset-detail muted">Actions run only through queue, approval, safety check and verification.</div></section>
+    <section class="panel wide"><div class="panel-head"><h2>Policy Engine</h2><span class="pill working">Dry-run safe</span></div><div class="columns"><article><h3>Policies</h3><div id="policyList" class="policy-list"></div></article><article><h3>Latest decisions</h3><div id="policyDecisions" class="policy-list"></div></article></div><div id="policyExplanation" class="asset-detail muted">Select a decision to see the explanation.</div></section>
+    <section class="panel wide"><div class="panel-head"><h2>Asset Overview</h2><input id="assetFilter" placeholder="Filter assets..." oninput="renderAssets()"></div><div id="assetOverview" class="asset-groups"></div><div id="assetDetail" class="asset-detail muted">Select an asset to see details.</div></section>
+    <section class="panel wide"><div class="panel-head"><h2>Live event feed</h2><span class="pill working">Event Engine</span></div><div id="eventFeed" class="event-list"></div></section>
+    <section class="panel wide"><div class="panel-head"><div><h2>Unknown containers</h2><p class="muted">Unknown containers are never auto-started. Classify them first.</p></div><span class="pill">Needs classification</span></div><div id="unknownContainers" class="unknown-grid"></div></section>
+    <section class="columns"><article class="panel"><h2>Observations</h2><div id="observations"></div></article><article class="panel"><h2>Recommendations</h2><div id="recommendations"></div></article></section>
+    <section class="columns"><article class="panel"><h2>Critical services</h2><div id="criticalServices" class="service-list"></div></article><article class="panel"><h2>System health</h2><div id="systemHealth" class="metric-list"></div></article></section>
+    <section class="panel"><h2>Docker status</h2><div class="table-wrap"><table><thead><tr><th>Name</th><th>Asset</th><th>Type</th><th>Docker state</th><th>Health</th><th>Protected</th><th>Auto</th><th>Classify</th><th>Action</th></tr></thead><tbody id="containers"></tbody></table></div></section>
+    <section class="panel"><h2>Stopped by design</h2><div id="stoppedByDesign" class="service-list"></div></section>
+    <section class="columns"><article class="panel"><h2>Active incidents</h2><div id="incidents"></div></article><article class="panel"><h2>Latest legacy log entry</h2><div id="latestAction"></div></article></section>
+  </main>
+  <script src="/static/js/admin.js" defer></script>
+</body>
+</html>
