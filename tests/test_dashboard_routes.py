@@ -87,6 +87,20 @@ def test_family_javascript_uses_read_only_get_requests_only():
     assert fetch_calls == ["/api/health", "/api/mission"]
 
 
+def test_validation_script_checks_live_v08_deployment():
+    script = (ROOT / "scripts/validate.sh").read_text()
+    assert "docker compose up -d --build --force-recreate jarvis-os" in script
+    assert 'check_live_route "/" "family dashboard" "Her er et roligt overblik over hjemmet"' in script
+    assert 'check_live_route "/admin" "Mission Control" "Mission Control"' in script
+    for asset in [
+        "/static/js/family.js",
+        "/static/js/admin.js",
+        "/static/css/family.css",
+        "/static/css/admin.css",
+    ]:
+        assert f'check_live_route "{asset}"' in script
+
+
 if __name__ == "__main__":
     for test in [
         test_root_returns_family_dashboard,
@@ -95,6 +109,7 @@ if __name__ == "__main__":
         test_existing_api_routes_remain_available,
         test_static_css_and_javascript_assets_load,
         test_family_javascript_uses_read_only_get_requests_only,
+        test_validation_script_checks_live_v08_deployment,
     ]:
         test()
     print("Dashboard route tests OK")
