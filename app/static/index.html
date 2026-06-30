@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/static/css/family.css" />
   <link rel="stylesheet" href="/static/css/weather.css" />
   <link rel="stylesheet" href="/static/css/calendar.css" />
+  <link rel="stylesheet" href="/static/css/routines.css" />
 </head>
 <body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false" data-family-label="Fælles overblik" data-family-subtitle="Her er et roligt overblik over hjemmet.">
   <main class="family-shell">
@@ -26,6 +27,34 @@
 <!-- FAMILY_TECHNICAL_STATUS -->
 
     <section class="family-grid" aria-label="Familiens oversigt">
+      <article class="family-card routine-card" data-family-card="routine" hidden>
+        <div class="card-icon" aria-hidden="true">✓</div>
+        <div class="card-heading"><p class="card-eyebrow">Min rutine</p><h2>Det næste trin</h2></div>
+        <div class="routine-card-content">
+          <div class="routine-switch" role="group" aria-label="Vælg rutine">
+            <button type="button" data-routine-select="morning" aria-pressed="false">Morgen</button>
+            <button type="button" data-routine-select="evening" aria-pressed="false">Aften</button>
+          </div>
+          <div class="routine-panel" id="routinePanel">
+            <div class="routine-pictogram-frame">
+              <svg class="routine-pictogram" id="routinePictogram" role="img" aria-label="Rutinepiktogram"><use id="routinePictogramUse" href="/static/pictograms/routines.svg#complete"></use></svg>
+            </div>
+            <div class="routine-copy">
+              <p class="routine-label" id="routineLabel">Rutine</p>
+              <p class="routine-progress" id="routineProgress"></p>
+              <h3 class="routine-title" id="routineTitle">Henter næste trin…</h3>
+              <p class="routine-time" id="routineTime"></p>
+              <p class="routine-message" id="routineMessage" role="status"></p>
+              <div class="routine-actions">
+                <button type="button" id="routineBack">Tilbage</button>
+                <button type="button" class="routine-complete" id="routineComplete">Færdig</button>
+              </div>
+              <button type="button" class="routine-reset" id="routineReset" hidden>Start forfra</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
       <article class="family-card calendar-card" data-family-card="calendar">
         <div class="card-icon" aria-hidden="true">📅</div>
         <div class="card-heading"><p class="card-eyebrow">Kalender</p><h2>Dagens aftaler</h2></div>
@@ -94,5 +123,6 @@
     </footer>
   </main>
   <script src="/static/js/family.js" defer></script>
+  <script src="/static/js/routines.js" defer></script>
 </body>
 </html>

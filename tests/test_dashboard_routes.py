@@ -25,9 +25,12 @@ def test_root_returns_anonymous_family_dashboard():
     assert 'href="/admin"' not in response.text
     assert "Mission Control" not in response.text
     assert "<dt>CPU</dt>" not in response.text
+    assert 'data-family-card="routine"' in response.text
     assert 'data-family-card="calendar"' in response.text
     assert 'data-family-card="weather"' in response.text
     assert "/static/js/family.js" in response.text
+    assert "/static/js/routines.js" in response.text
+    assert "/static/css/routines.css" in response.text
     assert "/static/css/calendar.css" in response.text
     assert "/static/css/weather.css" in response.text
 
@@ -81,11 +84,18 @@ def test_existing_api_routes_remain_available():
     assert client.get("/api/health").status_code == 200
     assert client.get("/api/family/weather").status_code == 200
     assert client.get("/api/family/calendar").status_code == 200
+    routines = client.get("/api/family/routines")
+    assert routines.status_code == 200
+    assert routines.json() == {"status": "authentication_required", "routines": []}
     paths = {route.path for route in app.routes if hasattr(route, "path")}
     for expected in [
         "/api/mission",
         "/api/family/weather",
         "/api/family/calendar",
+        "/api/family/routines",
+        "/api/family/routines/{routine_id}/complete",
+        "/api/family/routines/{routine_id}/back",
+        "/api/family/routines/{routine_id}/reset",
         "/api/actions",
         "/api/actions/queue",
         "/api/actions/{action_id}/approve",
@@ -101,17 +111,20 @@ def test_existing_api_routes_remain_available():
         assert expected in paths
 
 
-def test_static_css_and_javascript_assets_load():
+def test_static_css_javascript_and_pictogram_assets_load():
     for asset in [
         "/static/css/common.css",
         "/static/css/family.css",
         "/static/css/weather.css",
         "/static/css/calendar.css",
+        "/static/css/routines.css",
         "/static/css/admin.css",
         "/static/css/login.css",
         "/static/js/family.js",
+        "/static/js/routines.js",
         "/static/js/admin.js",
         "/static/js/login.js",
+        "/static/pictograms/routines.svg",
         "/static/style.css",
     ]:
         response = client.get(asset)
@@ -119,7 +132,7 @@ def test_static_css_and_javascript_assets_load():
         assert response.text.strip(), asset
 
 
-def test_family_javascript_uses_read_only_get_requests_only():
+def test_family_javascript_keeps_existing_read_only_get_requests():
     javascript = (ROOT / "app/static/js/family.js").read_text()
     assert not re.search(r"\b(POST|PUT|PATCH|DELETE)\b", javascript, re.IGNORECASE)
     assert "method:" not in javascript
@@ -138,24 +151,29 @@ def test_family_javascript_uses_read_only_get_requests_only():
 def test_validation_script_checks_protected_live_v08_deployment():
     script = (ROOT / "scripts/validate.sh").read_text()
     assert "docker compose up -d --build --force-recreate jarvis-os" in script
+    assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_family_routines.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_family_role_views.py' in script
     assert 'check_live_route "/" "family dashboard" "Her er et roligt overblik over hjemmet"' in script
     assert 'check_live_route "/api/family/weather" "family weather API" \'"status":"not_configured"\'' in script
     assert 'check_live_route "/api/family/calendar" "family calendar API" \'"status":"not_configured"\'' in script
+    assert 'check_live_route "/api/family/routines" "family routines API" \'"status":"authentication_required"\'' in script
     assert 'check_live_route "/login" "login page" "Log ind på Jarvis"' in script
     assert 'check_live_redirect "/admin" "/login?next=/admin"' in script
     assert 'check_live_route "/static/admin.html" "Mission Control static page" "Mission Control"' in script
     for asset in [
         "/static/js/login.js",
         "/static/js/family.js",
+        "/static/js/routines.js",
         "/static/js/admin.js",
         "/static/css/login.css",
         "/static/css/family.css",
         "/static/css/weather.css",
         "/static/css/calendar.css",
+        "/static/css/routines.css",
         "/static/css/admin.css",
+        "/static/pictograms/routines.svg",
     ]:
         assert f'check_live_route "{asset}"' in script
 
@@ -167,8 +185,8 @@ if __name__ == "__main__":
         test_login_page_and_assets_load,
         test_family_page_contains_no_action_engine_write_controls,
         test_existing_api_routes_remain_available,
-        test_static_css_and_javascript_assets_load,
-        test_family_javascript_uses_read_only_get_requests_only,
+        test_static_css_javascript_and_pictogram_assets_load,
+        test_family_javascript_keeps_existing_read_only_get_requests,
         test_validation_script_checks_protected_live_v08_deployment,
     ]:
         test()

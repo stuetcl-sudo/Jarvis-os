@@ -1,0 +1,2 @@
+The routine pictograms in routines.svg are original project artwork created for Jarvis-os.
+No third-party icon set or external image asset is used.
