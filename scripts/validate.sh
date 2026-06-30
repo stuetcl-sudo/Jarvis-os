@@ -39,6 +39,24 @@ check_live_route() {
   echo "OK: ${label} at ${path} returned HTTP 200${marker:+ with expected marker}"
 }
 
+check_live_redirect() {
+  local path="$1"
+  local expected_location="$2"
+  local headers_file="/tmp/jarvis-validate-redirect-headers.txt"
+  local code
+  local location
+
+  code=$(curl -sS -D "$headers_file" -o /dev/null -w "%{http_code}" --max-time 10 "${APP_URL}${path}" || true)
+  if [ "$code" != "303" ]; then
+    fail "Live redirect check for ${path} returned HTTP ${code}, expected 303."
+  fi
+  location=$(awk 'BEGIN {IGNORECASE=1} /^Location:/ {sub(/\r$/, "", $2); print $2}' "$headers_file" | tail -n 1)
+  if [ "$location" != "$expected_location" ]; then
+    fail "Live redirect check for ${path} returned Location ${location:-missing}, expected ${expected_location}."
+  fi
+  echo "OK: ${path} redirects to ${expected_location}"
+}
+
 if command -v python3 >/dev/null 2>&1; then
   PYTHON_BIN="python3"
 elif command -v python >/dev/null 2>&1; then
@@ -54,11 +72,12 @@ bash scripts/privacy_check.sh || {
   exit 1
 }
 
-echo "[2/10] Running focused dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
+echo "[2/10] Running focused authentication, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
 if [ -z "$PYTHON_BIN" ]; then
   echo "ERROR: Python is required for focused tests."
   exit 1
 fi
+PYTHONPATH=. "$PYTHON_BIN" tests/test_auth_roles.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_dashboard_routes.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_action_state_machine.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_action_verification.py
@@ -92,11 +111,15 @@ while true; do
   sleep 2
 done
 
-echo "[7/10] Checking live v0.8 dashboard routes and assets"
+echo "[7/10] Checking live authenticated v0.8 routes and assets"
 check_live_route "/" "family dashboard" "Her er et roligt overblik over hjemmet"
-check_live_route "/admin" "Mission Control" "Mission Control"
+check_live_route "/login" "login page" "Log ind på Jarvis"
+check_live_redirect "/admin" "/login?next=/admin"
+check_live_route "/static/admin.html" "Mission Control static page" "Mission Control"
+check_live_route "/static/js/login.js" "login JavaScript"
 check_live_route "/static/js/family.js" "family dashboard JavaScript"
 check_live_route "/static/js/admin.js" "Mission Control JavaScript"
+check_live_route "/static/css/login.css" "login stylesheet"
 check_live_route "/static/css/family.css" "family dashboard stylesheet"
 check_live_route "/static/css/admin.css" "Mission Control stylesheet"
 

@@ -3,6 +3,7 @@ from app.actions.history import get_action, initialize_action_tables, list_actio
 from app.actions.queue import approve_action, cancel_action, deny_action, queue_action
 from app.actions.safety import check_action_safety
 from app.actions.state_machine import claim_approved_action, transition_action
+from app.auth.context import current_actor
 from app.events.dispatcher import publish
 
 
@@ -15,13 +16,17 @@ class ActionEngine:
         initialize_action_tables()
 
     def queue_action(self, **kwargs):
+        actor = current_actor()
+        if actor:
+            kwargs["requested_by"] = actor
+            kwargs["source"] = "mission_control"
         action = queue_action(**kwargs)
         if not action.get("deduplicated"):
             publish("action_engine", "Action.Queued", "info", action["asset_id"], {"asset_id": action["asset_id"], "action_id": action["action_id"], "action_type": action["action_type"], "status": action["status"]}, asset_id=action["asset_id"])
         return action
 
     def approve_action(self, action_id: str, approved_by: str = "user"):
-        result = approve_action(action_id, approved_by)
+        result = approve_action(action_id, current_actor() or approved_by)
         if result.changed and result.action:
             publish("action_engine", "Action.Approved", "info", result.action["asset_id"], {"asset_id": result.action["asset_id"], "action_id": action_id}, asset_id=result.action["asset_id"])
         if result.reason:
@@ -29,7 +34,7 @@ class ActionEngine:
         return result.action
 
     def deny_action(self, action_id: str, denied_by: str = "user"):
-        result = deny_action(action_id, denied_by)
+        result = deny_action(action_id, current_actor() or denied_by)
         if result.changed and result.action:
             publish("action_engine", "Action.Denied", "warning", result.action["asset_id"], {"asset_id": result.action["asset_id"], "action_id": action_id}, asset_id=result.action["asset_id"])
         if result.reason:
@@ -37,7 +42,7 @@ class ActionEngine:
         return result.action
 
     def cancel_action(self, action_id: str, cancelled_by: str = "user"):
-        result = cancel_action(action_id, cancelled_by)
+        result = cancel_action(action_id, current_actor() or cancelled_by)
         if result.changed and result.action:
             publish("action_engine", "Action.Cancelled", "info", result.action["asset_id"], {"asset_id": result.action["asset_id"], "action_id": action_id}, asset_id=result.action["asset_id"])
         if result.reason:
