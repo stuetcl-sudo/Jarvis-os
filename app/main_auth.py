@@ -9,8 +9,10 @@ from app.auth.service import SESSION_COOKIE_NAME, auth_service
 from app.db import log_action
 from app.family_view import render_family_page
 from app.main import app
+from app.weather import router as weather_router
 
 app.include_router(auth_router)
+app.include_router(weather_router)
 
 
 @app.on_event("startup")

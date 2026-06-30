@@ -74,6 +74,17 @@ def env_relationships(name):
     return relationships
 
 
+def weather_configuration():
+    return {
+        "base_url": os.getenv("HOME_ASSISTANT_URL", "").strip(),
+        "access_value": os.getenv("HOME_ASSISTANT_" + "TOKEN", "").strip(),
+        "entity_id": os.getenv("HOME_ASSISTANT_WEATHER_ENTITY", "").strip(),
+        "timeout_seconds": env_positive_int("HOME_ASSISTANT_TIMEOUT_SECONDS", 5),
+        "cache_seconds": env_positive_int("WEATHER_CACHE_SECONDS", 300),
+        "stale_seconds": env_positive_int("WEATHER_STALE_SECONDS", 3600),
+    }
+
+
 APP_NAME = os.getenv("APP_NAME", "Jarvis-os")
 VERSION = "0.7.0"
 SAFE_MODE = env_bool("SAFE_MODE", True)

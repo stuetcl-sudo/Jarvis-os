@@ -8,6 +8,7 @@
   <title>Jarvis – Hjem</title>
   <link rel="stylesheet" href="/static/css/common.css" />
   <link rel="stylesheet" href="/static/css/family.css" />
+  <link rel="stylesheet" href="/static/css/weather.css" />
 </head>
 <body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false" data-family-label="Fælles overblik" data-family-subtitle="Her er et roligt overblik over hjemmet.">
   <main class="family-shell">
@@ -30,10 +31,30 @@
         <p class="disconnected">Ikke tilsluttet endnu</p>
       </article>
 
-      <article class="family-card placeholder-card" data-family-card="weather">
-        <div class="card-icon" aria-hidden="true">☁️</div>
+      <article class="family-card weather-card" data-family-card="weather">
+        <div class="card-icon" id="weatherCardIcon" aria-hidden="true">☁️</div>
         <div class="card-heading"><p class="card-eyebrow">Vejret</p><h2>Udenfor lige nu</h2></div>
-        <p class="disconnected">Ikke tilsluttet endnu</p>
+        <div class="weather-card-content">
+          <p class="disconnected" id="weatherState">Ikke tilsluttet endnu</p>
+          <div class="weather-data" id="weatherData" hidden>
+            <div class="weather-current">
+              <span class="weather-symbol" id="weatherSymbol" role="img" aria-label="Vejrsymbol">☁️</span>
+              <div>
+                <strong class="weather-temperature" id="weatherTemperature">–</strong>
+                <p class="weather-condition" id="weatherCondition">Ukendt vejr</p>
+              </div>
+            </div>
+            <dl class="weather-measurements" id="weatherMeasurements">
+              <div data-weather-detail="apparent"><dt>Føles som</dt><dd id="weatherApparent">–</dd></div>
+              <div data-weather-detail="humidity"><dt>Luftfugtighed</dt><dd id="weatherHumidity">–</dd></div>
+              <div data-weather-detail="wind"><dt>Vind</dt><dd id="weatherWind">–</dd></div>
+              <div data-weather-detail="rain"><dt>Regnchance</dt><dd id="weatherRain">–</dd></div>
+            </dl>
+            <p class="weather-child-summary" id="weatherChildRain" hidden></p>
+            <ol class="weather-forecast" id="weatherForecast" aria-label="Vejrudsigt for de næste dage"></ol>
+            <p class="weather-stale" id="weatherStale" hidden>Viser senest hentede vejrdata</p>
+          </div>
+        </div>
       </article>
 
 <!-- FAMILY_HOME_CARD -->

@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_URL="${APP_URL:-http://localhost:8088}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-90}"
-ENDPOINTS=("/api/health" "/api/mission" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations" "/api/events" "/api/events/latest" "/api/events/types" "/api/events/statistics" "/api/service-classifications" "/api/assets" "/api/assets/search" "/api/assets/relationships" "/api/policies" "/api/policy-decisions" "/api/policy-decisions/latest" "/api/actions" "/api/action-log")
+ENDPOINTS=("/api/health" "/api/mission" "/api/family/weather" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations" "/api/events" "/api/events/latest" "/api/events/types" "/api/events/statistics" "/api/service-classifications" "/api/assets" "/api/assets/search" "/api/assets/relationships" "/api/policies" "/api/policy-decisions" "/api/policy-decisions/latest" "/api/actions" "/api/action-log")
 
 show_logs() {
   echo ""
@@ -72,11 +72,12 @@ bash scripts/privacy_check.sh || {
   exit 1
 }
 
-echo "[2/10] Running focused authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
+echo "[2/10] Running focused weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
 if [ -z "$PYTHON_BIN" ]; then
   echo "ERROR: Python is required for focused tests."
   exit 1
 fi
+PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_family_role_views.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_auth_roles.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_dashboard_routes.py
@@ -114,6 +115,7 @@ done
 
 echo "[7/10] Checking live authenticated v0.8 routes and assets"
 check_live_route "/" "family dashboard" "Her er et roligt overblik over hjemmet"
+check_live_route "/api/family/weather" "family weather API" '"status":"not_configured"'
 check_live_route "/login" "login page" "Log ind på Jarvis"
 check_live_redirect "/admin" "/login?next=/admin"
 check_live_route "/static/admin.html" "Mission Control static page" "Mission Control"
@@ -122,6 +124,7 @@ check_live_route "/static/js/family.js" "family dashboard JavaScript"
 check_live_route "/static/js/admin.js" "Mission Control JavaScript"
 check_live_route "/static/css/login.css" "login stylesheet"
 check_live_route "/static/css/family.css" "family dashboard stylesheet"
+check_live_route "/static/css/weather.css" "weather stylesheet"
 check_live_route "/static/css/admin.css" "Mission Control stylesheet"
 
 echo "[8/10] Checking API endpoints"
