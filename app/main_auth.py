@@ -41,7 +41,7 @@ async def enforce_local_authentication(request: Request, call_next):
             if current_user["role"] != "owner":
                 return JSONResponse({"detail": "Owner role required"}, status_code=403)
             supplied = request.headers.get("X-CSRF-Token", "")
-            expected = current_user.get("csrf_token", "")
+            expected = current_user.get("csrf_value", "")
             if not supplied or not expected or not hmac.compare_digest(supplied, expected):
                 return JSONResponse({"detail": "Invalid request token"}, status_code=403)
 
