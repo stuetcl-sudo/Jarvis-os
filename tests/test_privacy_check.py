@@ -53,6 +53,47 @@ def test_current_checker_detects_fixtures_without_revealing_values():
         shutil.rmtree(root)
 
 
+def test_empty_credential_assignments_with_statement_terminators_are_allowed():
+    root = create_test_repository()
+    try:
+        field = "pass" + "word"
+        form_field = "form.elements." + field + ".value"
+        content = field + ' = ""\n'
+        content += field + " = '';\n"
+        content += form_field + ' = "";\n'
+        content += form_field + " = '';\n"
+        (root / "clear.js").write_text(content)
+        result = run(["bash", "scripts/privacy_check.sh"], root, check=False)
+        assert result.returncode == 0, result.stdout
+        assert "credential-assignment" not in result.stdout
+    finally:
+        shutil.rmtree(root)
+
+
+def test_non_empty_javascript_credentials_are_reported_safely():
+    root = create_test_repository()
+    try:
+        field_one = "pass" + "word"
+        field_two = "api_" + "token"
+        value_one = "fixture-" + "alpha"
+        value_two = "fixture-" + "beta"
+        content = field_one + ' = "' + value_one + '";\n'
+        content += field_two + ' = "' + value_two + '";\n'
+        (root / "credentials.js").write_text(content)
+        result = run(["bash", "scripts/privacy_check.sh"], root, check=False)
+        assert result.returncode == 1
+        lines = result.stdout.splitlines()
+        assert set(lines) == {
+            "credentials.js:1:credential-assignment",
+            "credentials.js:2:credential-assignment",
+        }
+        assert value_one not in result.stdout
+        assert value_two not in result.stdout
+        assert all(line.count(":") == 2 for line in lines)
+    finally:
+        shutil.rmtree(root)
+
+
 def test_quoted_response_mapping_keys_are_not_deployment_inventory():
     root = create_test_repository()
     try:
@@ -118,6 +159,8 @@ def test_repository_current_tree_passes_privacy_check():
 if __name__ == "__main__":
     for test in [
         test_current_checker_detects_fixtures_without_revealing_values,
+        test_empty_credential_assignments_with_statement_terminators_are_allowed,
+        test_non_empty_javascript_credentials_are_reported_safely,
         test_quoted_response_mapping_keys_are_not_deployment_inventory,
         test_bare_deployment_inventory_assignments_are_still_reported_safely,
         test_history_mode_finds_removed_private_data_but_current_tree_passes,
