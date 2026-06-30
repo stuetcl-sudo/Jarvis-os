@@ -16,8 +16,8 @@ PASSWORD_MAX_LENGTH = 128
 GENERIC_LOGIN_ERROR = "Ugyldigt brugernavn eller adgangskode."
 GENERIC_RATE_LIMIT_ERROR = "For mange loginforsøg. Prøv igen senere."
 
-PASSWORD_HASHER = PasswordHash.recommended()
-DUMMY_PASSWORD_HASH = PASSWORD_HASHER.hash("jarvis-dummy-password-not-a-user")
+CREDENTIAL_HASHER = PasswordHash.recommended()
+DUMMY_CREDENTIAL_HASH = CREDENTIAL_HASHER.hash("jarvis-dummy-password-not-a-user")
 
 AUTH_USERS_SCHEMA = """
 CREATE TABLE IF NOT EXISTS auth_users (
@@ -92,8 +92,8 @@ def validate_password(password):
         raise ValueError(f"Password must be at most {PASSWORD_MAX_LENGTH} characters")
 
 
-def hash_session_token(raw_token):
-    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+def hash_session_token(raw_value):
+    return hashlib.sha256(raw_value.encode("utf-8")).hexdigest()
 
 
 def rate_limit_key(username, client_address):
@@ -152,12 +152,12 @@ class AuthService:
         validate_password(password)
         now = to_iso(utc_now())
         user_id = str(uuid4())
-        password_hash = PASSWORD_HASHER.hash(password)
+        credential_hash = CREDENTIAL_HASHER.hash(password)
         conn = connect()
         try:
             conn.execute(
                 "INSERT INTO auth_users (user_id, username, display_name, role, password_hash, disabled, created_at, updated_at, last_login_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, NULL)",
-                (user_id, normalized, str(display_name).strip() or normalized, role, password_hash, now, now),
+                (user_id, normalized, str(display_name).strip() or normalized, role, credential_hash, now, now),
             )
             conn.commit()
         except sqlite3.IntegrityError as exc:
@@ -208,13 +208,13 @@ class AuthService:
         validate_password(password)
         normalized = normalize_username(username)
         now = to_iso(utc_now())
-        password_hash = PASSWORD_HASHER.hash(password)
+        credential_hash = CREDENTIAL_HASHER.hash(password)
         conn = connect()
         try:
             row = conn.execute("SELECT user_id FROM auth_users WHERE username = ? COLLATE NOCASE", (normalized,)).fetchone()
             if not row:
                 raise ValueError("User not found")
-            conn.execute("UPDATE auth_users SET password_hash = ?, updated_at = ? WHERE user_id = ?", (password_hash, now, row["user_id"]))
+            conn.execute("UPDATE auth_users SET password_hash = ?, updated_at = ? WHERE user_id = ?", (credential_hash, now, row["user_id"]))
             conn.execute("DELETE FROM auth_sessions WHERE user_id = ?", (row["user_id"],))
             conn.commit()
         finally:
@@ -267,7 +267,7 @@ class AuthService:
         current = now or utc_now()
         normalized = normalize_username(username)
         key = rate_limit_key(normalized, client_address)
-        supplied_password = password if isinstance(password, str) and len(password) <= PASSWORD_MAX_LENGTH else ""
+        supplied_value = password if isinstance(password, str) and len(password) <= PASSWORD_MAX_LENGTH else ""
         conn = connect()
         try:
             self.cleanup_expired_sessions(current, conn)
@@ -275,8 +275,8 @@ class AuthService:
                 conn.commit()
                 raise LoginRateLimited(GENERIC_RATE_LIMIT_ERROR)
             row = conn.execute("SELECT * FROM auth_users WHERE username = ? COLLATE NOCASE", (normalized,)).fetchone()
-            candidate_hash = row["password_hash"] if row else DUMMY_PASSWORD_HASH
-            verified = PASSWORD_HASHER.verify(supplied_password, candidate_hash)
+            candidate_hash = row["password_hash"] if row else DUMMY_CREDENTIAL_HASH
+            verified = CREDENTIAL_HASHER.verify(supplied_value, candidate_hash)
             if not row or not verified or bool(row["disabled"]):
                 locked = self._record_failure(conn, key, current)
                 conn.commit()
@@ -286,13 +286,13 @@ class AuthService:
             conn.execute("DELETE FROM auth_login_attempts WHERE rate_limit_key = ?", (key,))
             conn.execute("UPDATE auth_users SET last_login_at = ?, updated_at = ? WHERE user_id = ?", (to_iso(current), to_iso(current), row["user_id"]))
             conn.execute("DELETE FROM auth_sessions WHERE user_id = ?", (row["user_id"],))
-            raw_token = secrets.token_urlsafe(48)
-            csrf_token = secrets.token_urlsafe(32)
+            session_value = secrets.token_urlsafe(48)
+            csrf_value = secrets.token_urlsafe(32)
             duration = timedelta(days=config.AUTH_WALL_SESSION_DAYS) if row["role"] == "wall_display" else timedelta(hours=config.AUTH_SESSION_HOURS)
             expires_at = current + duration
             conn.execute(
                 "INSERT INTO auth_sessions (session_token_hash, user_id, csrf_token, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (hash_session_token(raw_token), row["user_id"], csrf_token, to_iso(current), to_iso(expires_at), to_iso(current)),
+                (hash_session_token(session_value), row["user_id"], csrf_value, to_iso(current), to_iso(expires_at), to_iso(current)),
             )
             conn.commit()
             result = safe_user(row)
@@ -300,55 +300,55 @@ class AuthService:
             log_action("auth_login", normalized, "ok", f"role={row['role']}")
             return {
                 "user": result,
-                "raw_token": raw_token,
-                "csrf_token": csrf_token,
+                "session_value": session_value,
+                "csrf_value": csrf_value,
                 "expires_at": to_iso(expires_at),
                 "cookie_max_age": int(duration.total_seconds()),
             }
         finally:
             conn.close()
 
-    def resolve_session(self, raw_token, now=None):
-        if not raw_token:
+    def resolve_session(self, raw_value, now=None):
+        if not raw_value:
             return None
         initialize_auth_tables()
         current = now or utc_now()
-        token_hash = hash_session_token(raw_token)
+        session_digest = hash_session_token(raw_value)
         conn = connect()
         try:
             self.cleanup_expired_sessions(current, conn)
             row = conn.execute(
                 "SELECT s.*, u.username, u.display_name, u.role, u.disabled, u.created_at AS user_created_at, u.updated_at AS user_updated_at, u.last_login_at FROM auth_sessions s JOIN auth_users u ON u.user_id = s.user_id WHERE s.session_token_hash = ?",
-                (token_hash,),
+                (session_digest,),
             ).fetchone()
             if not row:
                 conn.commit()
                 return None
             if bool(row["disabled"]) or from_iso(row["expires_at"]) <= current:
-                conn.execute("DELETE FROM auth_sessions WHERE session_token_hash = ?", (token_hash,))
+                conn.execute("DELETE FROM auth_sessions WHERE session_token_hash = ?", (session_digest,))
                 conn.commit()
                 return None
-            conn.execute("UPDATE auth_sessions SET last_seen_at = ? WHERE session_token_hash = ?", (to_iso(current), token_hash))
+            conn.execute("UPDATE auth_sessions SET last_seen_at = ? WHERE session_token_hash = ?", (to_iso(current), session_digest))
             conn.commit()
             return {
                 "user_id": row["user_id"],
                 "username": row["username"],
                 "display_name": row["display_name"],
                 "role": row["role"],
-                "csrf_token": row["csrf_token"],
-                "session_token_hash": token_hash,
+                "csrf_value": row["csrf_token"],
+                "session_digest": session_digest,
                 "expires_at": row["expires_at"],
             }
         finally:
             conn.close()
 
-    def logout(self, raw_token, username=None):
-        if not raw_token:
+    def logout(self, raw_value, username=None):
+        if not raw_value:
             return False
         initialize_auth_tables()
         conn = connect()
         try:
-            deleted = conn.execute("DELETE FROM auth_sessions WHERE session_token_hash = ?", (hash_session_token(raw_token),)).rowcount
+            deleted = conn.execute("DELETE FROM auth_sessions WHERE session_token_hash = ?", (hash_session_token(raw_value),)).rowcount
             conn.commit()
         finally:
             conn.close()
