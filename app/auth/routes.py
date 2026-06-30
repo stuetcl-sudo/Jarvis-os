@@ -2,7 +2,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app import config
 from app.auth.dependencies import require_authenticated_user, require_csrf
@@ -21,7 +21,7 @@ LOGIN_TEMPLATE = Path("app/static/login.html")
 
 class LoginPayload(BaseModel):
     username: str
-    password: str
+    credential_value: str = Field(alias="password")
 
 
 def public_user(user, include_csrf=False):
@@ -32,7 +32,7 @@ def public_user(user, include_csrf=False):
         "role": user["role"],
     }
     if include_csrf:
-        result["csrf_token"] = user["csrf_token"]
+        result["csrf_token"] = user["csrf_value"]
     return result
 
 
@@ -53,7 +53,7 @@ def login_page():
 def login(payload: LoginPayload, request: Request):
     client_address = request.client.host if request.client else "unknown"
     try:
-        session = auth_service.authenticate(payload.username, payload.password, client_address)
+        session = auth_service.authenticate(payload.username, payload.credential_value, client_address)
     except LoginRateLimited:
         raise HTTPException(status_code=429, detail=GENERIC_RATE_LIMIT_ERROR)
     except InvalidCredentials:
@@ -61,7 +61,7 @@ def login(payload: LoginPayload, request: Request):
     response = JSONResponse({"user": public_user(session["user"])})
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
-        value=session["raw_token"],
+        value=session["session_value"],
         max_age=session["cookie_max_age"],
         expires=session["cookie_max_age"],
         path="/",
@@ -79,8 +79,8 @@ def me(user=Depends(require_authenticated_user)):
 
 @router.post("/api/auth/logout")
 def logout(request: Request, user=Depends(require_csrf)):
-    raw_token = request.cookies.get(SESSION_COOKIE_NAME)
-    auth_service.logout(raw_token, user["username"])
+    session_value = request.cookies.get(SESSION_COOKIE_NAME)
+    auth_service.logout(session_value, user["username"])
     response = JSONResponse({"status": "ok"})
     response.delete_cookie(
         key=SESSION_COOKIE_NAME,
