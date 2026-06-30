@@ -83,8 +83,13 @@ async def startup():
 
 
 @app.get("/")
-def ui():
+def family_ui():
     return FileResponse("app/static/index.html")
+
+
+@app.get("/admin")
+def admin_ui():
+    return FileResponse("app/static/admin.html")
 
 
 @app.get("/api/health")
