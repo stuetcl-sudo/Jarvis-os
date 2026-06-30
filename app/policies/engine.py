@@ -11,13 +11,61 @@ from app.policies.rules import default_policies
 
 POLICY_SEED_VERSION = 2
 JARVIS_MANAGED_BY = "jarvis"
-OBSOLETE_SYSTEM_POLICY_IDS = {
-    "policy.unknown_container_discovered",
-    "policy.critical_container_stopped",
-    "policy.optional_container_stopped",
-    "policy.stopped_by_design_container_stopped",
-    "policy.qbittorrent_dependency_guard",
-}
+
+HISTORICAL_POLICY_SEEDS = [
+    {
+        "policy_id": "policy.unknown_container_discovered",
+        "name": "Unknown container discovered",
+        "description": "Recommend classification when Docker reports an unknown container.",
+        "priority": 10,
+        "trigger_event_type": "Docker.ContainerUnknown",
+        "conditions": {"classification": "unknown"},
+        "actions": [{"type": "recommend_classification"}],
+        "safety_level": "safe_observation",
+    },
+    {
+        "policy_id": "policy.critical_container_stopped",
+        "name": "Critical Docker container stopped",
+        "description": "Create a critical incident and recommendation when a critical Docker asset stops.",
+        "priority": 20,
+        "trigger_event_type": "Docker.ContainerStopped",
+        "conditions": {"classification": "critical"},
+        "actions": [{"type": "create_critical_incident"}, {"type": "recommend_manual_investigation"}],
+        "safety_level": "safe_observation",
+    },
+    {
+        "policy_id": "policy.optional_container_stopped",
+        "name": "Optional Docker container stopped",
+        "description": "Recommend and queue a waiting-approval manual restart for optional stopped Docker assets. No automatic restart.",
+        "priority": 30,
+        "trigger_event_type": "Docker.ContainerStopped",
+        "conditions": {"classification": "optional"},
+        "actions": [{"type": "recommend_restart"}, {"type": "queue_manual_restart"}],
+        "safety_level": "safe_manual_queue",
+    },
+    {
+        "policy_id": "policy.stopped_by_design_container_stopped",
+        "name": "Stopped-by-design container stopped",
+        "description": "Ignore stopped-by-design assets with an explanation.",
+        "priority": 40,
+        "trigger_event_type": "Docker.ContainerStopped",
+        "conditions": {"classification": "stopped_by_design"},
+        "actions": [{"type": "ignore"}],
+        "safety_level": "safe_observation",
+    },
+    {
+        "policy_id": "policy.qbittorrent_dependency_guard",
+        "name": "qBittorrent dependency guard",
+        "description": "Deny unsafe future qBittorrent auto-start unless docker:gluetun is running.",
+        "priority": 5,
+        "trigger_event_type": "Docker.*",
+        "conditions": {"asset_id": "docker:qbittorrent"},
+        "actions": [{"type": "dependency_guard", "dependency": "docker:gluetun", "required_state": "running"}],
+        "safety_level": "deny_unsafe_auto_action",
+    },
+]
+
+OBSOLETE_SYSTEM_POLICY_IDS = {policy["policy_id"] for policy in HISTORICAL_POLICY_SEEDS}
 CURRENT_SYSTEM_POLICY_IDS = {policy["policy_id"] for policy in default_policies()}
 KNOWN_SYSTEM_POLICY_IDS = OBSOLETE_SYSTEM_POLICY_IDS | CURRENT_SYSTEM_POLICY_IDS
 
@@ -85,6 +133,37 @@ def _loads(value, default):
         return default
 
 
+def _stable_policy_view(policy: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "policy_id": policy["policy_id"],
+        "name": policy["name"],
+        "description": policy["description"],
+        "priority": int(policy["priority"]),
+        "trigger_event_type": policy["trigger_event_type"],
+        "conditions": policy.get("conditions", {}),
+        "actions": policy.get("actions", []),
+        "safety_level": policy["safety_level"],
+    }
+
+
+def _stable_row_view(row) -> dict[str, Any]:
+    item = dict(row)
+    return {
+        "policy_id": item["policy_id"],
+        "name": item["name"],
+        "description": item["description"],
+        "priority": int(item["priority"]),
+        "trigger_event_type": item["trigger_event_type"],
+        "conditions": _loads(item.get("conditions"), {}),
+        "actions": _loads(item.get("actions"), []),
+        "safety_level": item["safety_level"],
+    }
+
+
+def _policy_matches_seed(row, seed: dict[str, Any]) -> bool:
+    return _stable_row_view(row) == _stable_policy_view(seed)
+
+
 def _policy_from_row(row) -> dict[str, Any]:
     item = dict(row)
     item["enabled"] = bool(item["enabled"])
@@ -110,14 +189,18 @@ class PolicyEngine:
     def ensure_default_policies(self) -> None:
         conn = connect()
         now = now_iso()
-        default_by_id = {policy["policy_id"]: policy for policy in default_policies()}
+        current_seeds = default_policies()
+        all_seeds = {policy["policy_id"]: policy for policy in HISTORICAL_POLICY_SEEDS + current_seeds}
+        current_by_id = {policy["policy_id"]: policy for policy in current_seeds}
 
-        # Adopt only known historical/current system policy IDs. Unknown policies remain user-owned.
-        for policy_id in KNOWN_SYSTEM_POLICY_IDS:
-            conn.execute(
-                "UPDATE policies SET managed_by = COALESCE(managed_by, ?), seed_version = COALESCE(seed_version, ?) WHERE policy_id = ? AND (managed_by IS NULL OR managed_by = ?)",
-                (JARVIS_MANAGED_BY, POLICY_SEED_VERSION, policy_id, JARVIS_MANAGED_BY),
-            )
+        # Adopt only known seed IDs whose stored content matches a known Jarvis seed fingerprint.
+        for policy_id, seed in all_seeds.items():
+            row = conn.execute("SELECT * FROM policies WHERE policy_id = ?", (policy_id,)).fetchone()
+            if row and row["managed_by"] is None and _policy_matches_seed(row, seed):
+                conn.execute(
+                    "UPDATE policies SET managed_by = ?, seed_version = COALESCE(seed_version, ?) WHERE policy_id = ? AND managed_by IS NULL",
+                    (JARVIS_MANAGED_BY, POLICY_SEED_VERSION, policy_id),
+                )
 
         # Retire obsolete Jarvis-managed defaults for audit, without deleting rows.
         for policy_id in OBSOLETE_SYSTEM_POLICY_IDS:
@@ -127,9 +210,9 @@ class PolicyEngine:
             )
 
         # Insert/update current defaults. Preserve enabled state for existing policies.
-        for policy_id, policy in default_by_id.items():
-            existing = conn.execute("SELECT policy_id FROM policies WHERE policy_id = ?", (policy_id,)).fetchone()
-            if existing:
+        for policy_id, policy in current_by_id.items():
+            existing = conn.execute("SELECT * FROM policies WHERE policy_id = ?", (policy_id,)).fetchone()
+            if existing and existing["managed_by"] == JARVIS_MANAGED_BY:
                 conn.execute(
                     """
                     UPDATE policies
@@ -151,7 +234,7 @@ class PolicyEngine:
                         JARVIS_MANAGED_BY,
                     ),
                 )
-            else:
+            elif not existing:
                 conn.execute(
                     """
                     INSERT INTO policies (policy_id, name, description, enabled, priority, trigger_event_type, conditions, actions, safety_level, created_at, updated_at, managed_by, seed_version, retired)
@@ -173,6 +256,7 @@ class PolicyEngine:
                         POLICY_SEED_VERSION,
                     ),
                 )
+            # If an unmanaged policy occupies a current system ID but does not match the seed fingerprint, leave it unchanged.
         conn.commit()
         conn.close()
 
