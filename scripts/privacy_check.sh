@@ -148,12 +148,13 @@ def scan(path, text):
                 if lowered not in {"none", "null"} and not any(marker in lowered for marker in PLACEHOLDERS):
                     findings.add((number, "credential-assignment"))
             upper = key.upper().replace("-", "_").replace(".", "_")
-            if INVENTORY_RE.match(upper):
+            if INVENTORY_RE.match(upper) and re.fullmatch(r"[\[\]{}\"'A-Za-z0-9:.,_ >-]*", value):
+                literal_value = re.sub(r"[\[\]{}\"']", "", value)
                 if upper == "ASSET_DEPENDENCIES":
-                    if any(not generic_asset(name) for name in ASSET_RE.findall(value)):
+                    if any(not generic_asset(name) for name in ASSET_RE.findall(literal_value)):
                         findings.add((number, "service-specific-dependency"))
                 else:
-                    entries = [item.strip().lower() for item in value.split(",") if item.strip()]
+                    entries = [item.strip().lower() for item in literal_value.split(",") if item.strip()]
                     if any(item != "jarvis-os" and not item.startswith("example-") for item in entries):
                         findings.add((number, "deployment-inventory"))
             if upper in {"DOMAIN", "HOST", "HOSTNAME", "SERVER_NAME"}:
