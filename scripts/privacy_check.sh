@@ -129,7 +129,7 @@ def assignment(line):
     match = ASSIGNMENT_RE.match(line)
     if not match:
         return None, None
-    value = match.group(2).strip().strip(",").strip().strip("\"").strip("'").strip()
+    value = match.group(2).strip().strip(",;").strip().strip("\"").strip("'").strip()
     return match.group(1), value
 
 
