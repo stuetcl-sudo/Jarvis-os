@@ -4,6 +4,13 @@ from pathlib import Path
 FAMILY_TEMPLATE = Path(__file__).resolve().parent / "static" / "index.html"
 FAMILY_ROLES = {"owner", "adult", "child", "wall_display"}
 PERSONALIZED_ROLES = {"owner", "adult", "child"}
+ROLE_COPY = {
+    "anonymous": ("Fælles overblik", "Her er et roligt overblik over hjemmet."),
+    "owner": ("Familiens overblik", "Her er både familiens overblik og den tekniske status."),
+    "adult": ("Familiens dag", "Her er dagens fælles information samlet roligt og enkelt."),
+    "child": ("Din dag", "Her kan du se dagens aftaler, vejr, madplan og opgaver."),
+    "wall_display": ("Fælles husholdningsskærm", "Dagens fælles information til hele hjemmet."),
+}
 
 TECHNICAL_STATUS = """
     <section class="status-strip" data-family-section="technical-status" aria-label="Teknisk status for Jarvis">
@@ -53,15 +60,33 @@ TECHNICAL_CARD = """
 """
 
 
+def anonymous_context():
+    return {
+        "role": "anonymous",
+        "display_name": "",
+        "view": "anonymous",
+        "kiosk": "false",
+        "label": ROLE_COPY["anonymous"][0],
+        "subtitle": ROLE_COPY["anonymous"][1],
+    }
+
+
 def resolve_family_context(current_user):
     if not isinstance(current_user, dict):
-        return {"role": "anonymous", "display_name": "", "view": "anonymous", "kiosk": "false"}
+        return anonymous_context()
     role = current_user.get("role")
     if role not in FAMILY_ROLES:
-        return {"role": "anonymous", "display_name": "", "view": "anonymous", "kiosk": "false"}
+        return anonymous_context()
     display_name = str(current_user.get("display_name") or "").strip() if role in PERSONALIZED_ROLES else ""
     view = "shared-display" if role == "wall_display" else role
-    return {"role": role, "display_name": display_name, "view": view, "kiosk": "true" if role == "wall_display" else "false"}
+    return {
+        "role": role,
+        "display_name": display_name,
+        "view": view,
+        "kiosk": "true" if role == "wall_display" else "false",
+        "label": ROLE_COPY[role][0],
+        "subtitle": ROLE_COPY[role][1],
+    }
 
 
 def navigation_for(role):
@@ -79,11 +104,23 @@ def render_family_page(current_user):
     body = (
         f'<body data-family-role="{context["role"]}" '
         f'data-family-display-name="{escape(context["display_name"], quote=True)}" '
-        f'data-family-view="{context["view"]}" data-family-kiosk="{context["kiosk"]}">'
+        f'data-family-view="{context["view"]}" data-family-kiosk="{context["kiosk"]}" '
+        f'data-family-label="{escape(context["label"], quote=True)}" '
+        f'data-family-subtitle="{escape(context["subtitle"], quote=True)}">'
     )
     page = page.replace(
-        '<body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false">',
+        '<body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false" data-family-label="Fælles overblik" data-family-subtitle="Her er et roligt overblik over hjemmet.">',
         body,
+        1,
+    )
+    page = page.replace(
+        '<p class="family-view-label" id="familyViewLabel">Fælles overblik</p>',
+        f'<p class="family-view-label" id="familyViewLabel">{escape(context["label"])}</p>',
+        1,
+    )
+    page = page.replace(
+        '<p class="family-subtitle" id="familySubtitle">Her er et roligt overblik over hjemmet.</p>',
+        f'<p class="family-subtitle" id="familySubtitle">{escape(context["subtitle"])}</p>',
         1,
     )
     page = page.replace("<!-- FAMILY_TECHNICAL_STATUS -->", TECHNICAL_STATUS if context["role"] == "owner" else "", 1)
