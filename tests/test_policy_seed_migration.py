@@ -9,7 +9,7 @@ from app.actions.history import initialize_action_tables, list_actions
 from app.db import connect, init_db
 from app.events.event import Event
 from app.events.types import EventTypes
-from app.policies.engine import JARVIS_MANAGED_BY, POLICY_SEED_VERSION, initialize_policy_tables, policy_engine
+from app.policies.engine import HISTORICAL_POLICY_SEEDS, JARVIS_MANAGED_BY, POLICY_SEED_VERSION, initialize_policy_tables, policy_engine
 from app.policies.rules import default_policies
 
 
@@ -23,7 +23,37 @@ def reset_db():
     return Path(tmp.name)
 
 
-def insert_policy(policy_id, enabled=1, managed_by=None, seed_version=None, retired=0, name="User Policy", actions=None):
+def insert_policy_from_seed(seed, enabled=1, managed_by=None, seed_version=None, retired=0):
+    insert_policy(
+        policy_id=seed["policy_id"],
+        enabled=enabled,
+        managed_by=managed_by,
+        seed_version=seed_version,
+        retired=retired,
+        name=seed["name"],
+        description=seed["description"],
+        priority=seed["priority"],
+        trigger_event_type=seed["trigger_event_type"],
+        conditions=seed["conditions"],
+        actions=seed["actions"],
+        safety_level=seed["safety_level"],
+    )
+
+
+def insert_policy(
+    policy_id,
+    enabled=1,
+    managed_by=None,
+    seed_version=None,
+    retired=0,
+    name="User Policy",
+    description="original description",
+    priority=999,
+    trigger_event_type="Test.Event",
+    conditions=None,
+    actions=None,
+    safety_level="user_safe",
+):
     now = "2026-01-01T00:00:00+00:00"
     conn = connect()
     conn.execute(
@@ -34,13 +64,13 @@ def insert_policy(policy_id, enabled=1, managed_by=None, seed_version=None, reti
         (
             policy_id,
             name,
-            "original description",
+            description,
             enabled,
-            999,
-            "Test.Event",
-            json.dumps({"original": True}),
-            json.dumps(actions if actions is not None else [{"type": "ignore"}]),
-            "user_safe",
+            priority,
+            trigger_event_type,
+            json.dumps(conditions if conditions is not None else {"original": True}, sort_keys=True),
+            json.dumps(actions if actions is not None else [{"type": "ignore"}], sort_keys=True),
+            safety_level,
             now,
             now,
             managed_by,
@@ -54,6 +84,31 @@ def insert_policy(policy_id, enabled=1, managed_by=None, seed_version=None, reti
 
 def get_policy(policy_id):
     return policy_engine.get_policy(policy_id)
+
+
+def historical_seed(policy_id):
+    return next(seed for seed in HISTORICAL_POLICY_SEEDS if seed["policy_id"] == policy_id)
+
+
+def current_seed(policy_id):
+    return next(seed for seed in default_policies() if seed["policy_id"] == policy_id)
+
+
+def logical_policy_view(policy):
+    return {
+        "policy_id": policy["policy_id"],
+        "name": policy["name"],
+        "description": policy["description"],
+        "enabled": policy["enabled"],
+        "priority": policy["priority"],
+        "trigger_event_type": policy["trigger_event_type"],
+        "conditions": policy["conditions"],
+        "actions": policy["actions"],
+        "safety_level": policy["safety_level"],
+        "managed_by": policy["managed_by"],
+        "seed_version": policy["seed_version"],
+        "retired": policy["retired"],
+    }
 
 
 def test_fresh_database_receives_current_jarvis_managed_policies():
@@ -70,32 +125,71 @@ def test_fresh_database_receives_current_jarvis_managed_policies():
         path.unlink(missing_ok=True)
 
 
-def test_obsolete_known_policy_is_disabled_retired_and_retained():
+def test_custom_obsolete_id_is_not_adopted_disabled_or_retired():
     path = reset_db()
     try:
-        insert_policy("policy.optional_container_stopped", enabled=1, name="Old optional default")
+        insert_policy("policy.optional_container_stopped", enabled=1, name="My Custom Old ID", description="not a seed", actions=[{"type": "ignore"}])
+        before = logical_policy_view(get_policy("policy.optional_container_stopped"))
+        policy_engine.ensure_default_policies()
+        after = logical_policy_view(get_policy("policy.optional_container_stopped"))
+        assert after == before
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def test_custom_current_id_remains_unchanged():
+    path = reset_db()
+    try:
+        insert_policy("policy.optional_asset_stopped", enabled=1, name="My Custom Current ID", description="not a seed", actions=[{"type": "ignore"}])
+        before = logical_policy_view(get_policy("policy.optional_asset_stopped"))
+        policy_engine.ensure_default_policies()
+        after = logical_policy_view(get_policy("policy.optional_asset_stopped"))
+        assert after == before
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def test_exact_historical_optional_seed_is_adopted_and_retired():
+    path = reset_db()
+    try:
+        seed = historical_seed("policy.optional_container_stopped")
+        insert_policy_from_seed(seed, enabled=1, managed_by=None)
         policy_engine.ensure_default_policies()
         old = get_policy("policy.optional_container_stopped")
         assert old is not None
         assert old["enabled"] is False
         assert old["retired"] is True
         assert old["managed_by"] == JARVIS_MANAGED_BY
+        assert old["seed_version"] == POLICY_SEED_VERSION
     finally:
         path.unlink(missing_ok=True)
 
 
-def test_current_policy_preserves_manually_disabled_status_and_updates_content():
+def test_exact_current_seed_with_null_managed_by_is_adopted():
     path = reset_db()
     try:
-        insert_policy("policy.optional_asset_stopped", enabled=0, managed_by=JARVIS_MANAGED_BY, seed_version=1, retired=0, name="Old current default", actions=[{"type": "ignore"}])
+        seed = current_seed("policy.optional_asset_stopped")
+        insert_policy_from_seed(seed, enabled=1, managed_by=None)
+        policy_engine.ensure_default_policies()
+        policy = get_policy("policy.optional_asset_stopped")
+        assert policy["managed_by"] == JARVIS_MANAGED_BY
+        assert policy["seed_version"] == POLICY_SEED_VERSION
+        assert policy["retired"] is False
+        assert any(action.get("type") == "queue_manual_restart" for action in policy["actions"])
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def test_manually_disabled_exact_seed_remains_disabled():
+    path = reset_db()
+    try:
+        seed = current_seed("policy.optional_asset_stopped")
+        insert_policy_from_seed(seed, enabled=0, managed_by=None)
         policy_engine.ensure_default_policies()
         policy = get_policy("policy.optional_asset_stopped")
         assert policy["enabled"] is False
         assert policy["managed_by"] == JARVIS_MANAGED_BY
-        assert policy["seed_version"] == POLICY_SEED_VERSION
         assert policy["retired"] is False
-        assert policy["name"] != "Old current default"
-        assert any(action.get("type") == "recommend_restart" for action in policy["actions"])
     finally:
         path.unlink(missing_ok=True)
 
@@ -104,17 +198,10 @@ def test_arbitrary_user_created_policy_remains_unchanged():
     path = reset_db()
     try:
         insert_policy("policy.user.custom", enabled=1, managed_by=None, name="My Custom Policy", actions=[{"type": "ignore"}])
+        before = logical_policy_view(get_policy("policy.user.custom"))
         policy_engine.ensure_default_policies()
-        policy = get_policy("policy.user.custom")
-        assert policy["name"] == "My Custom Policy"
-        assert policy["enabled"] is True
-        assert policy["managed_by"] is None
-        assert policy["seed_version"] is None
-        assert policy["retired"] is False
-        assert policy["conditions"] == {"original": True}
-        assert policy["actions"] == [{"type": "ignore"}]
-        assert policy["priority"] == 999
-        assert policy["safety_level"] == "user_safe"
+        after = logical_policy_view(get_policy("policy.user.custom"))
+        assert after == before
     finally:
         path.unlink(missing_ok=True)
 
@@ -122,7 +209,8 @@ def test_arbitrary_user_created_policy_remains_unchanged():
 def test_retired_policy_is_not_evaluated():
     path = reset_db()
     try:
-        insert_policy("policy.optional_container_stopped", enabled=1, managed_by=JARVIS_MANAGED_BY, seed_version=1, retired=0)
+        seed = historical_seed("policy.optional_container_stopped")
+        insert_policy_from_seed(seed, enabled=1, managed_by=None)
         policy_engine.ensure_default_policies()
         event = Event(source="test", type=EventTypes.CONTAINER_STOPPED, asset_id="docker:example-app", payload={"asset_id": "docker:example-app", "classification": "optional"})
         decisions = policy_engine.evaluate_event(event)
@@ -134,13 +222,15 @@ def test_retired_policy_is_not_evaluated():
 def test_migration_is_idempotent_across_repeated_startup():
     path = reset_db()
     try:
-        insert_policy("policy.critical_container_stopped", enabled=1)
+        insert_policy_from_seed(historical_seed("policy.critical_container_stopped"), enabled=1, managed_by=None)
+        insert_policy_from_seed(current_seed("policy.optional_asset_stopped"), enabled=0, managed_by=None)
         policy_engine.ensure_default_policies()
-        first = policy_engine.list_policies()
+        first = {p["policy_id"]: logical_policy_view(p) for p in policy_engine.list_policies()}
         policy_engine.ensure_default_policies()
-        second = policy_engine.list_policies()
-        assert len(first) == len(second)
+        second = {p["policy_id"]: logical_policy_view(p) for p in policy_engine.list_policies()}
+        assert first.keys() == second.keys()
         assert get_policy("policy.critical_container_stopped")["retired"] is True
+        assert get_policy("policy.optional_asset_stopped")["enabled"] is False
     finally:
         path.unlink(missing_ok=True)
 
@@ -164,8 +254,11 @@ def test_duplicate_queue_request_does_not_publish_second_action_queued_event():
 if __name__ == "__main__":
     for test in [
         test_fresh_database_receives_current_jarvis_managed_policies,
-        test_obsolete_known_policy_is_disabled_retired_and_retained,
-        test_current_policy_preserves_manually_disabled_status_and_updates_content,
+        test_custom_obsolete_id_is_not_adopted_disabled_or_retired,
+        test_custom_current_id_remains_unchanged,
+        test_exact_historical_optional_seed_is_adopted_and_retired,
+        test_exact_current_seed_with_null_managed_by_is_adopted,
+        test_manually_disabled_exact_seed_remains_disabled,
         test_arbitrary_user_created_policy_remains_unchanged,
         test_retired_policy_is_not_evaluated,
         test_migration_is_idempotent_across_repeated_startup,
