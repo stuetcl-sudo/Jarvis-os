@@ -1,6 +1,5 @@
 from app import config
 from app.assets.registry import asset_registry
-from app.assets.relationships import list_dependency_requirements
 
 FORBIDDEN_ACTIONS = {
     "delete_volume",
@@ -29,12 +28,12 @@ def can_restart_container(container_name, container_status):
 
 
 def configured_dependencies_available(asset_id):
-    for requirement in list_dependency_requirements(asset_id):
-        dependency_id = requirement["target_asset_id"]
-        required_state = requirement["required_state"]
+    for source_asset_id, dependency_id in config.ASSET_DEPENDENCIES:
+        if source_asset_id != asset_id:
+            continue
         dependency = asset_registry.get_asset(dependency_id)
-        if not dependency or dependency.get("state") != required_state:
-            return False, f"Afhængighed {dependency_id} skal være {required_state}."
+        if not dependency or dependency.get("state") != "running":
+            return False, f"Afhængighed {dependency_id} skal være running."
     return True, "Konfigurerede afhængigheder er tilgængelige."
 
 
