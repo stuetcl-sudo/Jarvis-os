@@ -6,12 +6,19 @@ import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import Callable
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter
 
 from app import config
+from app.home_assistant import (
+    HomeAssistantClient,
+    HomeAssistantConfigurationError,
+    HomeAssistantConnection,
+    HomeAssistantUnavailable,
+    load_home_assistant_connection,
+)
 
 SUPPORTED_CONDITIONS = {
     "clear-night",
@@ -70,38 +77,38 @@ class WeatherSettings:
     cache_seconds: int
     stale_seconds: int
 
+    def connection(self):
+        return HomeAssistantConnection(
+            self.base_url,
+            self.access_value,
+            self.timeout_seconds,
+        )
 
-def load_weather_settings() -> WeatherSettings | None:
+
+def load_weather_settings():
     try:
         values = config.weather_configuration()
-    except ValueError as exc:
+        connection = load_home_assistant_connection()
+    except (ValueError, HomeAssistantConfigurationError) as exc:
         raise WeatherConfigurationError("Home Assistant weather configuration is invalid") from exc
 
-    raw_url = values["base_url"]
-    access_value = values["access_value"]
     entity_id = values["entity_id"]
-    timeout_seconds = values["timeout_seconds"]
-    cache_seconds = values["cache_seconds"]
-    stale_seconds = values["stale_seconds"]
-
-    if not raw_url and not access_value and not entity_id:
+    if connection is None and not entity_id:
         return None
-    if not raw_url or not access_value or not entity_id:
+    if connection is None or not entity_id:
         raise WeatherConfigurationError("Home Assistant weather configuration is incomplete")
-
-    parsed = urlsplit(raw_url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise WeatherConfigurationError("Home Assistant URL must use http or https")
-    if parsed.username is not None or parsed.password is not None:
-        raise WeatherConfigurationError("Home Assistant URL must not contain credentials")
-    if parsed.query or parsed.fragment:
-        raise WeatherConfigurationError("Home Assistant URL must not contain query or fragment")
-    base_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", "")).rstrip("/")
     if not WEATHER_ENTITY_RE.fullmatch(entity_id):
         raise WeatherConfigurationError("Configured entity must be a weather entity")
-    if stale_seconds < cache_seconds:
+    if values["stale_seconds"] < values["cache_seconds"]:
         raise WeatherConfigurationError("WEATHER_STALE_SECONDS must be at least WEATHER_CACHE_SECONDS")
-    return WeatherSettings(base_url, access_value, entity_id, timeout_seconds, cache_seconds, stale_seconds)
+    return WeatherSettings(
+        connection.base_url,
+        connection.access_value,
+        entity_id,
+        connection.timeout_seconds,
+        values["cache_seconds"],
+        values["stale_seconds"],
+    )
 
 
 def _safe_number(value):
@@ -208,33 +215,17 @@ class HomeAssistantWeatherClient:
         self.client_factory = client_factory
 
     def fetch(self):
-        headers = {
-            "Authorization": f"Bearer {self.settings.access_value}",
-            "Content-Type": "application/json",
-        }
+        client = HomeAssistantClient(self.settings.connection(), self.client_factory)
         try:
-            with self.client_factory(
-                headers=headers,
-                timeout=self.settings.timeout_seconds,
-            ) as client:
-                current_response = client.get(
-                    f"{self.settings.base_url}/api/states/{self.settings.entity_id}"
-                )
-                if not current_response.is_success:
-                    raise WeatherUnavailable("Home Assistant weather is unavailable")
-                forecast_response = client.post(
-                    f"{self.settings.base_url}/api/services/weather/get_forecasts?return_response",
-                    json={"entity_id": self.settings.entity_id, "type": "daily"},
-                )
-                if not forecast_response.is_success:
-                    raise WeatherUnavailable("Home Assistant weather is unavailable")
-            try:
-                current_payload = current_response.json()
-                forecast_payload = forecast_response.json()
-            except (ValueError, TypeError) as exc:
-                raise WeatherUnavailable("Home Assistant weather is unavailable") from exc
+            current_payload = client.get_json(
+                f"/api/states/{quote(self.settings.entity_id, safe='')}"
+            )
+            forecast_payload = client.post_json(
+                "/api/services/weather/get_forecasts?return_response",
+                json_body={"entity_id": self.settings.entity_id, "type": "daily"},
+            )
             return normalize_weather(current_payload, forecast_payload, self.settings.entity_id)
-        except httpx.HTTPError as exc:
+        except HomeAssistantUnavailable as exc:
             raise WeatherUnavailable("Home Assistant weather is unavailable") from exc
 
 

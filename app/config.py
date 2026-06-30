@@ -74,14 +74,30 @@ def env_relationships(name):
     return relationships
 
 
-def weather_configuration():
+def home_assistant_configuration():
     return {
         "base_url": os.getenv("HOME_ASSISTANT_URL", "").strip(),
         "access_value": os.getenv("HOME_ASSISTANT_" + "TOKEN", "").strip(),
-        "entity_id": os.getenv("HOME_ASSISTANT_WEATHER_ENTITY", "").strip(),
         "timeout_seconds": env_positive_int("HOME_ASSISTANT_TIMEOUT_SECONDS", 5),
+    }
+
+
+def weather_configuration():
+    return {
+        **home_assistant_configuration(),
+        "entity_id": os.getenv("HOME_ASSISTANT_WEATHER_ENTITY", "").strip(),
         "cache_seconds": env_positive_int("WEATHER_CACHE_SECONDS", 300),
         "stale_seconds": env_positive_int("WEATHER_STALE_SECONDS", 3600),
+    }
+
+
+def calendar_configuration():
+    return {
+        "calendars": os.getenv("HOME_ASSISTANT_CALENDARS", "").strip(),
+        "lookahead_days": env_positive_int("CALENDAR_LOOKAHEAD_DAYS", 7),
+        "cache_seconds": env_positive_int("CALENDAR_CACHE_SECONDS", 300),
+        "stale_seconds": env_positive_int("CALENDAR_STALE_SECONDS", 3600),
+        "max_events": env_positive_int("CALENDAR_MAX_EVENTS", 40),
     }
 
 

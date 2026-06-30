@@ -25,8 +25,10 @@ def test_root_returns_anonymous_family_dashboard():
     assert 'href="/admin"' not in response.text
     assert "Mission Control" not in response.text
     assert "<dt>CPU</dt>" not in response.text
+    assert 'data-family-card="calendar"' in response.text
     assert 'data-family-card="weather"' in response.text
     assert "/static/js/family.js" in response.text
+    assert "/static/css/calendar.css" in response.text
     assert "/static/css/weather.css" in response.text
 
 
@@ -77,10 +79,13 @@ def test_family_page_contains_no_action_engine_write_controls():
 
 def test_existing_api_routes_remain_available():
     assert client.get("/api/health").status_code == 200
+    assert client.get("/api/family/weather").status_code == 200
+    assert client.get("/api/family/calendar").status_code == 200
     paths = {route.path for route in app.routes if hasattr(route, "path")}
     for expected in [
         "/api/mission",
         "/api/family/weather",
+        "/api/family/calendar",
         "/api/actions",
         "/api/actions/queue",
         "/api/actions/{action_id}/approve",
@@ -101,6 +106,7 @@ def test_static_css_and_javascript_assets_load():
         "/static/css/common.css",
         "/static/css/family.css",
         "/static/css/weather.css",
+        "/static/css/calendar.css",
         "/static/css/admin.css",
         "/static/css/login.css",
         "/static/js/family.js",
@@ -121,16 +127,23 @@ def test_family_javascript_uses_read_only_get_requests_only():
     assert "sessionStorage" not in javascript
     assert "Authorization" not in javascript
     fetch_calls = re.findall(r'fetch\(\s*["\']([^"\']+)["\']\s*\)', javascript)
-    assert fetch_calls == ["/api/mission", "/api/family/weather", "/api/health"]
+    assert fetch_calls == [
+        "/api/mission",
+        "/api/family/weather",
+        "/api/family/calendar",
+        "/api/health",
+    ]
 
 
 def test_validation_script_checks_protected_live_v08_deployment():
     script = (ROOT / "scripts/validate.sh").read_text()
     assert "docker compose up -d --build --force-recreate jarvis-os" in script
+    assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_family_role_views.py' in script
     assert 'check_live_route "/" "family dashboard" "Her er et roligt overblik over hjemmet"' in script
     assert 'check_live_route "/api/family/weather" "family weather API" \'"status":"not_configured"\'' in script
+    assert 'check_live_route "/api/family/calendar" "family calendar API" \'"status":"not_configured"\'' in script
     assert 'check_live_route "/login" "login page" "Log ind på Jarvis"' in script
     assert 'check_live_redirect "/admin" "/login?next=/admin"' in script
     assert 'check_live_route "/static/admin.html" "Mission Control static page" "Mission Control"' in script
@@ -141,6 +154,7 @@ def test_validation_script_checks_protected_live_v08_deployment():
         "/static/css/login.css",
         "/static/css/family.css",
         "/static/css/weather.css",
+        "/static/css/calendar.css",
         "/static/css/admin.css",
     ]:
         assert f'check_live_route "{asset}"' in script

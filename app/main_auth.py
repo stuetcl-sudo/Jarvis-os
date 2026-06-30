@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from app.auth.context import reset_current_actor, set_current_actor
 from app.auth.routes import router as auth_router
 from app.auth.service import SESSION_COOKIE_NAME, auth_service
+from app.calendar import router as calendar_router
 from app.db import log_action
 from app.family_view import render_family_page
 from app.main import app
@@ -13,6 +14,7 @@ from app.weather import router as weather_router
 
 app.include_router(auth_router)
 app.include_router(weather_router)
+app.include_router(calendar_router)
 
 
 @app.on_event("startup")

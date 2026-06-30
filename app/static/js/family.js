@@ -12,6 +12,9 @@ const timeFormatter = new Intl.DateTimeFormat("da-DK", {
 const weekdayFormatter = new Intl.DateTimeFormat("da-DK", {
   weekday: "short",
 });
+const longWeekdayFormatter = new Intl.DateTimeFormat("da-DK", {
+  weekday: "long",
+});
 
 const supportedRoles = new Set(["anonymous", "owner", "adult", "child", "wall_display"]);
 const pageRole = supportedRoles.has(document.body.dataset.familyRole)
@@ -23,6 +26,7 @@ const displayName = personalRoles.has(pageRole)
   : "";
 const familyLabel = document.body.dataset.familyLabel || "Fælles overblik";
 const familySubtitle = document.body.dataset.familySubtitle || "Her er et roligt overblik over hjemmet.";
+const calendarColors = new Set(["green", "blue", "violet", "yellow"]);
 
 const weatherConditions = {
   "clear-night": { label: "Klart", symbol: "🌙" },
@@ -241,6 +245,182 @@ function renderWeather(weather) {
   if (stale) stale.hidden = weather.status !== "stale";
 }
 
+function localDateKey(value, allDay = false) {
+  if (allDay) return String(value || "").slice(0, 10);
+  const parsed = new Date(value || "");
+  if (Number.isNaN(parsed.getTime())) return "";
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function relativeDayLabel(value, allDay = false) {
+  const key = localDateKey(value, allDay);
+  if (!key) return "Kommende";
+  const today = localDateKey(new Date().toISOString());
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrow = localDateKey(tomorrowDate.toISOString());
+  if (key === today) return "I dag";
+  if (key === tomorrow) return "I morgen";
+  const parsed = allDay ? new Date(`${key}T12:00:00`) : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "Kommende" : longWeekdayFormatter.format(parsed);
+}
+
+function eventTimeText(event) {
+  if (event.all_day) return "Hele dagen";
+  const start = new Date(event.start || "");
+  const end = new Date(event.end || "");
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "Tidspunkt ukendt";
+  return `${timeFormatter.format(start)}–${timeFormatter.format(end)}`;
+}
+
+function calendarMarker(color, label) {
+  const marker = document.createElement("span");
+  marker.className = `calendar-color-marker calendar-color-${calendarColors.has(color) ? color : "blue"}`;
+  marker.setAttribute("aria-label", `${label}, farvemarkering`);
+  marker.setAttribute("role", "img");
+  return marker;
+}
+
+function createCalendarLegendItem(calendar) {
+  const item = document.createElement("li");
+  item.className = "calendar-legend-item";
+  item.append(calendarMarker(calendar.color, calendar.label));
+  const label = document.createElement("span");
+  label.textContent = calendar.label;
+  item.append(label);
+  return item;
+}
+
+function createCalendarEvent(event) {
+  const item = document.createElement("li");
+  item.className = "calendar-event";
+
+  const when = document.createElement("div");
+  when.className = "calendar-event-when";
+  const day = document.createElement("span");
+  day.className = "calendar-event-day";
+  day.textContent = relativeDayLabel(event.start, event.all_day);
+  const time = document.createElement("span");
+  time.className = "calendar-event-time";
+  time.textContent = eventTimeText(event);
+  when.append(day, time);
+
+  const details = document.createElement("div");
+  const title = document.createElement("p");
+  title.className = "calendar-event-title";
+  title.textContent = event.title || "Aftale";
+  details.append(title);
+  if (event.ongoing) {
+    const status = document.createElement("p");
+    status.className = "calendar-event-status";
+    status.textContent = "I gang nu";
+    details.append(status);
+  }
+
+  const attribution = document.createElement("span");
+  attribution.className = "calendar-event-calendar";
+  attribution.append(calendarMarker(event.calendar?.color, event.calendar?.label || "Kalender"));
+  const attributionLabel = document.createElement("span");
+  attributionLabel.textContent = event.calendar?.label || "Kalender";
+  attribution.append(attributionLabel);
+
+  item.append(when, details, attribution);
+  return item;
+}
+
+function anonymousNextText(value) {
+  if (!value) return "";
+  const allDay = !String(value).includes("T");
+  const day = relativeDayLabel(value, allDay).toLowerCase();
+  if (allDay) return `Næste aftale ${day}, hele dagen`;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const time = timeFormatter.format(parsed);
+  return day === "i dag" ? `Næste aftale kl. ${time}` : `Næste aftale ${day} kl. ${time}`;
+}
+
+function renderCalendarState(message) {
+  const state = document.getElementById("calendarState");
+  const data = document.getElementById("calendarData");
+  if (state) {
+    state.textContent = message;
+    state.hidden = false;
+  }
+  if (data) data.hidden = true;
+}
+
+function renderAnonymousCalendar(calendar) {
+  const summary = document.getElementById("calendarAnonymousSummary");
+  const legend = document.getElementById("calendarLegend");
+  const events = document.getElementById("calendarEvents");
+  const empty = document.getElementById("calendarEmpty");
+  if (summary) summary.hidden = false;
+  if (legend) legend.hidden = true;
+  if (events) events.hidden = true;
+  if (empty) empty.hidden = true;
+
+  const todayCount = Number(calendar.today_count) || 0;
+  setText("calendarTodaySummary", todayCount === 0
+    ? "Ingen aftaler i dag"
+    : `${todayCount} ${todayCount === 1 ? "aftale" : "aftaler"} i dag`);
+  setText("calendarNextSummary", anonymousNextText(calendar.next_event_start));
+  const upcomingCount = Number(calendar.upcoming_count) || 0;
+  setText("calendarUpcomingSummary", upcomingCount === 0
+    ? "Ingen aftaler i perioden"
+    : `${upcomingCount} ${upcomingCount === 1 ? "aftale" : "aftaler"} i den næste uge`);
+}
+
+function renderAuthenticatedCalendar(calendar) {
+  const summary = document.getElementById("calendarAnonymousSummary");
+  const legend = document.getElementById("calendarLegend");
+  const events = document.getElementById("calendarEvents");
+  const empty = document.getElementById("calendarEmpty");
+  if (summary) summary.hidden = true;
+  if (legend) {
+    legend.hidden = false;
+    legend.replaceChildren();
+    (calendar.calendars || []).forEach((item) => legend.append(createCalendarLegendItem(item)));
+  }
+  if (events) {
+    events.hidden = false;
+    events.replaceChildren();
+    (calendar.events || []).forEach((event) => events.append(createCalendarEvent(event)));
+  }
+  if (empty) empty.hidden = (calendar.events || []).length !== 0;
+}
+
+function renderCalendar(calendar) {
+  if (calendar.status === "not_configured") {
+    renderCalendarState("Ikke tilsluttet endnu");
+    return;
+  }
+  if (calendar.status === "unavailable") {
+    renderCalendarState("Kalenderen kan ikke hentes lige nu");
+    return;
+  }
+
+  const state = document.getElementById("calendarState");
+  const data = document.getElementById("calendarData");
+  if (state) state.hidden = true;
+  if (data) data.hidden = false;
+
+  if (pageRole === "anonymous") renderAnonymousCalendar(calendar);
+  else renderAuthenticatedCalendar(calendar);
+
+  const notice = document.getElementById("calendarNotice");
+  if (notice) {
+    const messages = {
+      partial: "Nogle kalendere kunne ikke hentes",
+      stale: "Viser senest hentede kalenderdata",
+    };
+    notice.textContent = messages[calendar.status] || "";
+    notice.hidden = !messages[calendar.status];
+  }
+}
+
 async function refreshMission() {
   try {
     const response = await fetch("/api/mission");
@@ -261,6 +441,16 @@ async function refreshWeather() {
   }
 }
 
+async function refreshCalendar() {
+  try {
+    const response = await fetch("/api/family/calendar");
+    if (!response.ok) throw new Error("Kalenderen kunne ikke hentes");
+    renderCalendar(await response.json());
+  } catch (error) {
+    renderCalendarState("Kalenderen kan ikke hentes lige nu");
+  }
+}
+
 async function refreshOwnerHealth() {
   if (pageRole !== "owner") return;
   try {
@@ -277,6 +467,7 @@ async function refreshOwnerHealth() {
 function refreshFamilyDashboard() {
   refreshMission();
   refreshWeather();
+  refreshCalendar();
   refreshOwnerHealth();
 }
 

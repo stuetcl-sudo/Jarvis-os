@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/static/css/common.css" />
   <link rel="stylesheet" href="/static/css/family.css" />
   <link rel="stylesheet" href="/static/css/weather.css" />
+  <link rel="stylesheet" href="/static/css/calendar.css" />
 </head>
 <body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false" data-family-label="Fælles overblik" data-family-subtitle="Her er et roligt overblik over hjemmet.">
   <main class="family-shell">
@@ -25,10 +26,23 @@
 <!-- FAMILY_TECHNICAL_STATUS -->
 
     <section class="family-grid" aria-label="Familiens oversigt">
-      <article class="family-card placeholder-card" data-family-card="calendar">
+      <article class="family-card calendar-card" data-family-card="calendar">
         <div class="card-icon" aria-hidden="true">📅</div>
         <div class="card-heading"><p class="card-eyebrow">Kalender</p><h2>Dagens aftaler</h2></div>
-        <p class="disconnected">Ikke tilsluttet endnu</p>
+        <div class="calendar-card-content">
+          <p class="disconnected" id="calendarState">Ikke tilsluttet endnu</p>
+          <div class="calendar-data" id="calendarData" hidden>
+            <div class="calendar-anonymous-summary" id="calendarAnonymousSummary" hidden>
+              <strong id="calendarTodaySummary">Ingen aftaler i dag</strong>
+              <p id="calendarNextSummary"></p>
+              <p id="calendarUpcomingSummary"></p>
+            </div>
+            <ul class="calendar-legend" id="calendarLegend" aria-label="Fælles kalendere"></ul>
+            <ol class="calendar-events" id="calendarEvents" aria-label="Familiens kommende aftaler"></ol>
+            <p class="calendar-empty" id="calendarEmpty" hidden>Ingen aftaler i perioden</p>
+            <p class="calendar-notice" id="calendarNotice" hidden></p>
+          </div>
+        </div>
       </article>
 
       <article class="family-card weather-card" data-family-card="weather">
