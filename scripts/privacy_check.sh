@@ -36,7 +36,7 @@ SOURCE_SUFFIXES = {
     ".md", ".properties", ".py", ".sh", ".sql", ".toml", ".ts", ".tsx", ".txt", ".xml",
     ".yaml", ".yml",
 }
-GENERIC_ASSETS = {"database", "example-app", "example-database", "example-network", "example-service", "network", "reverse-proxy", "worker"}
+GENERIC_ASSETS = {"app", "database", "example-app", "example-database", "example-network", "example-service", "network", "reverse-proxy", "worker"}
 GENERIC_HOSTS = {"0.0.0.0", "jarvis-os", "localhost"}
 ALLOWED_DOMAINS = {"docker.io", "example.com", "example.net", "example.org", "github.com", "localhost", "pypi.org", "raw.githubusercontent.com"}
 ALLOWED_SUFFIXES = (".example", ".example.com", ".example.net", ".example.org", ".github.com", ".python.org")
