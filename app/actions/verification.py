@@ -1,7 +1,25 @@
+import os
 import time
 
-from app import config
 from app.docker_monitor import list_containers
+
+
+def _env_bounded_float(name: str, default: float, minimum: float, maximum: float) -> float:
+    try:
+        value = float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+    if value < minimum or value > maximum:
+        return default
+    return value
+
+
+DOCKER_VERIFY_TIMEOUT_SECONDS = _env_bounded_float(
+    "DOCKER_VERIFY_TIMEOUT_SECONDS", 15.0, 0.1, 300.0
+)
+DOCKER_VERIFY_INTERVAL_SECONDS = _env_bounded_float(
+    "DOCKER_VERIFY_INTERVAL_SECONDS", 1.0, 0.05, 60.0
+)
 
 
 def _verification_result(match: dict | None, observed_state: str | None, expected_state: str, read_error: str | None) -> dict:
@@ -14,9 +32,7 @@ def _verification_result(match: dict | None, observed_state: str | None, expecte
 
 
 def verify_docker_state(asset_id: str, expected_state: str) -> tuple[bool, str, dict]:
-    timeout = config.DOCKER_VERIFY_TIMEOUT_SECONDS
-    interval = config.DOCKER_VERIFY_INTERVAL_SECONDS
-    deadline = time.monotonic() + timeout
+    deadline = time.monotonic() + DOCKER_VERIFY_TIMEOUT_SECONDS
     name = asset_id.split(":", 1)[1] if ":" in asset_id else asset_id
     last_match = None
     last_observed_state = None
@@ -46,4 +62,4 @@ def verify_docker_state(asset_id: str, expected_state: str) -> tuple[bool, str, 
                 return False, f"Could not verify Docker state before timeout. Last Docker read error: {last_read_error}", result
             return False, f"Could not verify Docker state before timeout: container {name} was not found.", result
 
-        time.sleep(min(interval, remaining))
+        time.sleep(min(DOCKER_VERIFY_INTERVAL_SECONDS, remaining))
