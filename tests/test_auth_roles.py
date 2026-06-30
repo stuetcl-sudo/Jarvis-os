@@ -15,7 +15,7 @@ from app.auth import service as auth_module
 from app.auth.cli import main as cli_main
 from app.auth.context import reset_current_actor, set_current_actor
 from app.auth.dependencies import safe_next_path
-from app.auth.service import ALLOWED_ROLES, DUMMY_PASSWORD_HASH, InvalidCredentials, LoginRateLimited, auth_service, hash_session_token, initialize_auth_tables, rate_limit_key
+from app.auth.service import ALLOWED_ROLES, DUMMY_CREDENTIAL_HASH, InvalidCredentials, LoginRateLimited, auth_service, hash_session_token, initialize_auth_tables, rate_limit_key
 from app.db import init_db
 from app.main_auth import app
 
@@ -109,7 +109,7 @@ def test_login_dummy_rate_limit_and_sessions():
         assert wrong.json() == missing.json()
 
         now = datetime(2026, 1, 1, tzinfo=timezone.utc)
-        original = auth_module.PASSWORD_HASHER
+        original = auth_module.CREDENTIAL_HASHER
         seen = []
 
         class SpyHasher:
@@ -120,12 +120,12 @@ def test_login_dummy_rate_limit_and_sessions():
                 seen.append(stored)
                 return original.verify(supplied, stored)
 
-        with patch.object(auth_module, "PASSWORD_HASHER", SpyHasher()):
+        with patch.object(auth_module, "CREDENTIAL_HASHER", SpyHasher()):
             try:
                 auth_service.authenticate("not-present", password(), "192.0.2.2", now=now)
             except InvalidCredentials:
                 pass
-        assert seen == [DUMMY_PASSWORD_HASH]
+        assert seen == [DUMMY_CREDENTIAL_HASH]
 
         clear_key = rate_limit_key("test-owner", "198.51.100.9")
         try:
@@ -168,7 +168,7 @@ def test_login_dummy_rate_limit_and_sessions():
         create()
         now = datetime(2026, 2, 1, tzinfo=timezone.utc)
         session = auth_service.authenticate("test-owner", password(), "203.0.113.1", now=now)
-        assert auth_service.resolve_session(session["raw_token"], now=now + timedelta(hours=config.AUTH_SESSION_HOURS + 1)) is None
+        assert auth_service.resolve_session(session["session_value"], now=now + timedelta(hours=config.AUTH_SESSION_HOURS + 1)) is None
 
     with environment() as client:
         create()
@@ -271,8 +271,8 @@ def test_actor_csrf_redirect_and_frontend_contract():
         reset_current_actor(token)
 
     assert safe_next_path("/admin") == "/admin"
-    assert safe_next_path("https://example.invalid/admin") is None
-    assert safe_next_path("//example.invalid/admin") is None
+    assert safe_next_path("https://example.com/admin") is None
+    assert safe_next_path("//example.com/admin") is None
     with environment() as client:
         create()
         me = login(client)
