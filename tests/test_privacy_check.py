@@ -75,10 +75,12 @@ def test_non_empty_javascript_credentials_are_reported_safely():
     try:
         field_one = "pass" + "word"
         field_two = "api_" + "token"
+        field_three = "client_" + "secret"
         value_one = "fixture-" + "alpha"
         value_two = "fixture-" + "beta"
         content = field_one + ' = "' + value_one + '";\n'
         content += field_two + ' = "' + value_two + '";\n'
+        content += field_three + ': "' + value_one + '"\n'
         (root / "credentials.js").write_text(content)
         result = run(["bash", "scripts/privacy_check.sh"], root, check=False)
         assert result.returncode == 1
@@ -86,6 +88,7 @@ def test_non_empty_javascript_credentials_are_reported_safely():
         assert set(lines) == {
             "credentials.js:1:credential-assignment",
             "credentials.js:2:credential-assignment",
+            "credentials.js:3:credential-assignment",
         }
         assert value_one not in result.stdout
         assert value_two not in result.stdout
