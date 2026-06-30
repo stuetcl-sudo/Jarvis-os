@@ -18,28 +18,8 @@ const personalRoles = new Set(["owner", "adult", "child"]);
 const displayName = personalRoles.has(pageRole)
   ? (document.body.dataset.familyDisplayName || "").trim()
   : "";
-const rolePresentation = {
-  anonymous: {
-    label: "Fælles overblik",
-    subtitle: "Her er et roligt overblik over hjemmet.",
-  },
-  owner: {
-    label: "Familiens overblik",
-    subtitle: "Her er både familiens overblik og den tekniske status.",
-  },
-  adult: {
-    label: "Familiens dag",
-    subtitle: "Her er dagens fælles information samlet roligt og enkelt.",
-  },
-  child: {
-    label: "Din dag",
-    subtitle: "Her kan du se dagens aftaler, vejr, madplan og opgaver.",
-  },
-  wall_display: {
-    label: "Fælles husholdningsskærm",
-    subtitle: "Dagens fælles information til hele hjemmet.",
-  },
-};
+const familyLabel = document.body.dataset.familyLabel || "Fælles overblik";
+const familySubtitle = document.body.dataset.familySubtitle || "Her er et roligt overblik over hjemmet.";
 
 function setText(id, value) {
   const element = document.getElementById(id);
@@ -58,12 +38,11 @@ function greetingFor(hour) {
 function updateClock() {
   const now = new Date();
   const greeting = greetingFor(now.getHours());
-  const presentation = rolePresentation[pageRole] || rolePresentation.anonymous;
   setText("currentDate", dateFormatter.format(now));
   setText("currentTime", timeFormatter.format(now));
   setText("greeting", displayName ? `${greeting}, ${displayName}` : greeting);
-  setText("familyViewLabel", presentation.label);
-  setText("familySubtitle", presentation.subtitle);
+  setText("familyViewLabel", familyLabel);
+  setText("familySubtitle", familySubtitle);
 }
 
 function calmStatus(status) {
