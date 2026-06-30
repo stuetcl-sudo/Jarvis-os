@@ -72,11 +72,12 @@ bash scripts/privacy_check.sh || {
   exit 1
 }
 
-echo "[2/10] Running focused authentication, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
+echo "[2/10] Running focused authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
 if [ -z "$PYTHON_BIN" ]; then
   echo "ERROR: Python is required for focused tests."
   exit 1
 fi
+PYTHONPATH=. "$PYTHON_BIN" tests/test_family_role_views.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_auth_roles.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_dashboard_routes.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_action_state_machine.py
