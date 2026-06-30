@@ -256,7 +256,7 @@ def test_roles_write_protection_and_handler_reachability():
 
 
 def test_actor_csrf_redirect_and_frontend_contract():
-    token = set_current_actor("session-owner")
+    actor_context = set_current_actor("session-owner")
     try:
         queued = {"action_id": "a", "asset_id": "docker:example", "action_type": "docker.start_container", "status": "queued", "deduplicated": True}
         with patch("app.actions.engine.queue_action", return_value=queued) as call:
@@ -268,7 +268,7 @@ def test_actor_csrf_redirect_and_frontend_contract():
             action_engine.approve_action("a", "spoofed")
             assert call.call_args.args[1] == "session-owner"
     finally:
-        reset_current_actor(token)
+        reset_current_actor(actor_context)
 
     assert safe_next_path("/admin") == "/admin"
     assert safe_next_path("https://example.com/admin") is None
