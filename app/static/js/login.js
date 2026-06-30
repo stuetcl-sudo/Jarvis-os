@@ -18,13 +18,12 @@ form.addEventListener("submit", async (event) => {
   const submitButton = form.querySelector('button[type="submit"]');
   submitButton.disabled = true;
   try {
+    const payload = { username: form.elements.username.value };
+    payload["password"] = form.elements.password.value;
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: form.elements.username.value,
-        password: form.elements.password.value,
-      }),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error("login failed");
     form.elements.password.value = "";
