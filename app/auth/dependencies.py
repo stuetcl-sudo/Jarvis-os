@@ -36,7 +36,7 @@ def require_owner(user=Depends(require_authenticated_user)):
 
 def require_csrf(request: Request, user=Depends(require_authenticated_user)):
     supplied = request.headers.get("X-CSRF-Token", "")
-    expected = user.get("csrf_token", "")
+    expected = user.get("csrf_value", "")
     if not supplied or not expected or not hmac.compare_digest(supplied, expected):
         raise HTTPException(status_code=403, detail="Invalid request token")
     return user
@@ -44,7 +44,7 @@ def require_csrf(request: Request, user=Depends(require_authenticated_user)):
 
 def require_owner_csrf(request: Request, user=Depends(require_owner)):
     supplied = request.headers.get("X-CSRF-Token", "")
-    expected = user.get("csrf_token", "")
+    expected = user.get("csrf_value", "")
     if not supplied or not expected or not hmac.compare_digest(supplied, expected):
         raise HTTPException(status_code=403, detail="Invalid request token")
     return user
