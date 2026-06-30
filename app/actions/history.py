@@ -27,12 +27,12 @@ CREATE TABLE IF NOT EXISTS actions (
 )
 """
 
-
-def initialize_action_tables() -> None:
-    conn = connect()
-    conn.execute(ACTION_SCHEMA)
-    conn.commit()
-    conn.close()
+ACTIVE_STATUS_SQL = "'queued', 'waiting_approval', 'approved', 'running'"
+ACTIVE_ACTION_UNIQUE_INDEX = """
+CREATE UNIQUE INDEX IF NOT EXISTS uq_actions_active_asset_type
+ON actions(asset_id, action_type)
+WHERE status IN ('queued', 'waiting_approval', 'approved', 'running')
+"""
 
 
 def _loads(value, default):
@@ -51,11 +51,81 @@ def _row_to_action(row) -> dict[str, Any]:
     return item
 
 
-def insert_action(action: Action) -> dict[str, Any]:
+def _retire_duplicate_active_actions(conn) -> None:
+    groups = conn.execute(
+        f"""
+        SELECT asset_id, action_type
+        FROM actions
+        WHERE status IN ({ACTIVE_STATUS_SQL})
+        GROUP BY asset_id, action_type
+        HAVING COUNT(*) > 1
+        ORDER BY asset_id ASC, action_type ASC
+        """
+    ).fetchall()
+    for group in groups:
+        rows = conn.execute(
+            f"""
+            SELECT action_id, status, created_at, result
+            FROM actions
+            WHERE asset_id = ? AND action_type = ?
+              AND status IN ({ACTIVE_STATUS_SQL})
+            ORDER BY CASE status
+                WHEN 'running' THEN 0
+                WHEN 'approved' THEN 1
+                WHEN 'waiting_approval' THEN 2
+                WHEN 'queued' THEN 3
+                ELSE 4
+            END ASC, created_at ASC, action_id ASC
+            """,
+            (group["asset_id"], group["action_type"]),
+        ).fetchall()
+        survivor = rows[0]
+        for duplicate in rows[1:]:
+            previous_status = duplicate["status"]
+            terminal_status = "failed" if previous_status == "running" else "cancelled"
+            previous_result = _loads(duplicate["result"], {})
+            if not isinstance(previous_result, dict):
+                previous_result = {"previous_result": previous_result}
+            previous_result["atomic_dedup_migration"] = {
+                "retired": True,
+                "survivor_action_id": survivor["action_id"],
+                "previous_status": previous_status,
+            }
+            conn.execute(
+                """
+                UPDATE actions
+                SET status = ?, updated_at = ?, explanation = ?, result = ?
+                WHERE action_id = ?
+                """,
+                (
+                    terminal_status,
+                    now_iso(),
+                    f"Retired by atomic Action Queue deduplication migration. Survivor action_id: {survivor['action_id']}. Previous status: {previous_status}.",
+                    json.dumps(previous_result, sort_keys=True),
+                    duplicate["action_id"],
+                ),
+            )
+
+
+def initialize_action_tables() -> None:
+    conn = connect()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(ACTION_SCHEMA)
+        _retire_duplicate_active_actions(conn)
+        conn.execute(ACTIVE_ACTION_UNIQUE_INDEX)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _insert_action(conn, action: Action) -> dict[str, Any]:
     data = action.to_dict()
     if data["status"] not in ACTION_STATUSES:
         data["status"] = "waiting_approval"
-    conn = connect()
     conn.execute(
         """
         INSERT INTO actions (action_id, created_at, updated_at, requested_by, source, asset_id, action_type, status, priority, requires_approval, approved, approved_by, approved_at, safety_status, reason, explanation, payload, result)
@@ -67,8 +137,19 @@ def insert_action(action: Action) -> dict[str, Any]:
             data["safety_status"], data["reason"], data["explanation"], json.dumps(data.get("payload", {}), sort_keys=True), json.dumps(data.get("result", {}), sort_keys=True),
         ),
     )
-    conn.commit()
-    conn.close()
+    return data
+
+
+def insert_action(action: Action) -> dict[str, Any]:
+    conn = connect()
+    try:
+        data = _insert_action(conn, action)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
     return get_action(data["action_id"])
 
 

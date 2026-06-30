@@ -1,19 +1,43 @@
-from app.actions.action import Action, now_iso
-from app.actions.history import get_action, insert_action, list_actions
-from app.actions.state_machine import transition_action
+import sqlite3
 
-ACTIVE_STATUSES = {"queued", "waiting_approval", "approved", "running"}
+from app.actions.action import Action, now_iso
+from app.actions.history import _insert_action, _row_to_action, get_action, list_actions
+from app.actions.state_machine import transition_action
+from app.db import connect
+
+ACTIVE_STATUS_SQL = "'queued', 'waiting_approval', 'approved', 'running'"
 
 
 def with_dedup_flag(action: dict, deduplicated: bool) -> dict:
     return {**action, "deduplicated": deduplicated}
 
 
+def _find_active_row(conn, asset_id: str, action_type: str):
+    return conn.execute(
+        f"""
+        SELECT * FROM actions
+        WHERE asset_id = ? AND action_type = ?
+          AND status IN ({ACTIVE_STATUS_SQL})
+        ORDER BY CASE status
+            WHEN 'running' THEN 0
+            WHEN 'approved' THEN 1
+            WHEN 'waiting_approval' THEN 2
+            WHEN 'queued' THEN 3
+            ELSE 4
+        END ASC, created_at ASC, action_id ASC
+        LIMIT 1
+        """,
+        (asset_id, action_type),
+    ).fetchone()
+
+
 def find_active_action(asset_id: str, action_type: str) -> dict | None:
-    for action in list_actions(1000):
-        if action["asset_id"] == asset_id and action["action_type"] == action_type and action["status"] in ACTIVE_STATUSES:
-            return action
-    return None
+    conn = connect()
+    try:
+        row = _find_active_row(conn, asset_id, action_type)
+        return _row_to_action(row) if row else None
+    finally:
+        conn.close()
 
 
 def queue_action(
@@ -26,9 +50,6 @@ def queue_action(
     priority: int = 100,
     payload: dict | None = None,
 ) -> dict:
-    existing = find_active_action(asset_id, action_type)
-    if existing:
-        return with_dedup_flag(existing, True)
     forced_approval = True if action_type == "docker.start_container" or source != "trusted_internal" else bool(requires_approval)
     status = "waiting_approval" if forced_approval else "queued"
     action = Action(
@@ -46,7 +67,28 @@ def queue_action(
         approved_at=None,
         explanation="Action queued. It cannot run until safety checks pass and approval is present when required.",
     )
-    return with_dedup_flag(insert_action(action), False)
+    conn = connect()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        existing = _find_active_row(conn, asset_id, action_type)
+        if existing:
+            result = with_dedup_flag(_row_to_action(existing), True)
+            conn.commit()
+            return result
+        data = _insert_action(conn, action)
+        conn.commit()
+        return with_dedup_flag(data, False)
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        winner = find_active_action(asset_id, action_type)
+        if winner:
+            return with_dedup_flag(winner, True)
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def approve_action(action_id: str, approved_by: str = "user"):
