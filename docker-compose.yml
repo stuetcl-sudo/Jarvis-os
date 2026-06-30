@@ -2,6 +2,7 @@ services:
   jarvis-os:
     build: .
     container_name: jarvis-os
+    command: ["uvicorn", "app.main_auth:app", "--host", "0.0.0.0", "--port", "8088"]
     restart: unless-stopped
     ports:
       - "8088:8088"
