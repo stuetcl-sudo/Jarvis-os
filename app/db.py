@@ -1,0 +1,387 @@
+import json
+import os
+import sqlite3
+from datetime import datetime, timedelta, timezone
+
+from app import config
+
+
+ACTION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS action_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    action TEXT NOT NULL,
+    target TEXT,
+    status TEXT NOT NULL,
+    reason TEXT,
+    safe_mode INTEGER NOT NULL
+)
+"""
+
+INCIDENT_SCHEMA = """
+CREATE TABLE IF NOT EXISTS incidents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    service TEXT,
+    status TEXT NOT NULL,
+    title TEXT NOT NULL,
+    detail TEXT,
+    resolved_at TEXT
+)
+"""
+
+CHECK_SCHEMA = """
+CREATE TABLE IF NOT EXISTS worker_checks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    status TEXT NOT NULL,
+    docker_total INTEGER NOT NULL,
+    docker_running INTEGER NOT NULL,
+    docker_stopped INTEGER NOT NULL,
+    cpu_percent REAL NOT NULL,
+    memory_percent REAL NOT NULL,
+    swap_percent REAL NOT NULL,
+    disk_percent REAL NOT NULL,
+    detail TEXT
+)
+"""
+
+SERVICE_BASELINE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS service_baselines (
+    service TEXT PRIMARY KEY,
+    classification TEXT NOT NULL,
+    normal_status TEXT NOT NULL,
+    running_count INTEGER NOT NULL DEFAULT 0,
+    stopped_count INTEGER NOT NULL DEFAULT 0,
+    unknown_seen_count INTEGER NOT NULL DEFAULT 0,
+    sample_count INTEGER NOT NULL DEFAULT 0,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL
+)
+"""
+
+SERVICE_CLASSIFICATION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS service_classifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    service TEXT NOT NULL UNIQUE,
+    classification TEXT NOT NULL,
+    protected INTEGER NOT NULL DEFAULT 0,
+    auto_start_allowed INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+)
+"""
+
+SYSTEM_BASELINE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS system_baselines (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    sample_count INTEGER NOT NULL DEFAULT 0,
+    avg_cpu_percent REAL NOT NULL DEFAULT 0,
+    avg_memory_percent REAL NOT NULL DEFAULT 0,
+    avg_swap_percent REAL NOT NULL DEFAULT 0,
+    min_swap_percent REAL NOT NULL DEFAULT 0,
+    max_swap_percent REAL NOT NULL DEFAULT 0,
+    avg_disk_percent REAL NOT NULL DEFAULT 0,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL
+)
+"""
+
+OBSERVATION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS observations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    category TEXT NOT NULL,
+    service TEXT,
+    title TEXT NOT NULL,
+    detail TEXT NOT NULL
+)
+"""
+
+RECOMMENDATION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS recommendations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    severity TEXT NOT NULL,
+    category TEXT NOT NULL,
+    service TEXT,
+    title TEXT NOT NULL,
+    detail TEXT NOT NULL,
+    dismissed_at TEXT
+)
+"""
+
+EVENT_SCHEMA = """
+CREATE TABLE IF NOT EXISTS events (
+    id TEXT PRIMARY KEY,
+    timestamp TEXT NOT NULL,
+    source TEXT NOT NULL,
+    type TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    service TEXT,
+    asset_id TEXT,
+    payload TEXT NOT NULL
+)
+"""
+
+VALID_CLASSIFICATIONS = {"critical", "optional", "stopped_by_design", "unknown"}
+
+
+def now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def cutoff_iso(days):
+    return (datetime.now(timezone.utc) - timedelta(days=int(days))).isoformat()
+
+
+def connect():
+    folder = os.path.dirname(config.DB_PATH)
+    if folder:
+        os.makedirs(folder, exist_ok=True)
+    conn = sqlite3.connect(config.DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _ensure_column(conn, table, column, definition):
+    columns = [row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+    if column not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def init_db():
+    conn = connect()
+    conn.execute(ACTION_SCHEMA)
+    conn.execute(INCIDENT_SCHEMA)
+    conn.execute(CHECK_SCHEMA)
+    conn.execute(SERVICE_BASELINE_SCHEMA)
+    conn.execute(SERVICE_CLASSIFICATION_SCHEMA)
+    conn.execute(SYSTEM_BASELINE_SCHEMA)
+    conn.execute(OBSERVATION_SCHEMA)
+    conn.execute(RECOMMENDATION_SCHEMA)
+    conn.execute(EVENT_SCHEMA)
+    _ensure_column(conn, "recommendations", "updated_at", "TEXT")
+    _ensure_column(conn, "events", "asset_id", "TEXT")
+    conn.execute("UPDATE recommendations SET updated_at = created_at WHERE updated_at IS NULL OR updated_at = ''")
+    conn.commit()
+    conn.close()
+
+
+def list_service_classifications():
+    conn = connect()
+    rows = conn.execute("SELECT * FROM service_classifications ORDER BY service ASC").fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        item = dict(row)
+        item["protected"] = bool(item["protected"])
+        item["auto_start_allowed"] = bool(item["auto_start_allowed"])
+        result.append(item)
+    return result
+
+
+def get_service_classification(service):
+    conn = connect()
+    row = conn.execute("SELECT * FROM service_classifications WHERE service = ?", (service,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    item = dict(row)
+    item["protected"] = bool(item["protected"])
+    item["auto_start_allowed"] = bool(item["auto_start_allowed"])
+    return item
+
+
+def upsert_service_classification(service, classification, protected=False, auto_start_allowed=False):
+    if classification not in VALID_CLASSIFICATIONS:
+        raise ValueError("Invalid classification")
+    if classification in {"unknown", "stopped_by_design"}:
+        auto_start_allowed = False
+    now = now_iso()
+    conn = connect()
+    existing = conn.execute("SELECT id FROM service_classifications WHERE service = ?", (service,)).fetchone()
+    if existing:
+        conn.execute(
+            "UPDATE service_classifications SET classification = ?, protected = ?, auto_start_allowed = ?, updated_at = ? WHERE service = ?",
+            (classification, 1 if protected else 0, 1 if auto_start_allowed else 0, now, service),
+        )
+    else:
+        conn.execute(
+            "INSERT INTO service_classifications (service, classification, protected, auto_start_allowed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (service, classification, 1 if protected else 0, 1 if auto_start_allowed else 0, now, now),
+        )
+    conn.commit()
+    conn.close()
+    return get_service_classification(service)
+
+
+def store_event(event):
+    data = event.to_dict() if hasattr(event, "to_dict") else dict(event)
+    payload = data.get("payload", {}) or {}
+    asset_id = data.get("asset_id") or payload.get("asset_id") or (data.get("service") if isinstance(data.get("service"), str) and ":" in data.get("service") else None)
+    conn = connect()
+    conn.execute(
+        "INSERT OR IGNORE INTO events (id, timestamp, source, type, severity, service, asset_id, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            data["id"],
+            data["timestamp"],
+            data["source"],
+            data["type"],
+            data["severity"],
+            data.get("service"),
+            asset_id,
+            json.dumps(payload, sort_keys=True),
+        ),
+    )
+    conn.execute("DELETE FROM events WHERE id NOT IN (SELECT id FROM events ORDER BY timestamp DESC LIMIT 10000)")
+    conn.commit()
+    conn.close()
+
+
+def list_events(limit=100):
+    safe_limit = max(1, min(int(limit), 1000))
+    conn = connect()
+    rows = conn.execute("SELECT * FROM events ORDER BY timestamp DESC LIMIT ?", (safe_limit,)).fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        item = dict(row)
+        try:
+            item["payload"] = json.loads(item.get("payload") or "{}")
+        except json.JSONDecodeError:
+            item["payload"] = {}
+        result.append(item)
+    return result
+
+
+def event_types():
+    conn = connect()
+    rows = conn.execute("SELECT type, COUNT(*) AS count FROM events GROUP BY type ORDER BY type ASC").fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def event_statistics():
+    conn = connect()
+    total = conn.execute("SELECT COUNT(*) AS total FROM events").fetchone()
+    severities = conn.execute("SELECT severity, COUNT(*) AS count FROM events GROUP BY severity ORDER BY severity ASC").fetchall()
+    sources = conn.execute("SELECT source, COUNT(*) AS count FROM events GROUP BY source ORDER BY source ASC").fetchall()
+    conn.close()
+    return {
+        "total": int(total["total"] if total else 0),
+        "by_severity": [dict(row) for row in severities],
+        "by_source": [dict(row) for row in sources],
+        "max_events": 10000,
+    }
+
+
+def safe_cleanup_old_rows():
+    conn = connect()
+    deleted = {}
+    retention = [
+        ("observations", "created_at", config.OBSERVATIONS_RETENTION_DAYS, None),
+        ("worker_checks", "created_at", config.WORKER_CHECKS_RETENTION_DAYS, None),
+        ("action_log", "created_at", config.ACTION_LOG_RETENTION_DAYS, None),
+        ("incidents", "resolved_at", config.RESOLVED_INCIDENTS_RETENTION_DAYS, "resolved_at IS NOT NULL"),
+    ]
+    for table, column, days, extra_where in retention:
+        cutoff = cutoff_iso(days)
+        where = f"{column} < ?"
+        if extra_where:
+            where = f"{extra_where} AND {where}"
+        cur = conn.execute(f"DELETE FROM {table} WHERE {where}", (cutoff,))
+        deleted[table] = cur.rowcount
+    conn.commit()
+    conn.close()
+    return deleted
+
+
+def log_action(action, target, status, reason=None):
+    conn = connect()
+    conn.execute(
+        "INSERT INTO action_log (created_at, action, target, status, reason, safe_mode) VALUES (?, ?, ?, ?, ?, ?)",
+        (now_iso(), action, target, status, reason, 1 if config.SAFE_MODE else 0),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_actions(limit=100):
+    safe_limit = max(1, min(int(limit), 500))
+    conn = connect()
+    rows = conn.execute("SELECT * FROM action_log ORDER BY id DESC LIMIT ?", (safe_limit,)).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def log_worker_check(status, docker_total, docker_running, docker_stopped, cpu_percent, memory_percent, swap_percent, disk_percent, detail=None):
+    conn = connect()
+    conn.execute(
+        "INSERT INTO worker_checks (created_at, status, docker_total, docker_running, docker_stopped, cpu_percent, memory_percent, swap_percent, disk_percent, detail) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (now_iso(), status, docker_total, docker_running, docker_stopped, cpu_percent, memory_percent, swap_percent, disk_percent, detail),
+    )
+    conn.commit()
+    conn.close()
+
+
+def latest_worker_check():
+    conn = connect()
+    row = conn.execute("SELECT * FROM worker_checks ORDER BY id DESC LIMIT 1").fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def create_incident(severity, service, title, detail):
+    conn = connect()
+    existing = conn.execute(
+        "SELECT * FROM incidents WHERE service IS ? AND title = ? AND resolved_at IS NULL LIMIT 1",
+        (service, title),
+    ).fetchone()
+    if existing:
+        conn.close()
+        return dict(existing)
+    conn.execute(
+        "INSERT INTO incidents (created_at, severity, service, status, title, detail, resolved_at) VALUES (?, ?, ?, ?, ?, ?, NULL)",
+        (now_iso(), severity, service, "active", title, detail),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM incidents ORDER BY id DESC LIMIT 1").fetchone()
+    conn.close()
+    return dict(row)
+
+
+def resolve_incident(service, title):
+    conn = connect()
+    conn.execute(
+        "UPDATE incidents SET status = ?, resolved_at = ? WHERE service IS ? AND title = ? AND resolved_at IS NULL",
+        ("resolved", now_iso(), service, title),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_incidents(active_only=True, limit=100):
+    safe_limit = max(1, min(int(limit), 500))
+    conn = connect()
+    if active_only:
+        rows = conn.execute("SELECT * FROM incidents WHERE resolved_at IS NULL ORDER BY id DESC LIMIT ?", (safe_limit,)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM incidents ORDER BY id DESC LIMIT ?", (safe_limit,)).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def count_recent_failed_actions(action, target, minutes):
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=int(minutes))).isoformat()
+    conn = connect()
+    row = conn.execute(
+        "SELECT COUNT(*) AS total FROM action_log WHERE action = ? AND target = ? AND status = 'error' AND created_at >= ?",
+        (action, target, cutoff),
+    ).fetchone()
+    conn.close()
+    return int(row["total"] if row else 0)

@@ -1,0 +1,96 @@
+import os
+
+
+def env_bool(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ["1", "true", "yes", "on"]
+
+
+def env_int(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def env_float(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
+
+def env_csv(name):
+    value = os.getenv(name, "")
+    return set([item.strip() for item in value.split(",") if item.strip()])
+
+
+def normalize_asset_id(value, default_plugin="docker"):
+    value = value.strip()
+    if not value:
+        return ""
+    return value if ":" in value else f"{default_plugin}:{value}"
+
+
+def env_relationships(name):
+    """Parse ASSET_DEPENDENCIES style values.
+
+    Format examples:
+    ASSET_DEPENDENCIES=docker:app>docker:network,docker:worker>docker:database
+    ASSET_DEPENDENCIES=app>network,worker>database
+    """
+    value = os.getenv(name, "")
+    relationships = []
+    for item in value.split(","):
+        item = item.strip()
+        if not item or ">" not in item:
+            continue
+        source, target = item.split(">", 1)
+        source_id = normalize_asset_id(source)
+        target_id = normalize_asset_id(target)
+        if source_id and target_id:
+            relationships.append((source_id, target_id))
+    return relationships
+
+
+APP_NAME = os.getenv("APP_NAME", "Jarvis-os")
+VERSION = "0.7.0"
+SAFE_MODE = env_bool("SAFE_MODE", True)
+ALLOW_RESTART_STOPPED = env_bool("ALLOW_RESTART_STOPPED", True)
+WORKER_ENABLED = env_bool("WORKER_ENABLED", True)
+WORKER_INTERVAL_SECONDS = env_int("WORKER_INTERVAL_SECONDS", 60)
+AUTO_START_FAILURE_LIMIT = env_int("AUTO_START_FAILURE_LIMIT", 3)
+AUTO_START_FAILURE_WINDOW_MINUTES = env_int("AUTO_START_FAILURE_WINDOW_MINUTES", 30)
+DB_PATH = os.getenv("DB_PATH", "/data/jarvis.db")
+
+CRITICAL_SERVICES = env_csv("CRITICAL_SERVICES") or {"jarvis-os"}
+PROTECTED_CONTAINERS = env_csv("PROTECTED_CONTAINERS") or {"jarvis-os"}
+OPTIONAL_SERVICES = env_csv("OPTIONAL_SERVICES")
+IGNORED_SERVICES = env_csv("IGNORED_SERVICES")
+ALLOWED_RESTART_CONTAINERS = env_csv("ALLOWED_RESTART_CONTAINERS")
+ALLOWED_AUTO_START_CONTAINERS = env_csv("ALLOWED_AUTO_START_CONTAINERS")
+ASSET_DEPENDENCIES = env_relationships("ASSET_DEPENDENCIES")
+
+CPU_WARN_PERCENT = env_int("CPU_WARN_PERCENT", 90)
+MEMORY_WARN_PERCENT = env_int("MEMORY_WARN_PERCENT", 90)
+SWAP_WARN_PERCENT = env_int("SWAP_WARN_PERCENT", 80)
+DISK_WARN_PERCENT = env_int("DISK_WARN_PERCENT", 85)
+
+BASELINE_MIN_SAMPLES = env_int("BASELINE_MIN_SAMPLES", 20)
+BASELINE_MAX_STEP_PERCENT = env_float("BASELINE_MAX_STEP_PERCENT", 2.0)
+ANOMALY_RAM_DELTA_PERCENT = env_float("ANOMALY_RAM_DELTA_PERCENT", 20.0)
+ANOMALY_SWAP_DELTA_PERCENT = env_float("ANOMALY_SWAP_DELTA_PERCENT", 20.0)
+DISK_TREND_DELTA_PERCENT = env_float("DISK_TREND_DELTA_PERCENT", 2.0)
+
+OBSERVATIONS_RETENTION_DAYS = env_int("OBSERVATIONS_RETENTION_DAYS", 30)
+WORKER_CHECKS_RETENTION_DAYS = env_int("WORKER_CHECKS_RETENTION_DAYS", 30)
+ACTION_LOG_RETENTION_DAYS = env_int("ACTION_LOG_RETENTION_DAYS", 90)
+RESOLVED_INCIDENTS_RETENTION_DAYS = env_int("RESOLVED_INCIDENTS_RETENTION_DAYS", 90)
