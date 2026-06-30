@@ -32,15 +32,17 @@ bash scripts/privacy_check.sh || {
   exit 1
 }
 
-echo "[2/9] Running focused Action Engine, Docker transition, worker queue, and policy seed tests"
+echo "[2/9] Running focused Action Engine, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
 if [ -z "$PYTHON_BIN" ]; then
   echo "ERROR: Python is required for focused tests."
   exit 1
 fi
 PYTHONPATH=. "$PYTHON_BIN" tests/test_action_state_machine.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_dependency_safety.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_docker_transition_events.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_worker_action_queue.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_policy_seed_migration.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_privacy_check.py
 
 echo "[3/9] Checking Docker"
 command -v docker >/dev/null 2>&1 || fail "docker was not found."
@@ -87,67 +89,6 @@ curl -fsS --max-time 10 "${APP_URL}/api/policy-decisions/latest" -o /tmp/jarvis-
 curl -fsS --max-time 10 "${APP_URL}/api/actions" -o /tmp/jarvis-actions.json || fail "Could not read /api/actions"
 
 echo "[9/9] Checking live Docker, Asset Registry, Event Engine, Policy Engine, and Action Engine consistency"
-"$PYTHON_BIN" - <<'PY'
-import json
-from pathlib import Path
-containers_response = json.loads(Path('/tmp/jarvis-containers.json').read_text())
-containers = containers_response['containers']
-mission = json.loads(Path('/tmp/jarvis-mission.json').read_text())
-assets = json.loads(Path('/tmp/jarvis-assets.json').read_text())['assets']
-policies = json.loads(Path('/tmp/jarvis-policies.json').read_text())['policies']
-decisions = json.loads(Path('/tmp/jarvis-policy-decisions.json').read_text())['decisions']
-actions = json.loads(Path('/tmp/jarvis-actions.json').read_text())['actions']
-asset_ids = {a['asset_id'] for a in assets}
-mission_containers = mission.get('containers', [])
-mission_by_name = {c['name']: c for c in mission_containers}
-if not policies:
-    raise SystemExit('Policy Engine has no policies')
-for p in policies:
-    for field in ['policy_id','name','enabled','priority','trigger_event_type','conditions','actions','safety_level','managed_by','seed_version','retired']:
-        if field not in p:
-            raise SystemExit(f'Missing {field} on policy')
-for d in decisions:
-    for field in ['decision_id','policy_id','timestamp','matched','allowed','action','reason','explanation','dry_run']:
-        if field not in d:
-            raise SystemExit(f'Missing {field} on policy decision')
-for a in actions:
-    for field in ['action_id','created_at','updated_at','requested_by','source','asset_id','action_type','status','requires_approval','approved','safety_status','reason','explanation','payload','result']:
-        if field not in a:
-            raise SystemExit(f'Missing {field} on action')
-    if a['action_type'] in {'docker.stop_container','docker.delete_container','docker.prune','docker.exec','file.delete','firewall.change','dns.change','volume.delete'}:
-        raise SystemExit(f'Destructive action type present: {a["action_type"]}')
-if 'docker_read_at' not in containers_response:
-    raise SystemExit('Missing docker_read_at in /api/containers')
-if 'docker_read_at' not in mission.get('docker', {}):
-    raise SystemExit('Missing docker_read_at in /api/mission docker object')
-if len(containers) != mission['docker']['total'] or len(containers) != len(mission_containers):
-    raise SystemExit('Docker totals disagree')
-for c in containers:
-    name = c.get('name')
-    expected_asset = f'docker:{name}'
-    if c.get('asset_id') != expected_asset:
-        raise SystemExit(f'Missing or wrong asset_id for {name}')
-    if expected_asset not in asset_ids:
-        raise SystemExit(f'Asset Registry missing {expected_asset}')
-    if name not in mission_by_name:
-        raise SystemExit(f'{name} missing from /api/mission containers list')
-    m = mission_by_name[name]
-    for item, label in [(c, '/api/containers'), (m, '/api/mission')]:
-        if item.get('status') != item.get('docker_state'):
-            raise SystemExit(f'{label} status/docker_state mismatch for {name}')
-        for field in ['docker_state','docker_status','status','health_status','read_at','asset_id']:
-            if field not in item:
-                raise SystemExit(f'Missing {field} on {name} in {label}')
-    if c.get('docker_state') != m.get('docker_state') or c.get('status') != m.get('status'):
-        raise SystemExit(f'Docker state mismatch for {name}')
-class_total = sum(len(mission.get(k, [])) for k in ['critical_services','optional_services','stopped_by_design','unknown_containers'])
-if class_total != len(containers):
-    raise SystemExit('Classified sections do not include all containers')
-if sum(1 for c in containers if c.get('docker_state') == 'running') != mission['docker']['running']:
-    raise SystemExit('Docker running count disagrees')
-if sum(1 for c in containers if c.get('docker_state') == 'exited') != mission['docker']['stopped']:
-    raise SystemExit('Docker stopped count disagrees')
-print('Live Docker + Asset Registry + Event Engine + Policy Engine + Action Engine regression OK')
-PY
+PYTHONPATH=. "$PYTHON_BIN" tests/test_live_validation.py
 
 echo "Validation OK."
