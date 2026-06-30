@@ -1,4 +1,6 @@
 from app import config
+from app.assets.registry import asset_registry
+from app.assets.relationships import list_dependency_requirements
 
 FORBIDDEN_ACTIONS = {
     "delete_volume",
@@ -26,8 +28,20 @@ def can_restart_container(container_name, container_status):
     return True, "Tilladt af safe mode regler."
 
 
+def configured_dependencies_available(asset_id):
+    for requirement in list_dependency_requirements(asset_id):
+        dependency_id = requirement["target_asset_id"]
+        required_state = requirement["required_state"]
+        dependency = asset_registry.get_asset(dependency_id)
+        if not dependency or dependency.get("state") != required_state:
+            return False, f"Afhængighed {dependency_id} skal være {required_state}."
+    return True, "Konfigurerede afhængigheder er tilgængelige."
+
+
 def can_auto_start(container, containers, recent_failures):
+    del containers
     name = container["name"]
+    asset_id = container.get("asset_id") or f"docker:{name}"
     status = container.get("docker_state") or container.get("status")
 
     if not config.SAFE_MODE:
@@ -38,14 +52,11 @@ def can_auto_start(container, containers, recent_failures):
         return False, "Kun optional services må auto-startes."
     if container.get("protected") or name in config.PROTECTED_CONTAINERS:
         return False, "Containeren er beskyttet."
-    if name == "gluetun":
-        return False, "Gluetun må aldrig auto-startes."
-    if name.lower() == "qbittorrent":
-        gluetun = next((c for c in containers if c["name"].lower() == "gluetun"), None)
-        if not gluetun or (gluetun.get("docker_state") or gluetun.get("status")) != "running":
-            return False, "qBittorrent må kun startes når gluetun kører."
     if not container.get("auto_start_allowed"):
         return False, "Containeren er ikke på auto-start allow-list."
+    dependencies_ok, dependency_reason = configured_dependencies_available(asset_id)
+    if not dependencies_ok:
+        return False, dependency_reason
     if recent_failures >= config.AUTO_START_FAILURE_LIMIT:
         return False, "For mange fejl inden for fejlvinduet."
     return True, "Auto-start tilladt af safe mode regler."
