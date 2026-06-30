@@ -3,6 +3,7 @@ import getpass
 import sys
 
 from app.auth.service import ALLOWED_ROLES, auth_service, initialize_auth_tables
+from app.db import init_db
 
 
 def prompt_password():
@@ -37,6 +38,7 @@ def build_parser():
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
+    init_db()
     initialize_auth_tables()
     try:
         if args.command == "create-user":
