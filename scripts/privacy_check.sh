@@ -53,6 +53,7 @@ PLACEHOLDERS = ("${", "{{", "<", "changeme", "dummy", "example", "placeholder", 
 KEY_HEADER_RE = re.compile("|".join(re.escape("-----BEGIN " + suffix) for suffix in ("OPENSSH PRIVATE KEY-----", "PRIVATE KEY-----", "RSA PRIVATE KEY-----", "EC PRIVATE KEY-----")))
 SSH_PUBLIC_RE = re.compile(r"\bssh-" + r"(?:rsa|dss|ed25519)\s+[A-Za-z0-9+/]{24,}={0,3}(?:\s|$)")
 ASSIGNMENT_RE = re.compile(r"^\s*(?:export\s+)?[\"']?([A-Za-z_][A-Za-z0-9_.-]*)[\"']?\s*[:=]\s*(.*?)\s*,?\s*$")
+QUOTED_MAPPING_RE = re.compile(r"^\s*[\"'][A-Za-z_][A-Za-z0-9_.-]*[\"']\s*:")
 IPV4_RE = re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])")
 IPV6_RE = re.compile(r"(?<![\w:])(?:[A-Fa-f0-9]{0,4}:){2,7}[A-Fa-f0-9]{0,4}(?![\w:])")
 DOMAIN_RE = re.compile(r"(?<![@\w-])(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}\b")
@@ -141,6 +142,7 @@ def scan(path, text):
             findings.add((number, "ssh-public-key"))
 
         key, value = assignment(line)
+        quoted_mapping = bool(QUOTED_MAPPING_RE.match(line))
         if key and value:
             normalized = key.lower().replace("-", "_").replace(".", "_")
             if any(marker in normalized for marker in CREDENTIAL_FIELDS):
@@ -148,7 +150,7 @@ def scan(path, text):
                 if lowered not in {"none", "null"} and not any(marker in lowered for marker in PLACEHOLDERS):
                     findings.add((number, "credential-assignment"))
             upper = key.upper().replace("-", "_").replace(".", "_")
-            if INVENTORY_RE.match(upper) and re.fullmatch(r"[\[\]{}\"'A-Za-z0-9:.,_ >-]*", value):
+            if not quoted_mapping and INVENTORY_RE.match(upper) and re.fullmatch(r"[\[\]{}\"'A-Za-z0-9:.,_ >-]*", value):
                 literal_value = re.sub(r"[\[\]{}\"']", "", value)
                 if upper == "ASSET_DEPENDENCIES":
                     if any(not generic_asset(name) for name in ASSET_RE.findall(literal_value)):

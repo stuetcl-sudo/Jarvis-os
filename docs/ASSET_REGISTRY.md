@@ -64,7 +64,7 @@ Generic examples:
 ```text
 docker:example-app depends_on docker:database
 system:docker contains docker:example-app
-docker:worker depends_on docker:queue
+docker:worker depends_on docker:example-queue
 ```
 
 Docker containers always receive the generic relationship:
