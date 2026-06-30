@@ -16,6 +16,7 @@ from app.auth.cli import main as cli_main
 from app.auth.context import reset_current_actor, set_current_actor
 from app.auth.dependencies import safe_next_path
 from app.auth.service import ALLOWED_ROLES, DUMMY_PASSWORD_HASH, InvalidCredentials, LoginRateLimited, auth_service, hash_session_token, initialize_auth_tables, rate_limit_key
+from app.db import init_db
 from app.main_auth import app
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +36,7 @@ def environment():
         config.AUTH_COOKIE_SECURE = False
         config.AUTH_LOGIN_MAX_FAILURES = 5
         config.AUTH_LOGIN_WINDOW_MINUTES = 15
+        init_db()
         initialize_auth_tables()
         client = TestClient(app, follow_redirects=False)
         try:
@@ -67,6 +69,9 @@ def login(client, role="owner"):
 
 def test_user_storage_roles_and_cli():
     with environment():
+        initialize_auth_tables()
+        tables = {row["name"] for row in rows("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        assert {"auth_users", "auth_sessions", "auth_login_attempts"}.issubset(tables)
         for role in sorted(ALLOWED_ROLES):
             assert create(role)["role"] == role
         try:
@@ -79,6 +84,12 @@ def test_user_storage_roles_and_cli():
             raise AssertionError("invalid role accepted")
         except ValueError:
             pass
+        for invalid_password in ["x" * 11, "x" * 129]:
+            try:
+                auth_service.create_user(f"bad-{len(invalid_password)}", "Bad password", "adult", invalid_password)
+                raise AssertionError("invalid password length accepted")
+            except ValueError:
+                pass
         stored = rows("SELECT username, password_hash FROM auth_users")
         assert stored and all(item["password_hash"].startswith("$argon2") for item in stored)
         assert password().encode() not in Path(config.DB_PATH).read_bytes()
@@ -92,24 +103,38 @@ def test_user_storage_roles_and_cli():
 def test_login_dummy_rate_limit_and_sessions():
     with environment() as client:
         create()
-        now = datetime(2026, 1, 1, tzinfo=timezone.utc)
-        errors = []
-        for username in ["test-owner", "missing-user"]:
-            try:
-                auth_service.authenticate(username, password() + "x", "192.0.2.1", now=now)
-            except InvalidCredentials as exc:
-                errors.append(str(exc))
-        assert len(errors) == 2 and errors[0] == errors[1]
+        wrong = client.post("/api/auth/login", json={"username": "test-owner", "password": password() + "x"})
+        missing = client.post("/api/auth/login", json={"username": "missing-user", "password": password()})
+        assert wrong.status_code == missing.status_code == 401
+        assert wrong.json() == missing.json()
 
+        now = datetime(2026, 1, 1, tzinfo=timezone.utc)
         original = auth_module.PASSWORD_HASHER
         seen = []
-        spy = SimpleNamespace(hash=original.hash, verify=lambda supplied, stored: (seen.append(stored), original.verify(supplied, stored))[1])
-        with patch.object(auth_module, "PASSWORD_HASHER", spy):
+
+        class SpyHasher:
+            def hash(self, supplied):
+                return original.hash(supplied)
+
+            def verify(self, supplied, stored):
+                seen.append(stored)
+                return original.verify(supplied, stored)
+
+        with patch.object(auth_module, "PASSWORD_HASHER", SpyHasher()):
             try:
                 auth_service.authenticate("not-present", password(), "192.0.2.2", now=now)
             except InvalidCredentials:
                 pass
         assert seen == [DUMMY_PASSWORD_HASH]
+
+        clear_key = rate_limit_key("test-owner", "198.51.100.9")
+        try:
+            auth_service.authenticate("test-owner", password() + "x", "198.51.100.9", now=now)
+        except InvalidCredentials:
+            pass
+        assert rows("SELECT 1 FROM auth_login_attempts WHERE rate_limit_key = ?", (clear_key,))
+        auth_service.authenticate("test-owner", password(), "198.51.100.9", now=now + timedelta(seconds=1))
+        assert not rows("SELECT 1 FROM auth_login_attempts WHERE rate_limit_key = ?", (clear_key,))
 
         config.AUTH_LOGIN_MAX_FAILURES = 3
         for second in range(2):
@@ -151,6 +176,8 @@ def test_login_dummy_rate_limit_and_sessions():
         auth_service.set_user_disabled("test-owner", True)
         assert client.get("/api/auth/me").status_code == 401
         assert not rows("SELECT 1 FROM auth_sessions")
+        disabled_login = client.post("/api/auth/login", json={"username": "test-owner", "password": password()})
+        assert disabled_login.status_code == 401
 
     with environment() as client:
         config.AUTH_COOKIE_SECURE = True
@@ -158,15 +185,27 @@ def test_login_dummy_rate_limit_and_sessions():
         response = client.post("/api/auth/login", json={"username": "test-owner", "password": password()})
         assert "secure" in response.headers["set-cookie"].lower()
 
+    with environment():
+        create("wall_display")
+        now = datetime(2026, 2, 1, tzinfo=timezone.utc)
+        session = auth_service.authenticate("test-wall_display", password(), "203.0.113.2", now=now)
+        expiry = datetime.fromisoformat(session["expires_at"])
+        assert expiry - now == timedelta(days=config.AUTH_WALL_SESSION_DAYS)
+
 
 def write_cases():
     return [
         ("/api/containers/example/restart", None),
         ("/api/actions/queue", {"asset_id": "docker:example", "action_type": "docker.start_container", "requested_by": "spoofed", "source": "spoofed"}),
-        ("/api/actions/example/approve", None), ("/api/actions/example/deny", None), ("/api/actions/example/cancel", None), ("/api/actions/example/run", None),
-        ("/api/worker/run-once", None), ("/api/recommendations/1/dismiss", None),
+        ("/api/actions/example/approve", None),
+        ("/api/actions/example/deny", None),
+        ("/api/actions/example/cancel", None),
+        ("/api/actions/example/run", None),
+        ("/api/worker/run-once", None),
+        ("/api/recommendations/1/dismiss", None),
         ("/api/service-classifications/example", {"classification": "optional", "protected": False, "auto_start_allowed": False}),
-        ("/api/policies/example/enable", None), ("/api/policies/example/disable", None),
+        ("/api/policies/example/enable", None),
+        ("/api/policies/example/disable", None),
     ]
 
 
@@ -199,7 +238,19 @@ def test_roles_write_protection_and_handler_reachability():
             assert send(client, case).status_code == 403
         headers = {"X-CSRF-Token": me["csrf_token"]}
         action = {"action_id": "example", "asset_id": "docker:example", "action_type": "docker.start_container", "status": "queued", "approved": True}
-        with patch("app.main.list_containers", return_value=([{"name": "example", "asset_id": "docker:example"}], None)), patch.object(action_engine, "queue_action", return_value=action), patch.object(action_engine, "approve_action", return_value=action), patch.object(action_engine, "deny_action", return_value=action), patch.object(action_engine, "cancel_action", return_value=action), patch.object(action_engine, "run_action", return_value=action), patch("app.main.worker_status", return_value={"running": False}), patch("app.main.run_check_once", return_value={"status": "ok"}), patch("app.main.dismiss_recommendation", return_value=True), patch("app.main.upsert_service_classification", return_value={"classification": "optional", "protected": False, "auto_start_allowed": False}), patch.object(__import__("app.main", fromlist=["policy_engine"]).policy_engine, "set_enabled", return_value={"policy_id": "example"}):
+        with (
+            patch("app.main.list_containers", return_value=([{"name": "example", "asset_id": "docker:example"}], None)),
+            patch.object(action_engine, "queue_action", return_value=action),
+            patch.object(action_engine, "approve_action", return_value=action),
+            patch.object(action_engine, "deny_action", return_value=action),
+            patch.object(action_engine, "cancel_action", return_value=action),
+            patch.object(action_engine, "run_action", return_value=action),
+            patch("app.main.worker_status", return_value={"running": False}),
+            patch("app.main.run_check_once", return_value={"status": "ok"}),
+            patch("app.main.dismiss_recommendation", return_value=True),
+            patch("app.main.upsert_service_classification", return_value={"classification": "optional", "protected": False, "auto_start_allowed": False}),
+            patch.object(__import__("app.main", fromlist=["policy_engine"]).policy_engine, "set_enabled", return_value={"policy_id": "example"}),
+        ):
             for case in write_cases():
                 assert send(client, case, headers).status_code == 200, case[0]
 
@@ -241,6 +292,11 @@ def test_actor_csrf_redirect_and_frontend_contract():
 
 
 if __name__ == "__main__":
-    for test in [test_user_storage_roles_and_cli, test_login_dummy_rate_limit_and_sessions, test_roles_write_protection_and_handler_reachability, test_actor_csrf_redirect_and_frontend_contract]:
+    for test in [
+        test_user_storage_roles_and_cli,
+        test_login_dummy_rate_limit_and_sessions,
+        test_roles_write_protection_and_handler_reachability,
+        test_actor_csrf_redirect_and_frontend_contract,
+    ]:
         test()
     print("Authentication and role tests OK")
