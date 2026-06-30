@@ -11,8 +11,8 @@ from app.db import connect, log_action
 
 ALLOWED_ROLES = {"owner", "adult", "child", "wall_display"}
 SESSION_COOKIE_NAME = "jarvis_session"
-PASSWORD_MIN_LENGTH = 12
-PASSWORD_MAX_LENGTH = 128
+CREDENTIAL_MIN_LENGTH = 12
+CREDENTIAL_MAX_LENGTH = 128
 GENERIC_LOGIN_ERROR = "Ugyldigt brugernavn eller adgangskode."
 GENERIC_RATE_LIMIT_ERROR = "For mange loginforsøg. Prøv igen senere."
 
@@ -86,10 +86,10 @@ def normalize_username(username):
 def validate_password(password):
     if not isinstance(password, str):
         raise ValueError("Password must be text")
-    if len(password) < PASSWORD_MIN_LENGTH:
-        raise ValueError(f"Password must be at least {PASSWORD_MIN_LENGTH} characters")
-    if len(password) > PASSWORD_MAX_LENGTH:
-        raise ValueError(f"Password must be at most {PASSWORD_MAX_LENGTH} characters")
+    if len(password) < CREDENTIAL_MIN_LENGTH:
+        raise ValueError(f"Password must be at least {CREDENTIAL_MIN_LENGTH} characters")
+    if len(password) > CREDENTIAL_MAX_LENGTH:
+        raise ValueError(f"Password must be at most {CREDENTIAL_MAX_LENGTH} characters")
 
 
 def hash_session_token(raw_value):
@@ -267,7 +267,7 @@ class AuthService:
         current = now or utc_now()
         normalized = normalize_username(username)
         key = rate_limit_key(normalized, client_address)
-        supplied_value = password if isinstance(password, str) and len(password) <= PASSWORD_MAX_LENGTH else ""
+        supplied_value = password if isinstance(password, str) and len(password) <= CREDENTIAL_MAX_LENGTH else ""
         conn = connect()
         try:
             self.cleanup_expired_sessions(current, conn)
