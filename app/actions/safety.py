@@ -1,6 +1,5 @@
 from app import config
 from app.assets.registry import asset_registry
-from app.assets.relationships import list_relationships
 from app.policies.engine import policy_engine
 
 ALLOWED_ACTION_TYPES = {
@@ -38,12 +37,14 @@ def _policy_decision_allows(action: dict, asset: dict) -> tuple[bool, str]:
 
 
 def _dependency_guards_pass(action: dict, asset: dict) -> tuple[bool, str]:
-    for rel in list_relationships(asset_id=action.get("asset_id"), relationship_type="depends_on"):
-        target_id = rel.get("target_asset_id")
-        target = asset_registry.get_asset(target_id)
-        required_state = rel.get("metadata", {}).get("required_state", "running") if isinstance(rel.get("metadata"), dict) else "running"
-        if not target or target.get("state") != required_state:
-            return False, f"Dependency guard denied action: {target_id} must be {required_state}."
+    del asset
+    asset_id = action.get("asset_id")
+    for source_asset_id, dependency_id in config.ASSET_DEPENDENCIES:
+        if source_asset_id != asset_id:
+            continue
+        dependency = asset_registry.get_asset(dependency_id)
+        if not dependency or dependency.get("state") != "running":
+            return False, f"Dependency guard denied action: {dependency_id} must be running."
     return True, "Dependency guards passed."
 
 
