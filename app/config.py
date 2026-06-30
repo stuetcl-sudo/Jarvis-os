@@ -18,6 +18,19 @@ def env_int(name, default):
         return default
 
 
+def env_positive_int(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a positive integer") from exc
+    if parsed <= 0:
+        raise ValueError(f"{name} must be a positive integer")
+    return parsed
+
+
 def env_float(name, default):
     value = os.getenv(name)
     if value is None:
@@ -70,6 +83,12 @@ WORKER_INTERVAL_SECONDS = env_int("WORKER_INTERVAL_SECONDS", 60)
 AUTO_START_FAILURE_LIMIT = env_int("AUTO_START_FAILURE_LIMIT", 3)
 AUTO_START_FAILURE_WINDOW_MINUTES = env_int("AUTO_START_FAILURE_WINDOW_MINUTES", 30)
 DB_PATH = os.getenv("DB_PATH", "/data/jarvis.db")
+
+AUTH_COOKIE_SECURE = env_bool("AUTH_COOKIE_SECURE", False)
+AUTH_SESSION_HOURS = env_positive_int("AUTH_SESSION_HOURS", 12)
+AUTH_WALL_SESSION_DAYS = env_positive_int("AUTH_WALL_SESSION_DAYS", 30)
+AUTH_LOGIN_MAX_FAILURES = env_positive_int("AUTH_LOGIN_MAX_FAILURES", 5)
+AUTH_LOGIN_WINDOW_MINUTES = env_positive_int("AUTH_LOGIN_WINDOW_MINUTES", 15)
 
 CRITICAL_SERVICES = env_csv("CRITICAL_SERVICES") or {"jarvis-os"}
 PROTECTED_CONTAINERS = env_csv("PROTECTED_CONTAINERS") or {"jarvis-os"}
