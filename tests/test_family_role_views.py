@@ -64,6 +64,7 @@ def test_anonymous_family_view_is_public_and_non_technical():
         text = response.text
         assert 'data-family-role="anonymous"' in text
         assert 'data-family-display-name=""' in text
+        assert "Fælles overblik" in text
         assert 'href="/login">Log ind</a>' in text
         assert 'href="/admin"' not in text
         assert "Mission Control" not in text
@@ -77,6 +78,7 @@ def test_owner_family_view_is_personalized_and_may_be_technical():
         create_and_login(client, "owner", display_name)
         text = client.get("/").text
         assert 'data-family-role="owner"' in text
+        assert "Familiens overblik" in text
         assert display_name not in text
         assert '&lt;Ejer &amp; &quot;Hjem&quot;&gt;' in text
         assert 'href="/admin">Mission Control</a>' in text
@@ -91,6 +93,7 @@ def test_adult_family_view_is_personalized_without_technical_details():
         text = client.get("/").text
         assert 'data-family-role="adult"' in text
         assert 'data-family-display-name="Voksen Test"' in text
+        assert "Familiens dag" in text
         assert 'href="/login">Skift bruger</a>' in text
         assert 'href="/admin"' not in text
         for card in ["calendar", "weather", "home", "meal", "tasks"]:
@@ -104,6 +107,7 @@ def test_child_family_view_prioritizes_day_cards_without_technical_details():
         text = client.get("/").text
         assert 'data-family-role="child"' in text
         assert 'data-family-display-name="Barn Test"' in text
+        assert "Din dag" in text
         assert 'href="/login">Skift bruger</a>' in text
         assert 'href="/admin"' not in text
         positions = [text.index(f'data-family-card="{card}"') for card in ["calendar", "weather", "meal", "tasks"]]
@@ -121,6 +125,7 @@ def test_wall_display_is_shared_kiosk_without_personal_name():
         assert 'data-family-view="shared-display"' in text
         assert 'data-family-kiosk="true"' in text
         assert 'data-family-display-name=""' in text
+        assert "Fælles husholdningsskærm" in text
         assert "Skjult Skærmnavn" not in text
         assert 'href="/login">Skift bruger</a>' in text
         assert 'href="/admin"' not in text
