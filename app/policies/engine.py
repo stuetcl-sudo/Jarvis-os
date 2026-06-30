@@ -1,3 +1,4 @@
+import hashlib
 import json
 from typing import Any
 
@@ -12,62 +13,29 @@ from app.policies.rules import default_policies
 POLICY_SEED_VERSION = 2
 JARVIS_MANAGED_BY = "jarvis"
 
-HISTORICAL_POLICY_SEEDS = [
+# Canonical SHA-256 fingerprints derived from the exact default_policies()
+# implementation at feature/policy-engine. Enabled state is intentionally excluded.
+HISTORICAL_POLICY_FINGERPRINTS = frozenset(
     {
-        "policy_id": "policy.unknown_container_discovered",
-        "name": "Unknown container discovered",
-        "description": "Recommend classification when Docker reports an unknown container.",
-        "priority": 10,
-        "trigger_event_type": "Docker.ContainerUnknown",
-        "conditions": {"classification": "unknown"},
-        "actions": [{"type": "recommend_classification"}],
-        "safety_level": "safe_observation",
-    },
-    {
-        "policy_id": "policy.critical_container_stopped",
-        "name": "Critical Docker container stopped",
-        "description": "Create a critical incident and recommendation when a critical Docker asset stops.",
-        "priority": 20,
-        "trigger_event_type": "Docker.ContainerStopped",
-        "conditions": {"classification": "critical"},
-        "actions": [{"type": "create_critical_incident"}, {"type": "recommend_manual_investigation"}],
-        "safety_level": "safe_observation",
-    },
-    {
-        "policy_id": "policy.optional_container_stopped",
-        "name": "Optional Docker container stopped",
-        "description": "Recommend a manual restart for optional stopped Docker assets. No automatic restart.",
-        "priority": 30,
-        "trigger_event_type": "Docker.ContainerStopped",
-        "conditions": {"classification": "optional"},
-        "actions": [{"type": "recommend_restart"}],
-        "safety_level": "safe_observation",
-    },
-    {
-        "policy_id": "policy.stopped_by_design_container_stopped",
-        "name": "Stopped-by-design container stopped",
-        "description": "Ignore stopped-by-design assets with an explanation.",
-        "priority": 40,
-        "trigger_event_type": "Docker.ContainerStopped",
-        "conditions": {"classification": "stopped_by_design"},
-        "actions": [{"type": "ignore"}],
-        "safety_level": "safe_observation",
-    },
-    {
-        "policy_id": "policy.qbittorrent_dependency_guard",
-        "name": "qBittorrent dependency guard",
-        "description": "Deny unsafe future qBittorrent auto-start unless docker:gluetun is running.",
-        "priority": 5,
-        "trigger_event_type": "Docker.*",
-        "conditions": {"asset_id": "docker:qbittorrent"},
-        "actions": [{"type": "dependency_guard", "dependency": "docker:gluetun", "required_state": "running"}],
-        "safety_level": "deny_unsafe_auto_action",
-    },
-]
+        "1986aa84ce387ff4d16cf21a526dfadbe117188f81110aba8b262b40f6e9e2e1",
+        "7dcbad131373e9c39fcc6a64962d076a00c3c773caad9eae5b66f42aa7166663",
+        "acaef0f17676f39a30b276850ea9633c152871dfe377299e95c582a7ad043a3e",
+        "b83998771fc32288733b45e4ff846d96bcc5ed6904173bc0fa97fc804bf56f40",
+        "bfaea0c29c67521d9ecdbfcb4e59ee9ad5d1914951f6ddb5e81783c1bbe0ec5d",
+    }
+)
 
-OBSOLETE_SYSTEM_POLICY_IDS = {policy["policy_id"] for policy in HISTORICAL_POLICY_SEEDS}
-CURRENT_SYSTEM_POLICY_IDS = {policy["policy_id"] for policy in default_policies()}
-KNOWN_SYSTEM_POLICY_IDS = OBSOLETE_SYSTEM_POLICY_IDS | CURRENT_SYSTEM_POLICY_IDS
+# Policy-id-only fingerprints allow already managed obsolete rows to be retired
+# without retaining historical deployment-specific identifiers in tracked source.
+OBSOLETE_MANAGED_POLICY_ID_FINGERPRINTS = frozenset(
+    {
+        "53da18ea4335624d28353d02ba56cb395b2d6bc860234e0682237e01b6d23c27",
+        "73924beab8c4c73fdaf21205b08671dd2ba19ebaf2123bc139efadfcd9e5e942",
+        "76680c1b8a6ab828529edc7f306460d0e865aa3141f8b9b2c251eb953cc36e17",
+        "d89629288646143f6fb3ccd91279c854efabf48365cd2a3aaa34eee62ce9b931",
+        "ec3a92794006c8edca2057f53033f13dd98896b9fac1b6100254ec980834d10f",
+    }
+)
 
 POLICY_SCHEMA = """
 CREATE TABLE IF NOT EXISTS policies (
@@ -160,8 +128,18 @@ def _stable_row_view(row) -> dict[str, Any]:
     }
 
 
-def _policy_matches_seed(row, seed: dict[str, Any]) -> bool:
-    return _stable_row_view(row) == _stable_policy_view(seed)
+def _policy_fingerprint(policy: dict[str, Any]) -> str:
+    canonical = json.dumps(_stable_policy_view(policy), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _row_policy_fingerprint(row) -> str:
+    canonical = json.dumps(_stable_row_view(row), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _policy_id_fingerprint(policy_id: str) -> str:
+    return hashlib.sha256(policy_id.encode("utf-8")).hexdigest()
 
 
 def _policy_from_row(row) -> dict[str, Any]:
@@ -190,22 +168,34 @@ class PolicyEngine:
         conn = connect()
         now = now_iso()
         current_seeds = default_policies()
-        all_seeds = {policy["policy_id"]: policy for policy in HISTORICAL_POLICY_SEEDS + current_seeds}
         current_by_id = {policy["policy_id"]: policy for policy in current_seeds}
+        current_fingerprints = {policy_id: _policy_fingerprint(policy) for policy_id, policy in current_by_id.items()}
 
-        for policy_id, seed in all_seeds.items():
-            row = conn.execute("SELECT * FROM policies WHERE policy_id = ?", (policy_id,)).fetchone()
-            if row and row["managed_by"] is None and _policy_matches_seed(row, seed):
+        rows = conn.execute("SELECT * FROM policies").fetchall()
+        for row in rows:
+            policy_id = row["policy_id"]
+            managed_by = row["managed_by"]
+            if managed_by is None:
+                fingerprint = _row_policy_fingerprint(row)
+                if policy_id in current_fingerprints and fingerprint == current_fingerprints[policy_id]:
+                    conn.execute(
+                        "UPDATE policies SET managed_by = ?, seed_version = COALESCE(seed_version, ?) WHERE policy_id = ? AND managed_by IS NULL",
+                        (JARVIS_MANAGED_BY, POLICY_SEED_VERSION, policy_id),
+                    )
+                elif fingerprint in HISTORICAL_POLICY_FINGERPRINTS:
+                    conn.execute(
+                        """
+                        UPDATE policies
+                        SET enabled = 0, retired = 1, managed_by = ?, seed_version = ?, updated_at = ?
+                        WHERE policy_id = ? AND managed_by IS NULL
+                        """,
+                        (JARVIS_MANAGED_BY, POLICY_SEED_VERSION, now, policy_id),
+                    )
+            elif managed_by == JARVIS_MANAGED_BY and _policy_id_fingerprint(policy_id) in OBSOLETE_MANAGED_POLICY_ID_FINGERPRINTS:
                 conn.execute(
-                    "UPDATE policies SET managed_by = ?, seed_version = COALESCE(seed_version, ?) WHERE policy_id = ? AND managed_by IS NULL",
-                    (JARVIS_MANAGED_BY, POLICY_SEED_VERSION, policy_id),
+                    "UPDATE policies SET enabled = 0, retired = 1, seed_version = ?, updated_at = ? WHERE policy_id = ? AND managed_by = ?",
+                    (POLICY_SEED_VERSION, now, policy_id, JARVIS_MANAGED_BY),
                 )
-
-        for policy_id in OBSOLETE_SYSTEM_POLICY_IDS:
-            conn.execute(
-                "UPDATE policies SET enabled = 0, retired = 1, managed_by = ?, seed_version = ?, updated_at = ? WHERE policy_id = ? AND managed_by = ?",
-                (JARVIS_MANAGED_BY, POLICY_SEED_VERSION, now, policy_id, JARVIS_MANAGED_BY),
-            )
 
         for policy_id, policy in current_by_id.items():
             existing = conn.execute("SELECT * FROM policies WHERE policy_id = ?", (policy_id,)).fetchone()
