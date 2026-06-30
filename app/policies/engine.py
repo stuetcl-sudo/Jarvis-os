@@ -36,12 +36,12 @@ HISTORICAL_POLICY_SEEDS = [
     {
         "policy_id": "policy.optional_container_stopped",
         "name": "Optional Docker container stopped",
-        "description": "Recommend and queue a waiting-approval manual restart for optional stopped Docker assets. No automatic restart.",
+        "description": "Recommend a manual restart for optional stopped Docker assets. No automatic restart.",
         "priority": 30,
         "trigger_event_type": "Docker.ContainerStopped",
         "conditions": {"classification": "optional"},
-        "actions": [{"type": "recommend_restart"}, {"type": "queue_manual_restart"}],
-        "safety_level": "safe_manual_queue",
+        "actions": [{"type": "recommend_restart"}],
+        "safety_level": "safe_observation",
     },
     {
         "policy_id": "policy.stopped_by_design_container_stopped",
@@ -193,7 +193,6 @@ class PolicyEngine:
         all_seeds = {policy["policy_id"]: policy for policy in HISTORICAL_POLICY_SEEDS + current_seeds}
         current_by_id = {policy["policy_id"]: policy for policy in current_seeds}
 
-        # Adopt only known seed IDs whose stored content matches a known Jarvis seed fingerprint.
         for policy_id, seed in all_seeds.items():
             row = conn.execute("SELECT * FROM policies WHERE policy_id = ?", (policy_id,)).fetchone()
             if row and row["managed_by"] is None and _policy_matches_seed(row, seed):
@@ -202,14 +201,12 @@ class PolicyEngine:
                     (JARVIS_MANAGED_BY, POLICY_SEED_VERSION, policy_id),
                 )
 
-        # Retire obsolete Jarvis-managed defaults for audit, without deleting rows.
         for policy_id in OBSOLETE_SYSTEM_POLICY_IDS:
             conn.execute(
                 "UPDATE policies SET enabled = 0, retired = 1, managed_by = ?, seed_version = ?, updated_at = ? WHERE policy_id = ? AND managed_by = ?",
                 (JARVIS_MANAGED_BY, POLICY_SEED_VERSION, now, policy_id, JARVIS_MANAGED_BY),
             )
 
-        # Insert/update current defaults. Preserve enabled state for existing policies.
         for policy_id, policy in current_by_id.items():
             existing = conn.execute("SELECT * FROM policies WHERE policy_id = ?", (policy_id,)).fetchone()
             if existing and existing["managed_by"] == JARVIS_MANAGED_BY:
@@ -256,7 +253,6 @@ class PolicyEngine:
                         POLICY_SEED_VERSION,
                     ),
                 )
-            # If an unmanaged policy occupies a current system ID but does not match the seed fingerprint, leave it unchanged.
         conn.commit()
         conn.close()
 
