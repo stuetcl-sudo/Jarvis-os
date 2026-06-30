@@ -18,8 +18,8 @@ def safe_next_path(value):
 
 
 def optional_current_user(request: Request):
-    token = request.cookies.get(SESSION_COOKIE_NAME)
-    return auth_service.resolve_session(token) if token else None
+    session_value = request.cookies.get(SESSION_COOKIE_NAME)
+    return auth_service.resolve_session(session_value) if session_value else None
 
 
 def require_authenticated_user(user=Depends(optional_current_user)):
