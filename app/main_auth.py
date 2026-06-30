@@ -1,12 +1,13 @@
 import hmac
 
 from fastapi import Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from app.auth.context import reset_current_actor, set_current_actor
 from app.auth.routes import router as auth_router
 from app.auth.service import SESSION_COOKIE_NAME, auth_service
 from app.db import log_action
+from app.family_view import render_family_page
 from app.main import app
 
 app.include_router(auth_router)
@@ -29,6 +30,9 @@ async def enforce_local_authentication(request: Request, call_next):
         and not request.url.path.startswith("/api/auth/")
     )
     try:
+        if request.method == "GET" and request.url.path == "/":
+            return HTMLResponse(render_family_page(current_user))
+
         if request.url.path == "/admin":
             if not current_user:
                 return RedirectResponse("/login?next=/admin", status_code=303)
