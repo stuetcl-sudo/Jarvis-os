@@ -14,9 +14,9 @@
         <p class="eyebrow">Mission Control + Action Engine</p>
         <h1>Jarvis-os</h1>
         <p class="subtitle">Event-driven platform with Asset Registry, Policy Engine and safe manual Action Queue.</p>
-        <p class="security-note">Visuel adskillelse – ikke en sikkerhedsgrænse. Login og roller kommer i en senere version.</p>
+        <p class="security-note">Mission Control kræver en aktiv owner-session. Alle skrivehandlinger kontrolleres på serveren og kræver CSRF-beskyttelse.</p>
       </div>
-      <div class="hero-actions"><a class="family-link" href="/">Familievisning</a><button onclick="runOnce()">Run check now</button><button class="secondary" onclick="refreshAll()">Refresh</button></div>
+      <div class="hero-actions"><span class="pill" id="authenticatedUser">Indlæser bruger…</span><a class="family-link" href="/">Familievisning</a><button onclick="runOnce()">Run check now</button><button class="secondary" onclick="refreshAll()">Refresh</button><button class="secondary" onclick="logout()">Log ud</button></div>
     </header>
     <section class="mission-grid" id="missionCards"></section>
     <section class="panel wide"><div class="panel-head"><h2>Worker status</h2><span id="workerBadge" class="pill">Loading</span></div><p id="workerText" class="large-text">Loading worker status...</p></section>
