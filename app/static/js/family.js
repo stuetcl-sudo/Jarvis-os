@@ -10,6 +10,37 @@ const timeFormatter = new Intl.DateTimeFormat("da-DK", {
   hour12: false,
 });
 
+const supportedRoles = new Set(["anonymous", "owner", "adult", "child", "wall_display"]);
+const pageRole = supportedRoles.has(document.body.dataset.familyRole)
+  ? document.body.dataset.familyRole
+  : "anonymous";
+const personalRoles = new Set(["owner", "adult", "child"]);
+const displayName = personalRoles.has(pageRole)
+  ? (document.body.dataset.familyDisplayName || "").trim()
+  : "";
+const rolePresentation = {
+  anonymous: {
+    label: "Fælles overblik",
+    subtitle: "Her er et roligt overblik over hjemmet.",
+  },
+  owner: {
+    label: "Familiens overblik",
+    subtitle: "Her er både familiens overblik og den tekniske status.",
+  },
+  adult: {
+    label: "Familiens dag",
+    subtitle: "Her er dagens fælles information samlet roligt og enkelt.",
+  },
+  child: {
+    label: "Din dag",
+    subtitle: "Her kan du se dagens aftaler, vejr, madplan og opgaver.",
+  },
+  wall_display: {
+    label: "Fælles husholdningsskærm",
+    subtitle: "Dagens fælles information til hele hjemmet.",
+  },
+};
+
 function setText(id, value) {
   const element = document.getElementById(id);
   if (element) element.textContent = value;
@@ -20,53 +51,71 @@ function percentage(value) {
   return Number.isFinite(number) ? `${number.toFixed(0)} %` : "–";
 }
 
-function updateClock() {
-  const now = new Date();
-  const hour = now.getHours();
-  setText("currentDate", dateFormatter.format(now));
-  setText("currentTime", timeFormatter.format(now));
-  setText("greeting", hour < 10 ? "Godmorgen" : hour < 18 ? "God eftermiddag" : "Godaften");
+function greetingFor(hour) {
+  return hour < 10 ? "Godmorgen" : hour < 18 ? "God eftermiddag" : "Godaften";
 }
 
-function renderStatus(health, mission) {
-  const status = mission.overall_status || "unknown";
-  const statusLabels = { ok: "Alt ser godt ud", warning: "Kræver opmærksomhed", critical: "Problem registreret" };
-  const dot = document.getElementById("jarvisStatusDot");
-  setText("jarvisStatus", statusLabels[status] || "Status ukendt");
-  if (dot) dot.className = `status-dot ${status}`;
+function updateClock() {
+  const now = new Date();
+  const greeting = greetingFor(now.getHours());
+  const presentation = rolePresentation[pageRole] || rolePresentation.anonymous;
+  setText("currentDate", dateFormatter.format(now));
+  setText("currentTime", timeFormatter.format(now));
+  setText("greeting", displayName ? `${greeting}, ${displayName}` : greeting);
+  setText("familyViewLabel", presentation.label);
+  setText("familySubtitle", presentation.subtitle);
+}
 
+function calmStatus(status) {
+  const labels = {
+    ok: "Alt ser roligt ud",
+    warning: "Noget kræver opmærksomhed",
+    critical: "Der er registreret et problem",
+  };
+  return labels[status] || "Status er ukendt";
+}
+
+function renderMission(mission) {
+  const status = mission.overall_status || "unknown";
+  const dot = document.getElementById("jarvisStatusDot");
+  setText("overallHomeStatus", calmStatus(status));
+  setText("lastUpdated", timeFormatter.format(new Date()));
+  setText("jarvisStatus", calmStatus(status));
+  if (dot) dot.className = `status-dot ${status}`;
   setText("safeMode", mission.safe_mode ? "Til" : "Fra");
   setText("systemsOnline", `${mission.docker?.running ?? 0} af ${mission.docker?.total ?? 0}`);
   setText("incidentCount", String(mission.active_incidents?.length ?? 0));
-  setText("criticalSystems", mission.critical_ok ? "Kører normalt" : "Kræver opmærksomhed");
-  setText("currentTask", mission.what_jarvis_is_doing_now || "Afventer");
-  setText("lastUpdated", timeFormatter.format(new Date()));
+}
+
+function renderHealth(health) {
   setText("cpuMetric", percentage(health.cpu_percent));
   setText("memoryMetric", percentage(health.memory?.percent));
   setText("diskMetric", percentage(health.disk_root?.percent));
 }
 
 function renderUnavailable() {
+  setText("overallHomeStatus", "Status er ikke tilgængelig");
+  setText("lastUpdated", timeFormatter.format(new Date()));
   setText("jarvisStatus", "Kan ikke hente status");
   const dot = document.getElementById("jarvisStatusDot");
   if (dot) dot.className = "status-dot critical";
   setText("safeMode", "Ukendt");
   setText("systemsOnline", "Ukendt");
   setText("incidentCount", "Ukendt");
-  setText("criticalSystems", "Status utilgængelig");
-  setText("currentTask", "Status utilgængelig");
-  setText("lastUpdated", timeFormatter.format(new Date()));
 }
 
 async function refreshFamilyDashboard() {
   try {
-    const [healthResponse, missionResponse] = await Promise.all([
-      fetch("/api/health"),
-      fetch("/api/mission"),
-    ]);
-    if (!healthResponse.ok || !missionResponse.ok) throw new Error("Status kunne ikke hentes");
-    const [health, mission] = await Promise.all([healthResponse.json(), missionResponse.json()]);
-    renderStatus(health, mission);
+    const missionResponse = await fetch("/api/mission");
+    if (!missionResponse.ok) throw new Error("Status kunne ikke hentes");
+    const mission = await missionResponse.json();
+    renderMission(mission);
+
+    if (pageRole === "owner") {
+      const healthResponse = await fetch("/api/health");
+      if (!healthResponse.ok) throw new Error("Systemstatus kunne ikke hentes");
+      renderHealth(await healthResponse.json());
+    }
   } catch (error) {
     renderUnavailable();
   }
