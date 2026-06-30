@@ -1,0 +1,69 @@
+:root {
+  color-scheme: light dark;
+  --page: #eef3f9;
+  --card: rgba(255, 255, 255, .82);
+  --border: rgba(35, 55, 80, .12);
+  --text: #172033;
+  --muted: #697386;
+  --accent: #1677ff;
+  --danger: #c43d3d;
+}
+
+body {
+  color: var(--text);
+  background: radial-gradient(circle at top left, rgba(131,190,255,.3), transparent 34rem), var(--page);
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: max(24px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+}
+
+.login-card {
+  width: min(460px, 100%);
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: var(--card);
+  box-shadow: 0 24px 70px rgba(50,75,105,.16);
+  backdrop-filter: blur(22px);
+}
+
+.login-kicker { margin: 0 0 8px; color: var(--accent); font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; }
+h1 { margin: 0; font-size: clamp(34px, 8vw, 48px); letter-spacing: -.04em; }
+.login-intro { margin: 12px 0 24px; color: var(--muted); }
+.owner-setup { margin: 0 0 22px; padding: 14px; border-radius: 16px; background: rgba(217,148,22,.12); color: var(--text); }
+.owner-setup code { display: block; margin-top: 8px; overflow-wrap: anywhere; font-size: 12px; }
+form { display: grid; gap: 10px; }
+label { margin-top: 4px; font-weight: 700; }
+input {
+  min-height: 48px;
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255,255,255,.55);
+  color: var(--text);
+}
+button, .family-link {
+  min-height: 48px;
+  border: 0;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  text-decoration: none;
+}
+button { margin-top: 8px; background: var(--accent); color: white; cursor: pointer; }
+button:disabled { opacity: .6; cursor: wait; }
+.family-link { margin-top: 14px; width: 100%; background: rgba(90,110,140,.1); }
+.login-error { margin: 6px 0 0; color: var(--danger); font-weight: 700; }
+
+@media (prefers-color-scheme: dark) {
+  :root { --page: #0d1015; --card: rgba(31,35,43,.84); --border: rgba(255,255,255,.1); --text: #f1f4f8; --muted: #a1a9b7; --accent: #62a8ff; --danger: #ff8d8d; }
+  body { background: radial-gradient(circle at top left, rgba(45,105,175,.25), transparent 34rem), var(--page); }
+  input { background: rgba(255,255,255,.06); }
+}
