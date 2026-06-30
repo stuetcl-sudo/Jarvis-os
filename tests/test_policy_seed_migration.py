@@ -6,11 +6,55 @@ from unittest.mock import patch
 from app import config
 from app.actions.engine import action_engine
 from app.actions.history import initialize_action_tables, list_actions
+from app.assets.registry import initialize_asset_tables
 from app.db import connect, init_db
 from app.events.event import Event
 from app.events.types import EventTypes
-from app.policies.engine import HISTORICAL_POLICY_SEEDS, JARVIS_MANAGED_BY, POLICY_SEED_VERSION, initialize_policy_tables, policy_engine
+from app.policies.engine import HISTORICAL_POLICY_FINGERPRINTS, JARVIS_MANAGED_BY, POLICY_SEED_VERSION, _policy_fingerprint, initialize_policy_tables, policy_engine
 from app.policies.rules import default_policies
+
+VERIFIED_HISTORICAL_SEEDS = [
+    {
+        "policy_id": "policy.unknown_container_discovered",
+        "name": "Unknown container discovered",
+        "description": "Recommend classification when Docker reports an unknown container.",
+        "priority": 10,
+        "trigger_event_type": "Docker.ContainerUnknown",
+        "conditions": {"classification": "unknown"},
+        "actions": [{"type": "recommend_classification"}],
+        "safety_level": "safe_observation",
+    },
+    {
+        "policy_id": "policy.critical_container_stopped",
+        "name": "Critical Docker container stopped",
+        "description": "Create a critical incident and recommendation when a critical Docker asset stops.",
+        "priority": 20,
+        "trigger_event_type": "Docker.ContainerStopped",
+        "conditions": {"classification": "critical"},
+        "actions": [{"type": "create_critical_incident"}, {"type": "recommend_manual_investigation"}],
+        "safety_level": "safe_observation",
+    },
+    {
+        "policy_id": "policy.optional_container_stopped",
+        "name": "Optional Docker container stopped",
+        "description": "Recommend a manual restart for optional stopped Docker assets. No automatic restart.",
+        "priority": 30,
+        "trigger_event_type": "Docker.ContainerStopped",
+        "conditions": {"classification": "optional"},
+        "actions": [{"type": "recommend_restart"}],
+        "safety_level": "safe_observation",
+    },
+    {
+        "policy_id": "policy.stopped_by_design_container_stopped",
+        "name": "Stopped-by-design container stopped",
+        "description": "Ignore stopped-by-design assets with an explanation.",
+        "priority": 40,
+        "trigger_event_type": "Docker.ContainerStopped",
+        "conditions": {"classification": "stopped_by_design"},
+        "actions": [{"type": "ignore"}],
+        "safety_level": "safe_observation",
+    },
+]
 
 
 def reset_db():
@@ -18,6 +62,7 @@ def reset_db():
     tmp.close()
     config.DB_PATH = tmp.name
     init_db()
+    initialize_asset_tables()
     initialize_policy_tables()
     initialize_action_tables()
     return Path(tmp.name)
@@ -87,7 +132,7 @@ def get_policy(policy_id):
 
 
 def historical_seed(policy_id):
-    return next(seed for seed in HISTORICAL_POLICY_SEEDS if seed["policy_id"] == policy_id)
+    return next(seed for seed in VERIFIED_HISTORICAL_SEEDS if seed["policy_id"] == policy_id)
 
 
 def current_seed(policy_id):
@@ -109,6 +154,11 @@ def logical_policy_view(policy):
         "seed_version": policy["seed_version"],
         "retired": policy["retired"],
     }
+
+
+def test_verified_historical_fingerprints_match_old_default_policies():
+    for seed in VERIFIED_HISTORICAL_SEEDS:
+        assert _policy_fingerprint(seed) in HISTORICAL_POLICY_FINGERPRINTS
 
 
 def test_fresh_database_receives_current_jarvis_managed_policies():
@@ -228,7 +278,7 @@ def test_migration_is_idempotent_across_repeated_startup():
         first = {p["policy_id"]: logical_policy_view(p) for p in policy_engine.list_policies()}
         policy_engine.ensure_default_policies()
         second = {p["policy_id"]: logical_policy_view(p) for p in policy_engine.list_policies()}
-        assert first.keys() == second.keys()
+        assert first == second
         assert get_policy("policy.critical_container_stopped")["retired"] is True
         assert get_policy("policy.optional_asset_stopped")["enabled"] is False
     finally:
@@ -253,6 +303,7 @@ def test_duplicate_queue_request_does_not_publish_second_action_queued_event():
 
 if __name__ == "__main__":
     for test in [
+        test_verified_historical_fingerprints_match_old_default_policies,
         test_fresh_database_receives_current_jarvis_managed_policies,
         test_custom_obsolete_id_is_not_adopted_disabled_or_retired,
         test_custom_current_id_remains_unchanged,
