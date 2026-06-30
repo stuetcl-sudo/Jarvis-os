@@ -19,8 +19,8 @@ async def initialize_local_authentication():
 
 @app.middleware("http")
 async def enforce_local_authentication(request: Request, call_next):
-    raw_token = request.cookies.get(SESSION_COOKIE_NAME)
-    current_user = auth_service.resolve_session(raw_token) if raw_token else None
+    session_value = request.cookies.get(SESSION_COOKIE_NAME)
+    current_user = auth_service.resolve_session(session_value) if session_value else None
     request.state.current_user = current_user
     actor_context = set_current_actor(current_user["username"] if current_user else None)
     protected_write = (
