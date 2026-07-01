@@ -1,0 +1,232 @@
+.routine-card {
+  grid-column: span 2;
+  min-height: 360px;
+}
+
+.routine-card-content {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.routine-switch {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 5px;
+  border-radius: 16px;
+  background: var(--soft);
+}
+
+.routine-switch button,
+.routine-actions button,
+.routine-reset {
+  min-height: 44px;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.routine-switch button {
+  background: transparent;
+  color: var(--muted);
+}
+
+.routine-switch button[aria-pressed="true"] {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.routine-panel {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1.2fr);
+  gap: 24px;
+  align-items: center;
+}
+
+.routine-pictogram-frame {
+  min-height: 230px;
+  border-radius: 28px;
+  display: grid;
+  place-items: center;
+  background: var(--soft);
+  color: var(--accent, #4b70d4);
+}
+
+.routine-pictogram {
+  width: min(74%, 210px);
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.routine-copy {
+  min-width: 0;
+}
+
+.routine-label,
+.routine-progress,
+.routine-time,
+.routine-message {
+  margin: 0;
+}
+
+.routine-label,
+.routine-progress,
+.routine-time {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.routine-title {
+  margin: 10px 0 8px;
+  font-size: clamp(30px, 4vw, 50px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+}
+
+.routine-message {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.routine-actions {
+  margin-top: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.routine-actions button {
+  background: var(--soft);
+  color: var(--text);
+}
+
+.routine-actions .routine-complete {
+  min-width: 160px;
+  background: #3f7a55;
+  border-color: #3f7a55;
+  color: white;
+  font-size: 20px;
+}
+
+.routine-actions button:disabled,
+.routine-switch button:disabled,
+.routine-reset:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.routine-reset {
+  margin-top: 14px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.routine-transition {
+  animation: routine-soft-change 180ms ease-out;
+}
+
+@keyframes routine-soft-change {
+  from { opacity: 0.55; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+body[data-family-role="anonymous"] .routine-card {
+  display: none;
+}
+
+body[data-family-role="child"] .routine-card {
+  grid-column: 1 / -1;
+  order: -3;
+  min-height: 500px;
+}
+
+body[data-family-role="child"] .routine-panel {
+  grid-template-columns: minmax(250px, 0.95fr) minmax(0, 1.05fr);
+}
+
+body[data-family-role="child"] .routine-pictogram-frame {
+  min-height: 340px;
+}
+
+body[data-family-role="child"] .routine-title {
+  font-size: clamp(40px, 6vw, 68px);
+}
+
+body[data-family-role="child"] .routine-progress,
+body[data-family-role="child"] .routine-label,
+body[data-family-role="child"] .routine-time {
+  font-size: 18px;
+}
+
+body[data-family-role="child"] .routine-actions button {
+  min-height: 58px;
+  font-size: 19px;
+}
+
+body[data-family-role="child"] .routine-actions .routine-complete {
+  min-width: 210px;
+  font-size: 24px;
+}
+
+body[data-family-role="wall_display"] .routine-card {
+  grid-column: 1 / -1;
+  order: -3;
+  min-height: 620px;
+}
+
+body[data-family-role="wall_display"] .routine-panel {
+  grid-template-columns: minmax(340px, 0.9fr) minmax(0, 1.1fr);
+  gap: 40px;
+}
+
+body[data-family-role="wall_display"] .routine-pictogram-frame {
+  min-height: 470px;
+  border-radius: 38px;
+}
+
+body[data-family-role="wall_display"] .routine-title {
+  font-size: clamp(56px, 6vw, 92px);
+}
+
+body[data-family-role="wall_display"] .routine-label,
+body[data-family-role="wall_display"] .routine-progress,
+body[data-family-role="wall_display"] .routine-time {
+  font-size: 24px;
+}
+
+body[data-family-role="wall_display"] .routine-actions button {
+  min-height: 72px;
+  padding-inline: 28px;
+  font-size: 26px;
+}
+
+@media (max-width: 820px) {
+  .routine-card,
+  body[data-family-role="child"] .routine-card,
+  body[data-family-role="wall_display"] .routine-card {
+    grid-column: 1 / -1;
+    min-height: 0;
+  }
+
+  .routine-panel,
+  body[data-family-role="child"] .routine-panel,
+  body[data-family-role="wall_display"] .routine-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .routine-pictogram-frame,
+  body[data-family-role="child"] .routine-pictogram-frame,
+  body[data-family-role="wall_display"] .routine-pictogram-frame {
+    min-height: 260px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .routine-transition { animation: none; }
+}

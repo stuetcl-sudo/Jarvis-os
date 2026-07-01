@@ -18,6 +18,19 @@ def env_int(name, default):
         return default
 
 
+def env_positive_int(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a positive integer") from exc
+    if parsed <= 0:
+        raise ValueError(f"{name} must be a positive integer")
+    return parsed
+
+
 def env_float(name, default):
     value = os.getenv(name)
     if value is None:
@@ -61,6 +74,33 @@ def env_relationships(name):
     return relationships
 
 
+def home_assistant_configuration():
+    return {
+        "base_url": os.getenv("HOME_ASSISTANT_URL", "").strip(),
+        "access_value": os.getenv("HOME_ASSISTANT_" + "TOKEN", "").strip(),
+        "timeout_seconds": env_positive_int("HOME_ASSISTANT_TIMEOUT_SECONDS", 5),
+    }
+
+
+def weather_configuration():
+    return {
+        **home_assistant_configuration(),
+        "entity_id": os.getenv("HOME_ASSISTANT_WEATHER_ENTITY", "").strip(),
+        "cache_seconds": env_positive_int("WEATHER_CACHE_SECONDS", 300),
+        "stale_seconds": env_positive_int("WEATHER_STALE_SECONDS", 3600),
+    }
+
+
+def calendar_configuration():
+    return {
+        "calendars": os.getenv("HOME_ASSISTANT_CALENDARS", "").strip(),
+        "lookahead_days": env_positive_int("CALENDAR_LOOKAHEAD_DAYS", 7),
+        "cache_seconds": env_positive_int("CALENDAR_CACHE_SECONDS", 300),
+        "stale_seconds": env_positive_int("CALENDAR_STALE_SECONDS", 3600),
+        "max_events": env_positive_int("CALENDAR_MAX_EVENTS", 40),
+    }
+
+
 APP_NAME = os.getenv("APP_NAME", "Jarvis-os")
 VERSION = "0.7.0"
 SAFE_MODE = env_bool("SAFE_MODE", True)
@@ -70,6 +110,13 @@ WORKER_INTERVAL_SECONDS = env_int("WORKER_INTERVAL_SECONDS", 60)
 AUTO_START_FAILURE_LIMIT = env_int("AUTO_START_FAILURE_LIMIT", 3)
 AUTO_START_FAILURE_WINDOW_MINUTES = env_int("AUTO_START_FAILURE_WINDOW_MINUTES", 30)
 DB_PATH = os.getenv("DB_PATH", "/data/jarvis.db")
+ROUTINE_TIMEZONE = os.getenv("ROUTINE_TIMEZONE", "Europe/Copenhagen").strip() or "Europe/Copenhagen"
+
+AUTH_COOKIE_SECURE = env_bool("AUTH_COOKIE_SECURE", False)
+AUTH_SESSION_HOURS = env_positive_int("AUTH_SESSION_HOURS", 12)
+AUTH_WALL_SESSION_DAYS = env_positive_int("AUTH_WALL_SESSION_DAYS", 30)
+AUTH_LOGIN_MAX_FAILURES = env_positive_int("AUTH_LOGIN_MAX_FAILURES", 5)
+AUTH_LOGIN_WINDOW_MINUTES = env_positive_int("AUTH_LOGIN_WINDOW_MINUTES", 15)
 
 CRITICAL_SERVICES = env_csv("CRITICAL_SERVICES") or {"jarvis-os"}
 PROTECTED_CONTAINERS = env_csv("PROTECTED_CONTAINERS") or {"jarvis-os"}

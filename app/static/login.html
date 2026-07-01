@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Log ind på Jarvis</title>
+  <link rel="stylesheet" href="/static/css/common.css" />
+  <link rel="stylesheet" href="/static/css/login.css" />
+</head>
+<body>
+  <main class="login-shell">
+    <section class="login-card" aria-labelledby="loginTitle">
+      <p class="login-kicker">Jarvis-os</p>
+      <h1 id="loginTitle">Log ind på Jarvis</h1>
+      <p class="login-intro">Mission Control er kun tilgængelig for ejeren.</p>
+      <!--OWNER_SETUP_NOTICE-->
+      <form id="loginForm" novalidate>
+        <label for="username">Brugernavn</label>
+        <input id="username" name="username" type="text" autocomplete="username" required maxlength="128" />
+        <label for="password">Adgangskode</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128" />
+        <p id="loginError" class="login-error" role="alert" hidden>Login mislykkedes. Kontrollér oplysningerne og prøv igen.</p>
+        <button type="submit">Log ind</button>
+      </form>
+      <a class="family-link" href="/">Tilbage til familieoversigten</a>
+    </section>
+  </main>
+  <script src="/static/js/login.js" defer></script>
+</body>
+</html>

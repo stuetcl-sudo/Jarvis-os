@@ -1,0 +1,210 @@
+.weather-card {
+  min-height: 300px;
+}
+
+.weather-card-content {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.weather-data {
+  margin-top: 22px;
+}
+
+.weather-current {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.weather-symbol {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: var(--soft);
+  font-size: 40px;
+}
+
+.weather-temperature {
+  display: block;
+  font-size: clamp(34px, 4vw, 52px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.weather-condition {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 680;
+}
+
+.weather-measurements {
+  margin: 22px 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 18px;
+}
+
+.weather-measurements div {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 9px;
+  border-top: 1px solid var(--card-border);
+}
+
+.weather-measurements [hidden] {
+  display: none;
+}
+
+.weather-child-summary,
+.weather-stale {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.weather-child-summary {
+  font-size: 18px;
+}
+
+.weather-stale {
+  font-size: 14px;
+}
+
+.weather-forecast {
+  margin: 22px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  list-style: none;
+}
+
+.weather-forecast-item {
+  min-width: 0;
+  min-height: 116px;
+  padding: 13px;
+  border-radius: 18px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 9px;
+  background: var(--soft);
+}
+
+.weather-forecast-day {
+  align-self: center;
+  font-weight: 760;
+  text-transform: capitalize;
+}
+
+.weather-forecast-symbol {
+  font-size: 25px;
+}
+
+.weather-forecast-temperatures {
+  font-size: 16px;
+  font-weight: 760;
+}
+
+.weather-forecast-rain {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 680;
+}
+
+body[data-family-role="child"] .weather-card {
+  min-height: 280px;
+}
+
+body[data-family-role="child"] .weather-symbol {
+  width: 86px;
+  height: 86px;
+  font-size: 50px;
+}
+
+body[data-family-role="child"] .weather-temperature {
+  font-size: clamp(42px, 7vw, 62px);
+}
+
+body[data-family-role="child"] .weather-condition,
+body[data-family-role="child"] .weather-child-summary {
+  font-size: 20px;
+}
+
+body[data-family-role="wall_display"] .weather-card {
+  grid-column: span 2;
+  min-height: 360px;
+}
+
+body[data-family-role="wall_display"] .weather-symbol {
+  width: 108px;
+  height: 108px;
+  border-radius: 30px;
+  font-size: 64px;
+}
+
+body[data-family-role="wall_display"] .weather-temperature {
+  font-size: clamp(58px, 7vw, 92px);
+}
+
+body[data-family-role="wall_display"] .weather-condition {
+  font-size: clamp(22px, 2vw, 30px);
+}
+
+body[data-family-role="wall_display"] .weather-forecast-item {
+  min-height: 150px;
+  padding: 20px;
+}
+
+body[data-family-role="wall_display"] .weather-forecast-day,
+body[data-family-role="wall_display"] .weather-forecast-temperatures {
+  font-size: 22px;
+}
+
+body[data-family-role="wall_display"] .weather-forecast-symbol {
+  font-size: 38px;
+}
+
+body[data-family-role="wall_display"] .weather-forecast-rain,
+body[data-family-role="wall_display"] .weather-stale {
+  font-size: 17px;
+}
+
+@media (max-width: 920px) {
+  body[data-family-role="wall_display"] .weather-card {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .weather-card,
+  body[data-family-role="child"] .weather-card,
+  body[data-family-role="wall_display"] .weather-card {
+    min-height: 0;
+  }
+
+  .weather-forecast {
+    grid-template-columns: 1fr;
+  }
+
+  .weather-forecast-item {
+    min-height: 74px;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+  }
+
+  .weather-forecast-rain {
+    grid-column: 1 / -1;
+  }
+
+  .weather-measurements {
+    grid-template-columns: 1fr;
+  }
+}

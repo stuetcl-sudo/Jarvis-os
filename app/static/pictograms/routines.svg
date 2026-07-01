@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>.s{fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.f{fill:currentColor}</style>
+    <symbol id="wake" viewBox="0 0 64 64"><path class="s" d="M9 45h46M13 45V25h31a9 9 0 0 1 9 9v11M18 25v-8h14v8M48 10v8M39 13l5 5M57 13l-5 5"/><circle class="s" cx="48" cy="24" r="6"/></symbol>
+    <symbol id="tv" viewBox="0 0 64 64"><rect class="s" x="9" y="14" width="46" height="32" rx="4"/><path class="s" d="M24 54h16M32 46v8M23 8l9 6 9-6"/></symbol>
+    <symbol id="breakfast" viewBox="0 0 64 64"><path class="s" d="M12 31h40c0 14-8 22-20 22S12 45 12 31Z"/><path class="s" d="M18 31c1-8 5-12 14-12s13 4 14 12M24 12c0 4-3 4-3 8M35 9c0 4-3 4-3 8M46 12c0 4-3 4-3 8"/></symbol>
+    <symbol id="clothes" viewBox="0 0 64 64"><path class="s" d="M22 12 10 21l8 10 6-5v27h16V26l6 5 8-10-12-9c-2 5-6 7-10 7s-8-2-10-7Z"/></symbol>
+    <symbol id="teeth" viewBox="0 0 64 64"><path class="s" d="M12 43h29l9-9-4-4-8 7H12v6ZM18 37v-8h4v8M26 37v-8h4v8M34 37v-8h4v8"/><path class="s" d="M49 16c5 0 7 4 7 8 0 7-4 15-7 15s-3-6-5-6-2 6-5 6-7-8-7-15c0-4 2-8 7-8 2 0 4 2 5 2s3-2 5-2Z"/></symbol>
+    <symbol id="tablet" viewBox="0 0 64 64"><rect class="s" x="15" y="7" width="34" height="50" rx="5"/><circle class="f" cx="32" cy="50" r="2"/></symbol>
+    <symbol id="outerwear" viewBox="0 0 64 64"><path class="s" d="M24 10 12 19l7 10 5-4v30h16V25l5 4 7-10-12-9-8 8-8-8ZM32 18v37M28 28h8"/></symbol>
+    <symbol id="school" viewBox="0 0 64 64"><path class="s" d="M8 26 32 10l24 16M12 25v29h40V25M25 54V38h14v16M19 31h5M40 31h5"/><path class="s" d="M29 18h6v7h-6z"/></symbol>
+    <symbol id="homework" viewBox="0 0 64 64"><path class="s" d="M10 13h20c5 0 8 3 8 8v31c0-5-3-8-8-8H10V13Zm44 0H42c-2 0-4 1-4 3v36c0-5 3-8 8-8h8V13Z"/><path class="s" d="m45 31 9-9 4 4-9 9-6 2 2-6Z"/></symbol>
+    <symbol id="exercise" viewBox="0 0 64 64"><circle class="s" cx="32" cy="10" r="5"/><path class="s" d="m29 18-8 12 8 6-7 18M35 18l8 12-8 6 7 18M21 30l-11 6M43 30l11 6"/></symbol>
+    <symbol id="play" viewBox="0 0 64 64"><path class="s" d="M14 23h36l7 23c1 5-5 8-9 5l-8-7H24l-8 7c-4 3-10 0-9-5l7-23Z"/><path class="s" d="M21 31v10M16 36h10M43 32h.1M49 38h.1"/></symbol>
+    <symbol id="dinner" viewBox="0 0 64 64"><circle class="s" cx="32" cy="32" r="18"/><circle class="s" cx="32" cy="32" r="9"/><path class="s" d="M8 12v16c0 4 6 4 6 0V12M11 12v43M53 12v43M49 12v15h8V12"/></symbol>
+    <symbol id="cleanup" viewBox="0 0 64 64"><path class="s" d="M10 22h44M15 22v31M49 22v31M8 16h48"/><path class="s" d="m25 12 4 4M39 12l-4 4M26 34l12 12M38 34 26 46"/></symbol>
+    <symbol id="bath" viewBox="0 0 64 64"><path class="s" d="M9 34h46v6c0 9-7 15-16 15H25c-9 0-16-6-16-15v-6ZM16 34V18c0-6 4-10 10-10 5 0 8 3 8 7M28 16h12M31 21h3M38 21h3M35 27h3M42 27h3"/></symbol>
+    <symbol id="laundry" viewBox="0 0 64 64"><path class="s" d="M14 18h36l-4 38H18l-4-38ZM20 18l4-10h16l4 10M22 29h20M20 38h24M18 47h28"/></symbol>
+    <symbol id="bed" viewBox="0 0 64 64"><path class="s" d="M8 49h48M11 49V24h14c5 0 8 3 8 8h12c6 0 10 4 10 10v7M15 24v-8h14v8"/><path class="s" d="M45 11c-5 1-8 5-8 10 0 6 5 11 11 11 3 0 6-1 8-4-8 1-14-5-11-17Z"/></symbol>
+    <symbol id="audio" viewBox="0 0 64 64"><path class="s" d="M10 35v-5c0-12 10-22 22-22s22 10 22 22v5M10 35h10v18H14c-2 0-4-2-4-4V35Zm44 0H44v18h6c2 0 4-2 4-4V35Z"/><path class="s" d="M28 25v17c0 4-7 4-7 0s7-5 7-1M42 21v17c0 4-7 4-7 0s7-5 7-1M28 25l14-4"/></symbol>
+    <symbol id="sleep" viewBox="0 0 64 64"><path class="s" d="M41 9c-9 3-15 11-15 21 0 12 10 22 22 22 3 0 6-1 9-2-4 5-10 8-17 8-13 0-24-11-24-24 0-12 8-22 19-25 2-1 4-1 6 0Z"/><path class="s" d="M45 13v8M41 17h8M53 27v6M50 30h6"/></symbol>
+    <symbol id="complete" viewBox="0 0 64 64"><circle class="s" cx="32" cy="32" r="24"/><path class="s" d="m20 33 8 8 17-19"/></symbol>
+  </defs>
+</svg>
