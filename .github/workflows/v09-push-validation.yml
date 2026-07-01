@@ -1,0 +1,242 @@
+name: v0.9 push validation
+
+on:
+  push:
+    branches:
+      - v09-final-regression-validation
+    paths:
+      - docs/V09_VALIDATION_TRIGGER.txt
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/jarvis-v0.9
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply focused fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              file_path = Path(path)
+              text = file_path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one match, found {count}")
+              file_path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "tests/test_calendar_integration.py",
+              "    assert 'fetch(\"/api/family/calendar\")' in javascript\n",
+              """    fetch_match = re.search(
+              r'fetch\\(\\s*["\\'](/api/family/calendar)["\\']\\s*,\\s*\\{([^{}]*)\\}\\s*\\)',
+              javascript,
+          )
+          assert fetch_match
+          options = fetch_match.group(2)
+          assert re.search(r'\\bcredentials\\s*:\\s*["\\']same-origin["\\']', options)
+          assert not re.search(r'\\bmethod\\s*:', options, re.IGNORECASE)
+          """,
+          )
+          replace_once(
+              "tests/test_weather_integration.py",
+              "    assert 'fetch(\"/api/family/weather\")' in javascript\n",
+              """    fetch_match = re.search(
+              r'fetch\\(\\s*["\\'](/api/family/weather)["\\']\\s*,\\s*\\{([^{}]*)\\}\\s*\\)',
+              javascript,
+          )
+          assert fetch_match
+          options = fetch_match.group(2)
+          assert re.search(r'\\bcredentials\\s*:\\s*["\\']same-origin["\\']', options)
+          assert not re.search(r'\\bmethod\\s*:', options, re.IGNORECASE)
+          """,
+          )
+          replace_once(
+              "tests/test_dashboard_routes.py",
+              """    fetch_calls = re.findall(r'fetch\\(\\s*["\\']([^"\\']+)["\\']\\s*\\)', javascript)
+          assert fetch_calls == [
+              "/api/mission", "/api/family/weather", "/api/family/calendar", "/api/health",
+          ]
+          """,
+              """    fetch_calls = re.findall(
+              r'fetch\\(\\s*["\\']([^"\\']+)["\\']\\s*(?:,\\s*\\{([^{}]*)\\})?\\s*\\)',
+              javascript,
+          )
+          assert [endpoint for endpoint, _ in fetch_calls] == [
+              "/api/mission", "/api/family/weather", "/api/family/calendar", "/api/health",
+          ]
+          for _, options in fetch_calls:
+              assert re.search(r'\\bcredentials\\s*:\\s*["\\']same-origin["\\']', options)
+              assert not re.search(r'\\bmethod\\s*:', options, re.IGNORECASE)
+          """,
+          )
+
+          replace_once(
+              "scripts/privacy_check.sh",
+              'SECURITY_HEADER_KEYS = {"authorization", "x_csrf_token"}\n',
+              'SECURITY_HEADER_KEYS = {"authorization", "x_csrf_token"}\n'
+              'FETCH_CREDENTIAL_MODES = {"omit", "same-origin", "include"}\n',
+          )
+          text_path = Path("scripts/privacy_check.sh")
+          text = text_path.read_text(encoding="utf-8")
+          assert text.count("HEADER_INDEX_ASSIGNMENT_RE") == 2
+          text = text.replace("HEADER_INDEX_ASSIGNMENT_RE", "INDEXED_ASSIGNMENT_RE")
+          assert text.count("(Authorization|X-CSRF-Token)") == 1
+          text = text.replace(
+              "(Authorization|X-CSRF-Token)",
+              "([A-Za-z_][A-Za-z0-9_.-]*)",
+          )
+          text_path.write_text(text, encoding="utf-8")
+          replace_once(
+              "scripts/privacy_check.sh",
+              "def credential_literal(raw_value, value):\n",
+              """def browser_fetch_credential_mode(normalized, raw_value, value, line):
+              return (
+                  normalized == "credentials"
+                  and value.lower() in FETCH_CREDENTIAL_MODES
+                  and re.match(r""" + "'''" + "^\\s*(?:\"credentials\"|'credentials'|credentials)\\s*:" + "'''" + ", line, re.I)
+                  and re.fullmatch(r""" + "'''" + "(?:\"(?:omit|same-origin|include)\"|'(?:omit|same-origin|include)')" + "'''" + ", raw_value, re.I)
+              )
+
+
+          def credential_literal(raw_value, value):
+          """,
+          )
+          replace_once(
+              "scripts/privacy_check.sh",
+              """            if credential_key(normalized) and credential_literal(raw_value, value):
+                  findings.add((number, "credential-assignment"))
+          """,
+              """            if (
+                  credential_key(normalized)
+                  and not browser_fetch_credential_mode(normalized, raw_value, value, line)
+                  and credential_literal(raw_value, value)
+              ):
+                  findings.add((number, "credential-assignment"))
+          """,
+          )
+
+          privacy = Path("tests/test_privacy_check.py")
+          lines = privacy.read_text(encoding="utf-8").splitlines(keepends=True)
+          marker = 'def test_hardcoded_credentials_remain_detected_across_formats():\n'
+          index = lines.index(marker)
+          new_test = '''def test_browser_fetch_modes_and_dynamic_form_password_are_allowed():
+              root = create_test_repository()
+              try:
+                  scripts = root / "app" / "static" / "js"
+                  scripts.mkdir(parents=True)
+                  (scripts / "login.js").write_text(
+                      'payload["password"] = form.elements.password.value;\\n'
+                      'const response = await fetch("/api/auth/login", {\\n'
+                      '  credentials: "same-origin",\\n'
+                      '});\\n'
+                  )
+                  (scripts / "wall.js").write_text(
+                      'const response = await fetch(endpoint, {\\n'
+                      '  method: "POST",\\n'
+                      '  credentials: "same-origin",\\n'
+                      '});\\n'
+                      'await fetch("/api/auth/logout", {\\n'
+                      '  method: "POST",\\n'
+                      '  credentials: "same-origin",\\n'
+                      '});\\n'
+                  )
+                  result = run(["bash", "scripts/privacy_check.sh"], root, check=False)
+                  assert result.returncode == 0, result.stdout
+                  assert "credential-assignment" not in result.stdout
+              finally:
+                  shutil.rmtree(root)
+
+
+          '''.splitlines(keepends=True)
+          lines[index:index] = new_test
+          needle = '        javascript_content += \'headers["X-CSRF-Token"] = "\' + secret_value + \'";\\n\'\n'
+          index = lines.index(needle) + 1
+          lines[index:index] = [
+              "        javascript_content += 'credentials: \\"' + secret_value + '\\",\\n'\n",
+              "        javascript_content += 'payload[\\"' + password_field + '\\"] = \\"' + secret_value + '\\";\\n'\n",
+          ]
+          needle = '            "unsafe.js:3:credential-assignment",\n'
+          index = lines.index(needle) + 1
+          lines[index:index] = [
+              '            "unsafe.js:4:credential-assignment",\n',
+              '            "unsafe.js:5:credential-assignment",\n',
+          ]
+          needle = '        test_dynamic_credential_transport_and_references_are_allowed,\n'
+          index = lines.index(needle) + 1
+          lines[index:index] = [
+              '        test_browser_fetch_modes_and_dynamic_form_password_are_allowed,\n'
+          ]
+          privacy.write_text(''.join(lines), encoding="utf-8")
+          PY
+
+          test "$(git diff --name-only | wc -l)" -eq 5
+
+      - name: Install dependencies
+        run: python3 -m pip install -r requirements.txt
+
+      - name: Run complete verification
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            PYTHONPATH=. python3 tests/test_calendar_integration.py
+            PYTHONPATH=. python3 tests/test_dashboard_routes.py
+            PYTHONPATH=. python3 tests/test_weather_integration.py
+            PYTHONPATH=. python3 tests/test_privacy_check.py
+            bash scripts/privacy_check.sh
+            failed=0
+            for test in tests/test_*.py; do
+              echo "=== $test ==="
+              PYTHONPATH=. python3 "$test" || failed=1
+            done
+            test "$failed" -eq 0
+            bash scripts/validate.sh
+          } 2>&1 | tee /tmp/v09-validation.log
+          grep -Fx "Validation OK." /tmp/v09-validation.log
+
+      - name: Commit and push verified fixes
+        shell: bash
+        run: |
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git add scripts/privacy_check.sh \
+            tests/test_calendar_integration.py \
+            tests/test_dashboard_routes.py \
+            tests/test_privacy_check.py \
+            tests/test_weather_integration.py
+          git commit -m "Fix final v0.9 test and privacy regressions"
+          git push origin HEAD:feature/jarvis-v0.9
+
+      - name: Publish failure summary
+        if: failure()
+        shell: bash
+        run: |
+          git reset --hard
+          git clean -fd
+          git fetch origin v09-final-regression-validation
+          git checkout -B v09-final-regression-validation origin/v09-final-regression-validation
+          {
+            echo "Validation failed. Tail of log:"
+            echo
+            tail -n 250 /tmp/v09-validation.log 2>/dev/null || echo "Validation step did not create a log."
+          } > docs/V09_VALIDATION_RESULT.txt
+          git add docs/V09_VALIDATION_RESULT.txt
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git commit -m "Record temporary v0.9 validation failure"
+          git push origin HEAD:v09-final-regression-validation
