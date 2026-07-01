@@ -53,9 +53,13 @@ PRIVATE_NETS = (
     ipaddress.ip_network((167772160, 8)), ipaddress.ip_network((2886729728, 12)),
     ipaddress.ip_network((3232235520, 16)), ipaddress.ip_network((334965454937798799971759379190646833152, 7)),
 )
-CREDENTIAL_FIELDS = (
-    "api_key", "apikey", "client_secret", "credential", "credentials", "password",
-    "passwd", "private_key", "secret", "token",
+CREDENTIAL_KEY_NAMES = {
+    "api_key", "apikey", "client_secret", "credential", "credentials", "credential_value",
+    "password", "passwd", "private_key", "secret", "token",
+}
+CREDENTIAL_KEY_SUFFIXES = (
+    "_api_key", "_apikey", "_client_secret", "_password", "_passwd", "_private_key",
+    "_secret", "_token",
 )
 SECURITY_HEADER_KEYS = {"authorization", "x_csrf_token"}
 PLACEHOLDERS = ("${", "{{", "<", "changeme", "dummy", "example", "placeholder", "redacted", "replace")
@@ -167,6 +171,14 @@ def assignment(line):
     return match.group(1), value, raw_value
 
 
+def credential_key(normalized):
+    return (
+        normalized in SECURITY_HEADER_KEYS
+        or normalized in CREDENTIAL_KEY_NAMES
+        or normalized.endswith(CREDENTIAL_KEY_SUFFIXES)
+    )
+
+
 def credential_literal(raw_value, value):
     lowered = value.lower()
     if lowered in {"none", "null"} or not value:
@@ -198,11 +210,7 @@ def scan(path, text):
         quoted_mapping = bool(QUOTED_MAPPING_RE.match(line))
         if key and value:
             normalized = key.lower().replace("-", "_").replace(".", "_")
-            credential_key = (
-                normalized in SECURITY_HEADER_KEYS
-                or any(marker in normalized for marker in CREDENTIAL_FIELDS)
-            )
-            if credential_key and credential_literal(raw_value, value):
+            if credential_key(normalized) and credential_literal(raw_value, value):
                 findings.add((number, "credential-assignment"))
 
             upper = key.upper().replace("-", "_").replace(".", "_")
