@@ -423,7 +423,7 @@ function renderCalendar(calendar) {
 
 async function refreshMission() {
   try {
-    const response = await fetch("/api/mission");
+    const response = await fetch("/api/mission", { credentials: "same-origin" });
     if (!response.ok) throw new Error("Status kunne ikke hentes");
     renderMission(await response.json());
   } catch (error) {
@@ -433,7 +433,7 @@ async function refreshMission() {
 
 async function refreshWeather() {
   try {
-    const response = await fetch("/api/family/weather");
+    const response = await fetch("/api/family/weather", { credentials: "same-origin" });
     if (!response.ok) throw new Error("Vejret kunne ikke hentes");
     renderWeather(await response.json());
   } catch (error) {
@@ -443,7 +443,7 @@ async function refreshWeather() {
 
 async function refreshCalendar() {
   try {
-    const response = await fetch("/api/family/calendar");
+    const response = await fetch("/api/family/calendar", { credentials: "same-origin" });
     if (!response.ok) throw new Error("Kalenderen kunne ikke hentes");
     renderCalendar(await response.json());
   } catch (error) {
@@ -454,7 +454,7 @@ async function refreshCalendar() {
 async function refreshOwnerHealth() {
   if (pageRole !== "owner") return;
   try {
-    const response = await fetch("/api/health");
+    const response = await fetch("/api/health", { credentials: "same-origin" });
     if (!response.ok) throw new Error("Systemstatus kunne ikke hentes");
     renderHealth(await response.json());
   } catch (error) {
