@@ -37,6 +37,7 @@ async function getJson(url, options = {}) {
   if (method !== "GET" && method !== "HEAD") {
     options.headers = { ...(options.headers || {}), "X-CSRF-Token": csrfToken };
   }
+  options.credentials = "same-origin";
   const response = await fetch(url, options);
   if (response.status === 401) {
     window.location.assign("/login?next=/admin");
