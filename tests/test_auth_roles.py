@@ -1,16 +1,21 @@
 import contextlib
+import importlib
 import io
 import sqlite3
 import tempfile
+import warnings
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
+from pydantic.warnings import UnsupportedFieldAttributeWarning
 
 from app import config
 from app.actions.engine import action_engine
+from app.auth import routes as auth_routes
 from app.auth import service as auth_module
 from app.auth.cli import main as cli_main
 from app.auth.context import reset_current_actor, set_current_actor
@@ -65,6 +70,35 @@ def login(client, role="owner"):
     me = client.get("/api/auth/me")
     assert me.status_code == 200
     return me.json()
+
+
+def test_login_payload_password_alias_has_no_unsupported_field_warning():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UnsupportedFieldAttributeWarning)
+        routes_module = importlib.reload(auth_routes)
+        payload = routes_module.LoginPayload.model_validate({"username": "test-owner", "password": password()})
+
+    assert payload.username == "test-owner"
+    assert payload.credential_value == password()
+    assert payload.model_dump(by_alias=True) == {"username": "test-owner", "password": password()}
+
+    for invalid_payload in [
+        {"username": "test-owner"},
+        {"username": "test-owner", "password": None},
+    ]:
+        try:
+            routes_module.LoginPayload.model_validate(invalid_payload)
+            raise AssertionError("invalid password payload accepted")
+        except ValidationError:
+            pass
+
+    with environment() as client:
+        create()
+        assert client.post("/api/auth/login", json={"username": "test-owner"}).status_code == 422
+        assert client.post(
+            "/api/auth/login",
+            json={"username": "test-owner", "password": password() + "x"},
+        ).status_code == 401
 
 
 def test_user_storage_roles_and_cli():
@@ -293,6 +327,7 @@ def test_actor_csrf_redirect_and_frontend_contract():
 
 if __name__ == "__main__":
     for test in [
+        test_login_payload_password_alias_has_no_unsupported_field_warning,
         test_user_storage_roles_and_cli,
         test_login_dummy_rate_limit_and_sessions,
         test_roles_write_protection_and_handler_reachability,
