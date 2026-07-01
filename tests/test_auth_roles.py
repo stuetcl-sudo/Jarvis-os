@@ -335,10 +335,23 @@ def test_actor_csrf_redirect_and_frontend_contract():
     login_js = (ROOT / "app/static/js/login.js").read_text()
     admin_js = (ROOT / "app/static/js/admin.js").read_text()
     family_js = (ROOT / "app/static/js/family.js").read_text()
-    assert "localStorage" not in login_js + admin_js + family_js
-    assert "sessionStorage" not in login_js + admin_js + family_js
-    assert "innerHTML" not in login_js + admin_js + family_js
-    assert 'credentials: "same-origin"' in login_js + admin_js + family_js
+    combined_js = login_js + admin_js + family_js
+    assert "localStorage" not in combined_js
+    assert "sessionStorage" not in combined_js
+    assert "innerHTML" not in combined_js
+
+    assert 'credentials: "same-origin"' in login_js
+    assert 'options.credentials = "same-origin"' in admin_js
+    for endpoint in [
+        "/api/mission",
+        "/api/family/weather",
+        "/api/family/calendar",
+        "/api/health",
+    ]:
+        expected = f'fetch("{endpoint}", {{ credentials: "same-origin" }})'
+        assert expected in family_js
+    assert family_js.count('credentials: "same-origin"') == 4
+
     assert "csrf_token" in admin_js + family_js
     assert "X-CSRF-Token" in admin_js + family_js
     assert "data-role" not in login_js
