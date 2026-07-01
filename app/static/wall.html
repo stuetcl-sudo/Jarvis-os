@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#10151f" />
+  <title>Jarvis – Vægskærm</title>
+  <link rel="stylesheet" href="/static/css/wall.css" />
+</head>
+<body data-wall-dashboard="true" data-wall-role="wall_display">
+  <main class="wall-shell">
+    <header class="wall-topbar">
+      <section class="wall-clock-block" aria-label="Tid og dato">
+        <time id="wallClock" class="wall-clock">--:--</time>
+        <p id="wallDate" class="wall-date">Indlæser dato…</p>
+      </section>
+      <section class="wall-weather-summary" aria-labelledby="wallWeatherHeading">
+        <span id="wallWeatherIcon" class="wall-weather-icon" role="img" aria-label="Vejr">☁️</span>
+        <div>
+          <h1 id="wallWeatherHeading" class="wall-temperature">–</h1>
+          <p id="wallWeatherCondition" class="wall-condition">Henter vejret…</p>
+          <p id="wallWeatherApparent" class="wall-subtle"></p>
+        </div>
+      </section>
+      <nav class="wall-menu" aria-label="Navigation">
+        <button type="button" id="wallFullscreen">Fuld skærm</button>
+        <a class="wall-menu-link" href="/">Familie</a>
+        <!-- WALL_MISSION_LINK -->
+        <button type="button" id="wallLogout">Log ud</button>
+      </nav>
+    </header>
+
+    <p id="wallGlobalNotice" class="wall-notice" role="status"></p>
+
+    <section class="wall-main-grid">
+      <article class="wall-card wall-calendar-card">
+        <header class="wall-card-heading"><h2>I dag</h2><p id="wallCalendarNotice" class="wall-subtle"></p></header>
+        <ol id="wallTodayEvents" class="wall-event-list" aria-label="Dagens aftaler"></ol>
+        <p id="wallNoEvents" class="wall-empty" hidden>Ingen aftaler i dag</p>
+      </article>
+
+      <article class="wall-card wall-next-card">
+        <header class="wall-card-heading"><h2>Næste aftale</h2></header>
+        <div id="wallNextEvent" class="wall-next-event">
+          <p id="wallNextTime" class="wall-next-time"></p>
+          <h3 id="wallNextTitle">Ingen flere aftaler i dag</h3>
+          <p id="wallNextCalendar" class="wall-subtle"></p>
+        </div>
+      </article>
+    </section>
+
+    <section class="wall-forecast-section" aria-labelledby="wallForecastHeading">
+      <h2 id="wallForecastHeading">De næste dage</h2>
+      <ol id="wallForecast" class="wall-forecast"></ol>
+    </section>
+
+    <section class="wall-card wall-routine-card" aria-labelledby="wallRoutineHeading">
+      <div class="wall-routine-topline">
+        <div>
+          <p id="wallRoutineLabel" class="wall-kicker">Rutine</p>
+          <h2 id="wallRoutineHeading">Næste trin</h2>
+        </div>
+        <div class="wall-routine-switch" role="group" aria-label="Vælg rutine">
+          <button type="button" data-wall-routine="morning" aria-pressed="false">Morgen</button>
+          <button type="button" data-wall-routine="evening" aria-pressed="false">Aften</button>
+        </div>
+      </div>
+      <div class="wall-routine-content">
+        <div class="wall-routine-picture">
+          <svg id="wallRoutinePictogram" role="img" aria-label="Rutinepiktogram"><use id="wallRoutinePictogramUse" href="/static/pictograms/routines.svg#complete"></use></svg>
+        </div>
+        <div class="wall-routine-copy">
+          <p id="wallRoutineProgress" class="wall-routine-progress"></p>
+          <h3 id="wallRoutineTitle" class="wall-routine-title">Henter rutine…</h3>
+          <p id="wallRoutineMessage" class="wall-subtle" role="status"></p>
+          <div class="wall-routine-actions">
+            <button type="button" id="wallRoutineBack">Tilbage</button>
+            <button type="button" id="wallRoutineComplete" class="wall-primary-action">Færdig</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="/static/js/wall.js" defer></script>
+</body>
+</html>
