@@ -34,19 +34,19 @@ def create_test_repository():
 
 
 def unsafe_fixture_text():
-    credential_value = "live-" + "credential-fixture"
+    fixture_value = "live-" + "credential-fixture"
     network_value = "10." + "23.45.67"
     key_header = "-----BEGIN " + "OPENSSH PRIVATE KEY-----"
-    content = "API_" + "TOKEN=" + credential_value + "\n"
+    content = "API_" + "TOKEN=" + fixture_value + "\n"
     content += "SERVER_" + "IP=" + network_value + "\n"
     content += key_header + "\n"
-    return content, credential_value, network_value, key_header
+    return content, fixture_value, network_value, key_header
 
 
 def test_current_checker_detects_fixtures_without_revealing_values():
     root = create_test_repository()
     try:
-        content, credential_value, network_value, key_header = unsafe_fixture_text()
+        content, fixture_value, network_value, key_header = unsafe_fixture_text()
         (root / "unsafe.env").write_text(content)
         result = run(["bash", "scripts/privacy_check.sh"], root, check=False)
         assert result.returncode == 1
@@ -54,7 +54,7 @@ def test_current_checker_detects_fixtures_without_revealing_values():
         assert "unsafe.env:1:credential-assignment" in lines
         assert "unsafe.env:2:private-lan-address" in lines
         assert "unsafe.env:3:private-key" in lines
-        assert credential_value not in result.stdout
+        assert fixture_value not in result.stdout
         assert network_value not in result.stdout
         assert key_header not in result.stdout
         assert all(line.count(":") == 2 for line in lines)
@@ -236,7 +236,7 @@ def test_bare_deployment_inventory_assignments_are_still_reported_safely():
 def test_history_mode_finds_removed_private_data_but_current_tree_passes():
     root = create_test_repository()
     try:
-        content, credential_value, _, _ = unsafe_fixture_text()
+        content, fixture_value, _, _ = unsafe_fixture_text()
         fixture = root / "temporary.env"
         fixture.write_text(content)
         run(["git", "add", "temporary.env"], root)
@@ -249,7 +249,7 @@ def test_history_mode_finds_removed_private_data_but_current_tree_passes():
         history = run(["bash", "scripts/privacy_check.sh", "--history"], root, check=False)
         assert current.returncode == 0
         assert history.returncode == 1
-        assert credential_value not in history.stdout
+        assert fixture_value not in history.stdout
     finally:
         shutil.rmtree(root)
 
