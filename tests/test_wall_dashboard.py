@@ -113,6 +113,39 @@ def test_wall_frontend_security_and_fixed_endpoints():
     assert "<script src=\"http" not in template and "<link href=\"http" not in template
 
 
+def test_apparent_temperature_requires_a_real_finite_value():
+    javascript = (ROOT / "app/static/js/wall.js").read_text()
+    assert "function finiteNumber(value)" in javascript
+    assert 'value===null||value===undefined||value===""||typeof value==="boolean"' in javascript
+    assert "Number.isFinite(number)?number:null" in javascript
+    assert 'function apparentTemperatureText(value,unit="")' in javascript
+    assert 'return number===null?"":`Føles som ${numberText(number,unit)}`' in javascript
+    assert "apparentTemperatureText(data.apparent_temperature" in javascript
+    assert "Number.isFinite(Number(data.apparent_temperature))" not in javascript
+    assert "if(number)" not in javascript
+    assert "number===null" in javascript
+
+
+def test_compact_tablet_landscape_and_portrait_layout():
+    stylesheet = (ROOT / "app/static/css/wall.css").read_text()
+    assert 'grid-template-areas:"header header" "notice notice" "calendar next" "calendar routine" "forecast forecast"' in stylesheet
+    assert ".wall-calendar-card{grid-area:calendar" in stylesheet
+    assert ".wall-next-card{grid-area:next" in stylesheet
+    assert ".wall-routine-card{grid-area:routine" in stylesheet
+    assert ".wall-forecast-section{grid-area:forecast" in stylesheet
+    assert "@media(orientation:landscape) and (max-height:600px)" in stylesheet
+    assert 'grid-template-areas:"header header" "notice notice" "calendar next" "calendar routine"' in stylesheet
+    assert ".wall-forecast-section{display:none}" in stylesheet
+    assert "height:100dvh" in stylesheet
+    assert ".wall-menu a,.wall-menu button{min-height:44px" in stylesheet
+    assert ".wall-routine-actions .wall-primary-action{min-width:150px;min-height:48px" in stylesheet
+    assert "font-size:clamp(44px,6vw,64px)" in stylesheet
+    assert "font-size:clamp(36px,4.6vw,52px)" in stylesheet
+    assert "@media(max-width:760px),(orientation:portrait)" in stylesheet
+    assert 'grid-template-areas:"header" "notice" "calendar" "next" "routine" "forecast"' in stylesheet
+    assert "overflow-x:hidden" in stylesheet
+
+
 def test_wall_states_labels_and_responsive_presentation():
     javascript = (ROOT / "app/static/js/wall.js").read_text()
     stylesheet = (ROOT / "app/static/css/wall.css").read_text()
@@ -127,9 +160,9 @@ def test_wall_states_labels_and_responsive_presentation():
     for color in ["green", "blue", "violet", "yellow"]:
         assert f"calendar-color-{color}" in stylesheet
     assert 'new Intl.DateTimeFormat("da-DK"' in javascript
-    assert "min-height:52px" in stylesheet
-    assert "@media(max-width:980px)" in stylesheet
-    assert "@media(orientation:portrait)" in stylesheet
+    assert "min-height:44px" in stylesheet
+    assert "min-height:48px" in stylesheet
+    assert "(orientation:portrait)" in stylesheet
     assert "overflow-x:hidden" in stylesheet
 
 
@@ -138,6 +171,8 @@ if __name__ == "__main__":
         test_wall_route_roles_and_admin_policy,
         test_wall_html_assets_and_role_navigation,
         test_wall_frontend_security_and_fixed_endpoints,
+        test_apparent_temperature_requires_a_real_finite_value,
+        test_compact_tablet_landscape_and_portrait_layout,
         test_wall_states_labels_and_responsive_presentation,
     ]:
         test()
