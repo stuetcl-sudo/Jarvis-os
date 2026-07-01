@@ -149,10 +149,16 @@ def test_family_javascript_keeps_existing_read_only_get_requests():
     assert "localStorage" not in javascript
     assert "sessionStorage" not in javascript
     assert "Authorization" not in javascript
-    fetch_calls = re.findall(r'fetch\(\s*["\']([^"\']+)["\']\s*\)', javascript)
-    assert fetch_calls == [
+    fetch_calls = re.findall(
+        r'fetch\(\s*["\']([^"\']+)["\']\s*(?:,\s*\{([^{}]*)\})?\s*\)',
+        javascript,
+    )
+    assert [endpoint for endpoint, _ in fetch_calls] == [
         "/api/mission", "/api/family/weather", "/api/family/calendar", "/api/health",
     ]
+    for _, options in fetch_calls:
+        assert re.search(r'\bcredentials\s*:\s*["\']same-origin["\']', options)
+        assert not re.search(r'\bmethod\s*:', options, re.IGNORECASE)
 
 
 def test_validation_script_checks_protected_live_v08_deployment():

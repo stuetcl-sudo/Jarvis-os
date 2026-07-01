@@ -62,13 +62,14 @@ CREDENTIAL_KEY_SUFFIXES = (
     "_secret", "_token",
 )
 SECURITY_HEADER_KEYS = {"authorization", "x_csrf_token"}
+FETCH_CREDENTIAL_MODES = {"omit", "same-origin", "include"}
 PLACEHOLDERS = ("${", "{{", "<", "changeme", "dummy", "example", "placeholder", "redacted", "replace")
 KEY_HEADER_RE = re.compile("|".join(re.escape("-----BEGIN " + suffix) for suffix in ("OPENSSH PRIVATE KEY-----", "PRIVATE KEY-----", "RSA PRIVATE KEY-----", "EC PRIVATE KEY-----")))
 SSH_PUBLIC_RE = re.compile(r"\bssh-" + r"(?:rsa|dss|ed25519)\s+[A-Za-z0-9+/]{24,}={0,3}(?:\s|$)")
 ASSIGNMENT_RE = re.compile(r"^\s*(?:export\s+)?[\"']?([A-Za-z_][A-Za-z0-9_.-]*)[\"']?\s*[:=]\s*(.*?)\s*,?\s*$")
-HEADER_INDEX_ASSIGNMENT_RE = re.compile(
+INDEXED_ASSIGNMENT_RE = re.compile(
     r"^\s*[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*"
-    r"\s*\[\s*[\"'](Authorization|X-CSRF-Token)[\"']\s*\]\s*=\s*(.*?)\s*;?\s*$",
+    r"\s*\[\s*[\"']([A-Za-z_][A-Za-z0-9_.-]*)[\"']\s*\]\s*=\s*(.*?)\s*;?\s*$",
     re.I,
 )
 QUOTED_MAPPING_RE = re.compile(r"^\s*[\"'][A-Za-z_][A-Za-z0-9_.-]*[\"']\s*:")
@@ -157,7 +158,7 @@ def generic_asset(value):
 
 
 def assignment(line):
-    header_match = HEADER_INDEX_ASSIGNMENT_RE.match(line)
+    header_match = INDEXED_ASSIGNMENT_RE.match(line)
     if header_match:
         raw_value = header_match.group(2).strip().rstrip(",;").strip()
         value = raw_value.strip('"').strip("'").strip()
@@ -176,6 +177,15 @@ def credential_key(normalized):
         normalized in SECURITY_HEADER_KEYS
         or normalized in CREDENTIAL_KEY_NAMES
         or normalized.endswith(CREDENTIAL_KEY_SUFFIXES)
+    )
+
+
+def browser_fetch_credential_mode(normalized, raw_value, value, line):
+    return (
+        normalized == "credentials"
+        and value.lower() in FETCH_CREDENTIAL_MODES
+        and re.match(r"""^\s*(?:"credentials"|'credentials'|credentials)\s*:""", line, re.I)
+        and re.fullmatch(r"""(?:"(?:omit|same-origin|include)"|'(?:omit|same-origin|include)')""", raw_value, re.I)
     )
 
 
@@ -210,7 +220,11 @@ def scan(path, text):
         quoted_mapping = bool(QUOTED_MAPPING_RE.match(line))
         if key and value:
             normalized = key.lower().replace("-", "_").replace(".", "_")
-            if credential_key(normalized) and credential_literal(raw_value, value):
+            if (
+                credential_key(normalized)
+                and not browser_fetch_credential_mode(normalized, raw_value, value, line)
+                and credential_literal(raw_value, value)
+            ):
                 findings.add((number, "credential-assignment"))
 
             upper = key.upper().replace("-", "_").replace(".", "_")

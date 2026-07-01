@@ -101,6 +101,34 @@ def test_dynamic_credential_transport_and_references_are_allowed():
         shutil.rmtree(root)
 
 
+def test_browser_fetch_modes_and_dynamic_form_password_are_allowed():
+    root = create_test_repository()
+    try:
+        scripts = root / "app" / "static" / "js"
+        scripts.mkdir(parents=True)
+        (scripts / "login.js").write_text(
+            'payload["password"] = form.elements.password.value;\n'
+            'const response = await fetch("/api/auth/login", {\n'
+            '  credentials: "same-origin",\n'
+            '});\n'
+        )
+        (scripts / "wall.js").write_text(
+            'const response = await fetch(endpoint, {\n'
+            '  method: "POST",\n'
+            '  credentials: "same-origin",\n'
+            '});\n'
+            'await fetch("/api/auth/logout", {\n'
+            '  method: "POST",\n'
+            '  credentials: "same-origin",\n'
+            '});\n'
+        )
+        result = run(["bash", "scripts/privacy_check.sh"], root, check=False)
+        assert result.returncode == 0, result.stdout
+        assert "credential-assignment" not in result.stdout
+    finally:
+        shutil.rmtree(root)
+
+
 def test_hardcoded_credentials_remain_detected_across_formats():
     root = create_test_repository()
     try:
@@ -116,6 +144,8 @@ def test_hardcoded_credentials_remain_detected_across_formats():
         javascript_content = token_field + ' = "' + token_value + '";\n'
         javascript_content += '"Authorization": "Bearer ' + secret_value + '",\n'
         javascript_content += 'headers["X-CSRF-Token"] = "' + secret_value + '";\n'
+        javascript_content += 'credentials: "' + secret_value + '",\n'
+        javascript_content += 'payload["' + password_field + '"] = "' + secret_value + '";\n'
         json_content = '"' + api_field + '\": \"' + key_value + '\"\n'
         dotenv_content = token_field.upper() + "=" + token_value + "\n"
 
@@ -130,6 +160,8 @@ def test_hardcoded_credentials_remain_detected_across_formats():
             "unsafe.js:1:credential-assignment",
             "unsafe.js:2:credential-assignment",
             "unsafe.js:3:credential-assignment",
+            "unsafe.js:4:credential-assignment",
+            "unsafe.js:5:credential-assignment",
             "unsafe.json:1:credential-assignment",
             "unsafe.py:1:credential-assignment",
             "unsafe.py:2:credential-assignment",
@@ -264,6 +296,7 @@ if __name__ == "__main__":
         test_current_checker_detects_fixtures_without_revealing_values,
         test_empty_credential_assignments_with_statement_terminators_are_allowed,
         test_dynamic_credential_transport_and_references_are_allowed,
+        test_browser_fetch_modes_and_dynamic_form_password_are_allowed,
         test_hardcoded_credentials_remain_detected_across_formats,
         test_non_empty_javascript_credentials_are_reported_safely,
         test_standard_svg_namespace_urls_are_allowed_exactly,
