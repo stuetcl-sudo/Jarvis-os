@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#10151f" />
   <title>Jarvis – Vægskærm</title>
   <link rel="stylesheet" href="/static/css/wall.css" />
+  <link rel="stylesheet" href="/static/css/wall-details.css" />
 </head>
 <body data-wall-dashboard="true" data-wall-role="wall_display">
   <main class="wall-shell">
@@ -20,6 +21,7 @@
           <h1 id="wallWeatherHeading" class="wall-temperature">–</h1>
           <p id="wallWeatherCondition" class="wall-condition">Henter vejret…</p>
           <p id="wallWeatherApparent" class="wall-subtle"></p>
+          <p id="wallUvIndex" class="wall-uv" hidden></p>
         </div>
       </section>
       <nav class="wall-menu" aria-label="Navigation">
@@ -42,6 +44,7 @@
       <article class="wall-card wall-next-card">
         <header class="wall-card-heading"><h2>Næste aftale</h2></header>
         <div id="wallNextEvent" class="wall-next-event">
+          <p id="wallNextDay" class="wall-next-day"></p>
           <p id="wallNextTime" class="wall-next-time"></p>
           <h3 id="wallNextTitle">Ingen flere aftaler i dag</h3>
           <p id="wallNextCalendar" class="wall-subtle"></p>
