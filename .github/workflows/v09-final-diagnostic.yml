@@ -1,0 +1,70 @@
+name: v0.9 final diagnostic
+
+on:
+  push:
+    branches:
+      - v09-final-regression-validation
+    paths:
+      - docs/V09_FINAL_DIAGNOSTIC_TRIGGER.txt
+
+permissions:
+  contents: write
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v09-final-regression-validation
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/jarvis-v0.9
+          path: target
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run final diagnostic
+        id: diagnostic
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            python3 scripts/apply_v09_verified_fix.py target
+            cd target
+            python3 -m pip install -r requirements.txt
+            PYTHONPATH=. python3 tests/test_calendar_integration.py
+            PYTHONPATH=. python3 tests/test_dashboard_routes.py
+            PYTHONPATH=. python3 tests/test_weather_integration.py
+            PYTHONPATH=. python3 tests/test_privacy_check.py
+            bash scripts/privacy_check.sh
+            bash scripts/validate.sh
+            failed=0
+            for test in tests/test_*.py; do
+              echo "=== $test ==="
+              PYTHONPATH=. python3 "$test" || failed=1
+            done
+            test "$failed" -eq 0
+            bash scripts/validate.sh
+          } 2>&1 | tee /tmp/v09-final-diagnostic.log
+
+      - name: Publish final diagnostic result
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "outcome=${{ steps.diagnostic.outcome }}"
+            echo
+            tail -n 500 /tmp/v09-final-diagnostic.log 2>/dev/null || echo "No diagnostic log was created."
+          } > docs/V09_FINAL_DIAGNOSTIC_RESULT.txt
+          git add docs/V09_FINAL_DIAGNOSTIC_RESULT.txt
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git commit -m "Record final v0.9 diagnostic result" || exit 0
+          git push origin HEAD:v09-final-regression-validation
