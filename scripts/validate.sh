@@ -39,6 +39,25 @@ check_live_route() {
   echo "OK: ${label} at ${path} returned HTTP 200${marker:+ with expected marker}"
 }
 
+check_live_json_status() {
+  local path="$1"
+  local label="$2"
+  local kind="$3"
+  local url="${APP_URL}${path}"
+  local response_file="/tmp/jarvis-validate-${kind}-response.json"
+  local code
+
+  code=$(curl -sS -o "$response_file" -w "%{http_code}" --max-time 10 "$url" || true)
+  if [ "$code" != "200" ]; then
+    echo "ERROR: ${url} returned HTTP ${code}."
+    fail "Live ${label} check failed for ${path}."
+  fi
+  if ! "$PYTHON_BIN" scripts/validate_family_status.py "$kind" "$response_file"; then
+    fail "Live ${label} returned malformed JSON or an unsupported status."
+  fi
+  echo "OK: ${label} at ${path} returned HTTP 200 with a supported status"
+}
+
 check_live_redirect() {
   local path="$1"
   local expected_location="$2"
@@ -72,13 +91,14 @@ bash scripts/privacy_check.sh || {
   exit 1
 }
 
-echo "[2/10] Running focused routine editor, routine, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
+echo "[2/10] Running focused routine editor, routine, family status validation, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
 if [ -z "$PYTHON_BIN" ]; then
   echo "ERROR: Python is required for focused tests."
   exit 1
 fi
 PYTHONPATH=. "$PYTHON_BIN" tests/test_family_routines.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_routine_editor.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_live_family_status_validation.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_family_role_views.py
@@ -118,8 +138,8 @@ done
 
 echo "[7/10] Checking live authenticated v0.8 routes and assets"
 check_live_route "/" "family dashboard" "Her er et roligt overblik over hjemmet"
-check_live_route "/api/family/weather" "family weather API" '"status":"not_configured"'
-check_live_route "/api/family/calendar" "family calendar API" '"status":"not_configured"'
+check_live_json_status "/api/family/weather" "family weather API" "weather"
+check_live_json_status "/api/family/calendar" "family calendar API" "calendar"
 check_live_route "/api/family/routines" "family routines API" '"status":"authentication_required"'
 check_live_route "/login" "login page" "Log ind på Jarvis"
 check_live_redirect "/admin" "/login?next=/admin"

@@ -157,18 +157,23 @@ def test_family_javascript_keeps_existing_read_only_get_requests():
 
 def test_validation_script_checks_protected_live_v08_deployment():
     script = (ROOT / "scripts/validate.sh").read_text()
+    helper = (ROOT / "scripts/validate_family_status.py").read_text()
     assert "docker compose up -d --build --force-recreate jarvis-os" in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_family_routines.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_routine_editor.py' in script
+    assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_live_family_status_validation.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_family_role_views.py' in script
     assert 'check_live_route "/" "family dashboard" "Her er et roligt overblik over hjemmet"' in script
-    assert 'check_live_route "/api/family/weather" "family weather API" \'"status":"not_configured"\'' in script
-    assert 'check_live_route "/api/family/calendar" "family calendar API" \'"status":"not_configured"\'' in script
+    assert 'check_live_json_status "/api/family/weather" "family weather API" "weather"' in script
+    assert 'check_live_json_status "/api/family/calendar" "family calendar API" "calendar"' in script
+    assert '"status":"not_configured"' not in script
     assert 'check_live_route "/api/family/routines" "family routines API" \'"status":"authentication_required"\'' in script
     assert 'check_live_route "/login" "login page" "Log ind på Jarvis"' in script
     assert 'check_live_redirect "/admin" "/login?next=/admin"' in script
+    assert '"weather": {"ok", "stale", "not_configured", "unavailable"}' in helper
+    assert '"calendar": {"ok", "partial", "stale", "not_configured", "unavailable"}' in helper
     for asset in [
         "/static/js/login.js", "/static/js/family.js", "/static/js/routines.js",
         "/static/js/routine-editor.js", "/static/js/admin.js", "/static/css/login.css",

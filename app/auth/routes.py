@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -22,7 +21,7 @@ LOGIN_TEMPLATE = Path("app/static/login.html")
 
 class LoginPayload(BaseModel):
     username: str
-    credential_value: Annotated[str, Field(alias="password")]
+    credential_value: str = Field(..., alias="password")
 
 
 def public_user(user, include_csrf=False):
