@@ -327,8 +327,10 @@ def test_actor_csrf_redirect_and_frontend_contract():
         reset_current_actor(actor_context)
 
     for unsafe in ["//evil.example", "https://evil.example", "/\\evil", "admin", ""]:
-        assert safe_next_path(unsafe, "/") == "/"
-    assert safe_next_path("/admin?tab=actions", "/") == "/admin?tab=actions"
+        assert safe_next_path(unsafe) is None
+
+    for valid in ["/", "/wall", "/admin", "/login?next=/wall"]:
+        assert safe_next_path(valid) == valid
 
     login_js = (ROOT / "app/static/js/login.js").read_text()
     admin_js = (ROOT / "app/static/js/admin.js").read_text()
