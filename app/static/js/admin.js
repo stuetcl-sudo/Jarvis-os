@@ -154,11 +154,17 @@ function recommendedClassification(container) {
   return "optional";
 }
 
-async function classifyContainer(index, preset = null) {
+function classificationControlId(control, index, scope = "table") {
+  return `${control}-${scope}-${index}`;
+}
+
+async function classifyContainer(index, preset = null, scope = "table") {
   const container = containerRows[index];
-  const classification = preset || document.getElementById(`cls-${index}`).value;
-  const protectedBox = document.getElementById(`prot-${index}`);
-  const autoBox = document.getElementById(`auto-${index}`);
+  const classification = preset || document.getElementById(
+    classificationControlId("cls", index, scope),
+  ).value;
+  const protectedBox = document.getElementById(classificationControlId("prot", index, scope));
+  const autoBox = document.getElementById(classificationControlId("auto", index, scope));
   try {
     await getJson(`/api/service-classifications/${encodeURIComponent(container.name)}`, {
       method: "POST",
@@ -175,9 +181,9 @@ async function classifyContainer(index, preset = null) {
   }
 }
 
-function classificationSelect(index, current) {
+function classificationSelect(index, current, scope = "table") {
   const select = element("select");
-  select.id = `cls-${index}`;
+  select.id = classificationControlId("cls", index, scope);
   [
     ["critical", "critical"],
     ["optional", "optional"],
@@ -262,14 +268,14 @@ function renderContainerRow(container, index) {
 
   const protectedCell = document.createElement("td");
   const protectedBox = document.createElement("input");
-  protectedBox.id = `prot-${index}`;
+  protectedBox.id = classificationControlId("prot", index);
   protectedBox.type = "checkbox";
   protectedBox.checked = Boolean(container.protected);
   protectedCell.append(protectedBox);
 
   const autoCell = document.createElement("td");
   const autoBox = document.createElement("input");
-  autoBox.id = `auto-${index}`;
+  autoBox.id = classificationControlId("auto", index);
   autoBox.type = "checkbox";
   autoBox.checked = Boolean(container.auto_start_allowed);
   autoCell.append(autoBox);
@@ -329,31 +335,31 @@ function renderUnknown(container) {
   ].forEach(([label, value]) => {
     const button = element("button", "", label);
     button.type = "button";
-    button.addEventListener("click", () => classifyContainer(index, value));
+    button.addEventListener("click", () => classifyContainer(index, value, "unknown"));
     quickButtons.append(button);
   });
 
   const controls = element("div", "classification-controls");
   const typeLabel = element("label", "", "Type ");
-  typeLabel.append(classificationSelect(index, container.classification));
+  typeLabel.append(classificationSelect(index, container.classification, "unknown"));
 
   const protectedLabel = element("label", "", " Protected");
   const protectedBox = document.createElement("input");
-  protectedBox.id = `prot-${index}`;
+  protectedBox.id = classificationControlId("prot", index, "unknown");
   protectedBox.type = "checkbox";
   protectedBox.checked = Boolean(container.protected);
   protectedLabel.prepend(protectedBox);
 
   const autoLabel = element("label", "", " Auto-start");
   const autoBox = document.createElement("input");
-  autoBox.id = `auto-${index}`;
+  autoBox.id = classificationControlId("auto", index, "unknown");
   autoBox.type = "checkbox";
   autoBox.checked = Boolean(container.auto_start_allowed);
   autoLabel.prepend(autoBox);
 
   const saveButton = element("button", "secondary", "Save");
   saveButton.type = "button";
-  saveButton.addEventListener("click", () => classifyContainer(index));
+  saveButton.addEventListener("click", () => classifyContainer(index, null, "unknown"));
   controls.append(typeLabel, protectedLabel, autoLabel, saveButton);
 
   card.append(

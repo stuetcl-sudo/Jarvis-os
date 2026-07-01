@@ -136,7 +136,7 @@ async function loadWeather() {
   if (inFlight.weather || document.hidden) return;
   inFlight.weather = true;
   try {
-    const data = await safeJson(await fetch("/api/family/weather"));
+    const data = await safeJson(await fetch("/api/family/weather", { credentials: "same-origin" }));
     if (!weatherStates.has(data.status)) throw new Error("invalid status");
 
     if (data.status === "not_configured") {
@@ -343,7 +343,7 @@ async function loadCalendar() {
   if (inFlight.calendar || document.hidden) return;
   inFlight.calendar = true;
   try {
-    const data = await safeJson(await fetch("/api/family/calendar"));
+    const data = await safeJson(await fetch("/api/family/calendar", { credentials: "same-origin" }));
     if (!calendarStates.has(data.status)) throw new Error("invalid status");
 
     if (data.status === "not_configured" || data.status === "unavailable") {
@@ -441,7 +441,7 @@ async function loadRoutines() {
   if (inFlight.routines || document.hidden) return;
   inFlight.routines = true;
   try {
-    wallRoutineState = await safeJson(await fetch("/api/family/routines"));
+    wallRoutineState = await safeJson(await fetch("/api/family/routines", { credentials: "same-origin" }));
     if (!wallActiveRoutine) wallActiveRoutine = wallRoutineState.recommended;
     renderRoutine();
   } catch (error) {
@@ -453,7 +453,7 @@ async function loadRoutines() {
 
 async function csrfToken() {
   if (wallCsrf) return wallCsrf;
-  const profile = await safeJson(await fetch("/api/auth/me"));
+  const profile = await safeJson(await fetch("/api/auth/me", { credentials: "same-origin" }));
   wallCsrf = profile.csrf_token;
   return wallCsrf;
 }
@@ -468,6 +468,7 @@ async function changeRoutine(action) {
   try {
     const response = await fetch(wallRoutineEndpoints[wallActiveRoutine][action], {
       method: "POST",
+      credentials: "same-origin",
       headers: {
         "Content-Type": "application/json",
         "X-CSRF-Token": await csrfToken(),
@@ -489,6 +490,7 @@ async function logout() {
   try {
     await fetch("/api/auth/logout", {
       method: "POST",
+      credentials: "same-origin",
       headers: { "X-CSRF-Token": await csrfToken() },
     });
   } finally {
