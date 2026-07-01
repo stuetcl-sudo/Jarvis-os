@@ -37,6 +37,26 @@ def test_xss_shaped_payload_can_only_be_assigned_as_text():
     assert "element(\"p\", \"\", item.detail)" in admin
 
 
+def test_same_origin_credentials_are_explicit_for_each_frontend():
+    login = SCRIPTS["login.js"]
+    admin = SCRIPTS["admin.js"]
+    family = SCRIPTS["family.js"]
+
+    assert 'credentials: "same-origin"' in login
+    assert 'options.credentials = "same-origin"' in admin
+
+    family_endpoints = [
+        "/api/mission",
+        "/api/family/weather",
+        "/api/family/calendar",
+        "/api/health",
+    ]
+    for endpoint in family_endpoints:
+        expected = f'fetch("{endpoint}", {{ credentials: "same-origin" }})'
+        assert expected in family
+    assert family.count('credentials: "same-origin"') == len(family_endpoints)
+
+
 def test_existing_frontend_security_contract_remains_present():
     login = SCRIPTS["login.js"]
     family = SCRIPTS["family.js"]
@@ -54,5 +74,6 @@ if __name__ == "__main__":
     test_frontend_scripts_do_not_use_html_parser_sinks()
     test_admin_dynamic_values_use_text_dom_apis()
     test_xss_shaped_payload_can_only_be_assigned_as_text()
+    test_same_origin_credentials_are_explicit_for_each_frontend()
     test_existing_frontend_security_contract_remains_present()
     print("Frontend safety tests OK")
