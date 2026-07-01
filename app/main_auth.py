@@ -12,6 +12,7 @@ from app.family_view import render_family_page
 from app.main import app
 from app.routine_definitions import EDITOR_ROLES
 from app.routines import ROUTINE_ROLES, router as routines_router
+from app.wall_view import WALL_ROLES, render_wall_page
 from app.weather import router as weather_router
 
 app.include_router(auth_router)
@@ -57,6 +58,13 @@ async def enforce_local_authentication(request: Request, call_next):
     try:
         if request.method == "GET" and path == "/":
             return HTMLResponse(render_family_page(current_user))
+
+        if request.method == "GET" and path == "/wall":
+            if not current_user:
+                return RedirectResponse("/login?next=/wall", status_code=303)
+            if current_user.get("role") not in WALL_ROLES:
+                return JSONResponse({"detail": "Family role required"}, status_code=403)
+            return HTMLResponse(render_wall_page(current_user))
 
         if path == "/admin":
             if not current_user:
