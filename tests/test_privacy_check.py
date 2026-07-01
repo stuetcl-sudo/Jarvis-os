@@ -6,6 +6,8 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PRIVACY_SCRIPT = REPOSITORY_ROOT / "scripts" / "privacy_check.sh"
 
+# These fixtures distinguish hardcoded credential material from dynamic transport.
+
 
 def run(command, cwd, check=True):
     return subprocess.run(
