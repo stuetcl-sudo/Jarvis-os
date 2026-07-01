@@ -40,6 +40,11 @@ GENERIC_ASSETS = {"app", "database", "example-app", "example-database", "example
 GENERIC_HOSTS = {"0.0.0.0", "jarvis-os", "localhost"}
 ALLOWED_DOMAINS = {"docker.io", "example.com", "example.net", "example.org", "github.com", "localhost", "pypi.org", "raw.githubusercontent.com"}
 ALLOWED_SUFFIXES = (".example", ".example.com", ".example.net", ".example.org", ".github.com", ".python.org")
+STANDARD_NAMESPACE_URLS = {
+    "http://www.w3.org/2000/svg",
+    "http://www.w3.org/1999/xlink",
+    "http://www.w3.org/XML/1998/namespace",
+}
 DOC_NETS = (
     ipaddress.ip_network((3221225984, 24)), ipaddress.ip_network((3325256704, 24)),
     ipaddress.ip_network((3405803776, 24)), ipaddress.ip_network((42540766411282592856903984951653826560, 32)),
@@ -54,6 +59,7 @@ KEY_HEADER_RE = re.compile("|".join(re.escape("-----BEGIN " + suffix) for suffix
 SSH_PUBLIC_RE = re.compile(r"\bssh-" + r"(?:rsa|dss|ed25519)\s+[A-Za-z0-9+/]{24,}={0,3}(?:\s|$)")
 ASSIGNMENT_RE = re.compile(r"^\s*(?:export\s+)?[\"']?([A-Za-z_][A-Za-z0-9_.-]*)[\"']?\s*[:=]\s*(.*?)\s*,?\s*$")
 QUOTED_MAPPING_RE = re.compile(r"^\s*[\"'][A-Za-z_][A-Za-z0-9_.-]*[\"']\s*:")
+MEMBER_READ_RE = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)+(?:\s*(?:\|\||\?\?)\s*(?:null|undefined|None))?$", re.I)
 IPV4_RE = re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])")
 IPV6_RE = re.compile(r"(?<![\w:])(?:[A-Fa-f0-9]{0,4}:){2,7}[A-Fa-f0-9]{0,4}(?![\w:])")
 DOMAIN_RE = re.compile(r"(?<![@\w-])(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}\b")
@@ -128,9 +134,10 @@ def generic_asset(value):
 def assignment(line):
     match = ASSIGNMENT_RE.match(line)
     if not match:
-        return None, None
-    value = match.group(2).strip().rstrip(",;").strip().strip("\"").strip("'").strip()
-    return match.group(1), value
+        return None, None, None
+    raw_value = match.group(2).strip().rstrip(",;").strip()
+    value = raw_value.strip("\"").strip("'").strip()
+    return match.group(1), value, raw_value
 
 
 def scan(path, text):
@@ -141,13 +148,14 @@ def scan(path, text):
         if SSH_PUBLIC_RE.search(line):
             findings.add((number, "ssh-public-key"))
 
-        key, value = assignment(line)
+        key, value, raw_value = assignment(line)
         quoted_mapping = bool(QUOTED_MAPPING_RE.match(line))
         if key and value:
             normalized = key.lower().replace("-", "_").replace(".", "_")
             if any(marker in normalized for marker in CREDENTIAL_FIELDS):
                 lowered = value.lower()
-                if lowered not in {"none", "null"} and not any(marker in lowered for marker in PLACEHOLDERS):
+                member_read = bool(MEMBER_READ_RE.fullmatch(raw_value))
+                if not member_read and lowered not in {"none", "null"} and not any(marker in lowered for marker in PLACEHOLDERS):
                     findings.add((number, "credential-assignment"))
             upper = key.upper().replace("-", "_").replace(".", "_")
             if not quoted_mapping and INVENTORY_RE.match(upper) and re.fullmatch(r"[\[\]{}\"'A-Za-z0-9:.,_ >-]*", value):
@@ -165,7 +173,7 @@ def scan(path, text):
                     host = simple.group(1).lower().split(":", 1)[0]
                     if host not in GENERIC_HOSTS and not host.startswith("example-") and not allowed_domain(host):
                         findings.add((number, "personal-hostname"))
-            if upper in {"DOMAIN", "ENDPOINT", "URL"} and re.fullmatch(r"[\"']?[A-Za-z0-9:/._-]+[\"']?", value):
+            if upper in {"DOMAIN", "ENDPOINT", "URL"} and value not in STANDARD_NAMESPACE_URLS and re.fullmatch(r"[\"']?[A-Za-z0-9:/._-]+[\"']?", value):
                 for domain in DOMAIN_RE.findall(value):
                     if not allowed_domain(domain):
                         findings.add((number, "personal-domain"))
@@ -193,7 +201,10 @@ def scan(path, text):
         for match in EMAIL_RE.finditer(line):
             if not allowed_domain(match.group(1)):
                 findings.add((number, "email-address"))
-        for host in re.findall(r"https?://([^/\s:\"']+)", line, re.I):
+        domain_line = line
+        for namespace_url in STANDARD_NAMESPACE_URLS:
+            domain_line = domain_line.replace(namespace_url, "")
+        for host in re.findall(r"https?://([^/\s:\"']+)", domain_line, re.I):
             if DOMAIN_RE.fullmatch(host) and not allowed_domain(host):
                 findings.add((number, "personal-domain"))
         if PERSON_RE.search(line):
