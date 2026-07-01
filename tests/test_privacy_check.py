@@ -8,7 +8,14 @@ PRIVACY_SCRIPT = REPOSITORY_ROOT / "scripts" / "privacy_check.sh"
 
 
 def run(command, cwd, check=True):
-    return subprocess.run(command, cwd=cwd, check=check, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        check=check,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
 
 
 def create_test_repository():
@@ -81,6 +88,43 @@ def test_member_read_credential_assignments_are_allowed():
         result = run(["bash", "scripts/privacy_check.sh"], root, check=False)
         assert result.returncode == 0, result.stdout
         assert "credential-assignment" not in result.stdout
+    finally:
+        shutil.rmtree(root)
+
+
+def test_dynamic_security_header_function_results_are_allowed():
+    root = create_test_repository()
+    try:
+        content = '"X-CSRF-Token": await csrfToken(),\n'
+        content += '"Authorization": buildAuthorizationHeader(),\n'
+        content += 'headers["X-CSRF-Token"] = getCsrfToken();\n'
+        content += 'request.headers["Authorization"] = await buildAuthorizationHeader();\n'
+        (root / "dynamic_headers.js").write_text(content)
+        result = run(["bash", "scripts/privacy_check.sh"], root, check=False)
+        assert result.returncode == 0, result.stdout
+        assert "credential-assignment" not in result.stdout
+    finally:
+        shutil.rmtree(root)
+
+
+def test_hardcoded_headers_and_environment_credentials_are_detected():
+    root = create_test_repository()
+    try:
+        content = '"X-CSRF-Token": "hardcoded-secret",\n'
+        content += '"Authorization": "Bearer hardcoded-secret",\n'
+        content += 'headers["X-CSRF-Token"] = "hardcoded-secret";\n'
+        content += "api_key = process.env.API_KEY;\n"
+        content += 'token = csrfToken();\n'
+        (root / "unsafe_headers.js").write_text(content)
+        result = run(["bash", "scripts/privacy_check.sh"], root, check=False)
+        assert result.returncode == 1
+        assert set(result.stdout.splitlines()) == {
+            "unsafe_headers.js:1:credential-assignment",
+            "unsafe_headers.js:2:credential-assignment",
+            "unsafe_headers.js:3:credential-assignment",
+            "unsafe_headers.js:4:credential-assignment",
+            "unsafe_headers.js:5:credential-assignment",
+        }
     finally:
         shutil.rmtree(root)
 
@@ -231,6 +275,8 @@ if __name__ == "__main__":
         test_current_checker_detects_fixtures_without_revealing_values,
         test_empty_credential_assignments_with_statement_terminators_are_allowed,
         test_member_read_credential_assignments_are_allowed,
+        test_dynamic_security_header_function_results_are_allowed,
+        test_hardcoded_headers_and_environment_credentials_are_detected,
         test_non_empty_javascript_credentials_are_reported_safely,
         test_hardcoded_member_named_credentials_are_still_reported,
         test_standard_svg_namespace_urls_are_allowed_exactly,

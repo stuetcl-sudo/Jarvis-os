@@ -54,12 +54,22 @@ PRIVATE_NETS = (
     ipaddress.ip_network((3232235520, 16)), ipaddress.ip_network((334965454937798799971759379190646833152, 7)),
 )
 CREDENTIAL_FIELDS = ("api_key", "apikey", "client_secret", "password", "passwd", "private_key", "secret", "token")
+DYNAMIC_HEADER_KEYS = {"authorization", "x_csrf_token"}
 PLACEHOLDERS = ("${", "{{", "<", "changeme", "dummy", "example", "placeholder", "redacted", "replace")
 KEY_HEADER_RE = re.compile("|".join(re.escape("-----BEGIN " + suffix) for suffix in ("OPENSSH PRIVATE KEY-----", "PRIVATE KEY-----", "RSA PRIVATE KEY-----", "EC PRIVATE KEY-----")))
 SSH_PUBLIC_RE = re.compile(r"\bssh-" + r"(?:rsa|dss|ed25519)\s+[A-Za-z0-9+/]{24,}={0,3}(?:\s|$)")
 ASSIGNMENT_RE = re.compile(r"^\s*(?:export\s+)?[\"']?([A-Za-z_][A-Za-z0-9_.-]*)[\"']?\s*[:=]\s*(.*?)\s*,?\s*$")
+HEADER_INDEX_ASSIGNMENT_RE = re.compile(
+    r"^\s*[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*"
+    r"\s*\[\s*[\"'](Authorization|X-CSRF-Token)[\"']\s*\]\s*=\s*(.*?)\s*;?\s*$",
+    re.I,
+)
 QUOTED_MAPPING_RE = re.compile(r"^\s*[\"'][A-Za-z_][A-Za-z0-9_.-]*[\"']\s*:")
 MEMBER_READ_RE = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)+(?:\s*(?:\|\||\?\?)\s*(?:null|undefined|None))?$", re.I)
+PROCESS_ENV_RE = re.compile(r"^(?:process\.env\.|os\.environ(?:\.get|\[)|os\.getenv\(|env\.)", re.I)
+DYNAMIC_HEADER_CALL_RE = re.compile(
+    r"^(?:await\s+)?[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*\(\s*\)$"
+)
 IPV4_RE = re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])")
 IPV6_RE = re.compile(r"(?<![\w:])(?:[A-Fa-f0-9]{0,4}:){2,7}[A-Fa-f0-9]{0,4}(?![\w:])")
 DOMAIN_RE = re.compile(r"(?<![@\w-])(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}\b")
@@ -132,11 +142,17 @@ def generic_asset(value):
 
 
 def assignment(line):
+    header_match = HEADER_INDEX_ASSIGNMENT_RE.match(line)
+    if header_match:
+        raw_value = header_match.group(2).strip().rstrip(",;").strip()
+        value = raw_value.strip('"').strip("'").strip()
+        return header_match.group(1), value, raw_value
+
     match = ASSIGNMENT_RE.match(line)
     if not match:
         return None, None, None
     raw_value = match.group(2).strip().rstrip(",;").strip()
-    value = raw_value.strip("\"").strip("'").strip()
+    value = raw_value.strip('"').strip("'").strip()
     return match.group(1), value, raw_value
 
 
@@ -152,10 +168,24 @@ def scan(path, text):
         quoted_mapping = bool(QUOTED_MAPPING_RE.match(line))
         if key and value:
             normalized = key.lower().replace("-", "_").replace(".", "_")
-            if any(marker in normalized for marker in CREDENTIAL_FIELDS):
+            credential_key = (
+                normalized in DYNAMIC_HEADER_KEYS
+                or any(marker in normalized for marker in CREDENTIAL_FIELDS)
+            )
+            if credential_key:
                 lowered = value.lower()
                 member_read = bool(MEMBER_READ_RE.fullmatch(raw_value))
-                if not member_read and lowered not in {"none", "null"} and not any(marker in lowered for marker in PLACEHOLDERS):
+                process_env_read = bool(PROCESS_ENV_RE.match(raw_value))
+                dynamic_header_call = (
+                    normalized in DYNAMIC_HEADER_KEYS
+                    and bool(DYNAMIC_HEADER_CALL_RE.fullmatch(raw_value))
+                )
+                if (
+                    not dynamic_header_call
+                    and (not member_read or process_env_read)
+                    and lowered not in {"none", "null"}
+                    and not any(marker in lowered for marker in PLACEHOLDERS)
+                ):
                     findings.add((number, "credential-assignment"))
             upper = key.upper().replace("-", "_").replace(".", "_")
             if not quoted_mapping and INVENTORY_RE.match(upper) and re.fullmatch(r"[\[\]{}\"'A-Za-z0-9:.,_ >-]*", value):
