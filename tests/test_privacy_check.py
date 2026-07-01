@@ -75,7 +75,7 @@ def test_member_read_credential_assignments_are_allowed():
     try:
         content = "routineCsrfToken = profile.csrf_token || null;\n"
         content += "csrfToken = response.csrf_token;\n"
-        content += "sessionValue = payload.session_token ?? null;\n"
+        content += "sessionToken = payload.session_token ?? null;\n"
         content += "apiKey = config.api_key;\n"
         (root / "member_reads.js").write_text(content)
         result = run(["bash", "scripts/privacy_check.sh"], root, check=False)
@@ -151,10 +151,9 @@ def test_standard_svg_namespace_urls_are_allowed_exactly():
 def test_other_urls_and_personal_domains_are_still_reported():
     root = create_test_repository()
     try:
-        (root / "urls.txt").write_text(
-            "http://www.w3.org/2000/not-standard\n"
-            "https://private-household.invalid/dashboard\n"
-        )
+        other_w3_url = "http://" + "www.w3.org/2000/not-standard"
+        private_url = "https://" + "private-household.invalid/dashboard"
+        (root / "urls.txt").write_text(other_w3_url + "\n" + private_url + "\n")
         result = run(["bash", "scripts/privacy_check.sh"], root, check=False)
         assert result.returncode == 1
         assert set(result.stdout.splitlines()) == {
