@@ -64,12 +64,43 @@ def test_login_page_and_assets_load():
 
 
 def test_family_page_contains_no_action_engine_write_controls():
-    family = client.get("/").text.lower()
-    for forbidden in [
-        "/api/actions/queue", "approve", "deny", "cancel", "request restart",
-        "run check now", "classifycontainer", "togglepolicy",
-    ]:
-        assert forbidden not in family
+    family = client.get("/").text
+    normalized = family.lower()
+
+    assert 'id="routineEditorCancel"' in family
+    assert "Annuller" in family
+
+    forbidden_action_paths = [
+        "/api/actions/queue",
+        "/api/actions/approve",
+        "/api/actions/deny",
+        "/api/actions/cancel",
+        "/api/actions/request-restart",
+        "/api/actions/run-check-now",
+        "/api/actions/classify-container",
+        "/api/actions/toggle-policy",
+    ]
+    forbidden_action_controls = [
+        'data-action="approve"',
+        'data-action="deny"',
+        'data-action="cancel"',
+        'data-action="request-restart"',
+        'data-action="run-check-now"',
+        'data-action="classify-container"',
+        'data-action="toggle-policy"',
+        'id="actionApprove"',
+        'id="actionDeny"',
+        'id="actionCancel"',
+        'id="requestRestart"',
+        'id="runCheckNow"',
+        'id="classifyContainer"',
+        'id="togglePolicy"',
+    ]
+    for forbidden in forbidden_action_paths + forbidden_action_controls:
+        assert forbidden.lower() not in normalized
+
+    assert not re.search(r"/api/actions/[^\"'\s]*/(?:approve|deny|cancel)(?:[\"'\s]|$)", normalized)
+    assert "/api/actions/" not in normalized
 
 
 def test_existing_api_routes_remain_available():
