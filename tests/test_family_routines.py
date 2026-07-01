@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import tempfile
 import threading
 from contextlib import contextmanager
@@ -18,6 +19,11 @@ from app.routines import MORNING_TASKS, RoutineStore, local_now, routine_tasks
 WEDNESDAY = datetime.fromisoformat("2026-07-01T09:00:00+02:00")
 SUNDAY = datetime.fromisoformat("2026-07-05T19:00:00+02:00")
 MONDAY = datetime.fromisoformat("2026-07-06T19:00:00+02:00")
+APPROVED_SVG_NAMESPACES = (
+    "http://www.w3.org/2000/svg",
+    "http://www.w3.org/1999/xlink",
+    "http://www.w3.org/XML/1998/namespace",
+)
 
 
 @contextmanager
@@ -53,6 +59,31 @@ def login(client, role):
     profile = client.get("/api/auth/me")
     assert profile.status_code == 200
     return profile.json()["csrf_token"]
+
+
+def assert_svg_uses_local_resources(svg_text):
+    without_namespaces = svg_text
+    for namespace in APPROVED_SVG_NAMESPACES:
+        without_namespaces = without_namespaces.replace(namespace, "")
+    assert not re.search(r"https?://", without_namespaces, re.IGNORECASE)
+    assert not re.search(
+        r"(?:href|xlink:href)\s*=\s*[\"']\s*https?://",
+        svg_text,
+        re.IGNORECASE,
+    )
+    assert not re.search(
+        r"@import\s+(?:url\(\s*)?[\"']?\s*https?://",
+        svg_text,
+        re.IGNORECASE,
+    )
+
+
+def assert_svg_rejected(svg_text):
+    try:
+        assert_svg_uses_local_resources(svg_text)
+    except AssertionError:
+        return
+    raise AssertionError("remote SVG resource was accepted")
 
 
 def test_fixed_routine_definitions_bath_days_and_timezone():
@@ -188,6 +219,37 @@ def test_existing_owner_only_write_protection_is_unchanged_without_execution():
     assert "and not routine_write" in middleware
 
 
+def test_svg_network_reference_guard():
+    standard = (
+        '<svg xmlns="http://www.w3.org/2000/svg" '
+        'xmlns:xlink="http://www.w3.org/1999/xlink" '
+        'xml:base="http://www.w3.org/XML/1998/namespace"></svg>'
+    )
+    assert_svg_uses_local_resources(standard)
+
+    remote_base = "https://" + "assets.invalid/"
+    assert_svg_rejected(
+        '<svg xmlns="http://www.w3.org/2000/svg"><image href="'
+        + remote_base
+        + 'image.svg"/></svg>'
+    )
+    assert_svg_rejected(
+        '<svg xmlns="http://www.w3.org/2000/svg"><use xlink:href="'
+        + remote_base
+        + 'icons.svg#task"/></svg>'
+    )
+    assert_svg_rejected(
+        '<svg xmlns="http://www.w3.org/2000/svg"><style>@import url("'
+        + remote_base
+        + 'icons.css");</style></svg>'
+    )
+    assert_svg_rejected(
+        '<svg xmlns="http://www.w3.org/2000/svg"><desc>'
+        + remote_base
+        + 'arbitrary</desc></svg>'
+    )
+
+
 def test_frontend_is_local_safe_and_one_task_at_a_time():
     root = Path(__file__).resolve().parents[1]
     javascript = (root / "app/static/js/routines.js").read_text()
@@ -203,7 +265,7 @@ def test_frontend_is_local_safe_and_one_task_at_a_time():
     assert "localStorage" not in family_javascript and "sessionStorage" not in family_javascript
     assert "routineEndpoints" in javascript
     assert "button.disabled = busy" in javascript
-    assert "http://" not in pictograms and "https://" not in pictograms
+    assert_svg_uses_local_resources(pictograms)
     assert "base64" not in pictograms
     assert 'body[data-family-role="child"] .routine-card' in stylesheet
     assert 'body[data-family-role="wall_display"] .routine-card' in stylesheet
@@ -218,6 +280,7 @@ if __name__ == "__main__":
         test_new_date_and_concurrent_updates_reset_safely,
         test_anonymous_and_authenticated_role_api_behavior,
         test_existing_owner_only_write_protection_is_unchanged_without_execution,
+        test_svg_network_reference_guard,
         test_frontend_is_local_safe_and_one_task_at_a_time,
     ]:
         test()
