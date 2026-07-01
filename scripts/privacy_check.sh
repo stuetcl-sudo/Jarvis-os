@@ -53,8 +53,11 @@ PRIVATE_NETS = (
     ipaddress.ip_network((167772160, 8)), ipaddress.ip_network((2886729728, 12)),
     ipaddress.ip_network((3232235520, 16)), ipaddress.ip_network((334965454937798799971759379190646833152, 7)),
 )
-CREDENTIAL_FIELDS = ("api_key", "apikey", "client_secret", "password", "passwd", "private_key", "secret", "token")
-DYNAMIC_HEADER_KEYS = {"authorization", "x_csrf_token"}
+CREDENTIAL_FIELDS = (
+    "api_key", "apikey", "client_secret", "credential", "credentials", "password",
+    "passwd", "private_key", "secret", "token",
+)
+SECURITY_HEADER_KEYS = {"authorization", "x_csrf_token"}
 PLACEHOLDERS = ("${", "{{", "<", "changeme", "dummy", "example", "placeholder", "redacted", "replace")
 KEY_HEADER_RE = re.compile("|".join(re.escape("-----BEGIN " + suffix) for suffix in ("OPENSSH PRIVATE KEY-----", "PRIVATE KEY-----", "RSA PRIVATE KEY-----", "EC PRIVATE KEY-----")))
 SSH_PUBLIC_RE = re.compile(r"\bssh-" + r"(?:rsa|dss|ed25519)\s+[A-Za-z0-9+/]{24,}={0,3}(?:\s|$)")
@@ -65,10 +68,18 @@ HEADER_INDEX_ASSIGNMENT_RE = re.compile(
     re.I,
 )
 QUOTED_MAPPING_RE = re.compile(r"^\s*[\"'][A-Za-z_][A-Za-z0-9_.-]*[\"']\s*:")
-MEMBER_READ_RE = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)+(?:\s*(?:\|\||\?\?)\s*(?:null|undefined|None))?$", re.I)
-PROCESS_ENV_RE = re.compile(r"^(?:process\.env\.|os\.environ(?:\.get|\[)|os\.getenv\(|env\.)", re.I)
-DYNAMIC_HEADER_CALL_RE = re.compile(
-    r"^(?:await\s+)?[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*\(\s*\)$"
+DYNAMIC_REFERENCE_RE = re.compile(
+    r"^(?:await\s+)?[A-Za-z_$][A-Za-z0-9_$]*"
+    r"(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*"
+    r"(?:\(\s*\))?"
+    r"(?:\s*(?:\|\||\?\?)\s*(?:null|undefined|None))?$",
+    re.I,
+)
+PYTHON_INTERPOLATED_RE = re.compile(r"^(?:f|fr|rf)[\"'].*\{[^{}]+\}.*[\"']$", re.I)
+NESTED_LITERAL_RE = re.compile(
+    r"[\"'](?:api_key|apikey|client_secret|credential|credentials|password|passwd|private_key|secret|token)[\"']"
+    r"\s*:\s*[\"'][^\"']+[\"']",
+    re.I,
 )
 IPV4_RE = re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])")
 IPV6_RE = re.compile(r"(?<![\w:])(?:[A-Fa-f0-9]{0,4}:){2,7}[A-Fa-f0-9]{0,4}(?![\w:])")
@@ -156,6 +167,25 @@ def assignment(line):
     return match.group(1), value, raw_value
 
 
+def credential_literal(raw_value, value):
+    lowered = value.lower()
+    if lowered in {"none", "null"} or not value:
+        return False
+    if any(marker in lowered for marker in PLACEHOLDERS):
+        return False
+    if DYNAMIC_REFERENCE_RE.fullmatch(raw_value):
+        return False
+    if PYTHON_INTERPOLATED_RE.fullmatch(raw_value):
+        return False
+    if "${" in raw_value or "{{" in raw_value:
+        return False
+    if NESTED_LITERAL_RE.search(raw_value):
+        return True
+    if len(raw_value) >= 2 and raw_value[0] in {'"', "'", "`"} and raw_value[-1] == raw_value[0]:
+        return True
+    return bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/@:+-]*", raw_value))
+
+
 def scan(path, text):
     findings = set()
     for number, line in enumerate(text.splitlines(), 1):
@@ -169,24 +199,12 @@ def scan(path, text):
         if key and value:
             normalized = key.lower().replace("-", "_").replace(".", "_")
             credential_key = (
-                normalized in DYNAMIC_HEADER_KEYS
+                normalized in SECURITY_HEADER_KEYS
                 or any(marker in normalized for marker in CREDENTIAL_FIELDS)
             )
-            if credential_key:
-                lowered = value.lower()
-                member_read = bool(MEMBER_READ_RE.fullmatch(raw_value))
-                process_env_read = bool(PROCESS_ENV_RE.match(raw_value))
-                dynamic_header_call = (
-                    normalized in DYNAMIC_HEADER_KEYS
-                    and bool(DYNAMIC_HEADER_CALL_RE.fullmatch(raw_value))
-                )
-                if (
-                    not dynamic_header_call
-                    and (not member_read or process_env_read)
-                    and lowered not in {"none", "null"}
-                    and not any(marker in lowered for marker in PLACEHOLDERS)
-                ):
-                    findings.add((number, "credential-assignment"))
+            if credential_key and credential_literal(raw_value, value):
+                findings.add((number, "credential-assignment"))
+
             upper = key.upper().replace("-", "_").replace(".", "_")
             if not quoted_mapping and INVENTORY_RE.match(upper) and re.fullmatch(r"[\[\]{}\"'A-Za-z0-9:.,_ >-]*", value):
                 literal_value = re.sub(r"[\[\]{}\"']", "", value)
