@@ -78,11 +78,13 @@ def test_wall_html_assets_and_role_navigation():
             assert 'id="wallTodayEvents"' in page
             assert 'id="wallNextEvent"' in page
             assert 'id="wallNextDay"' in page
+            assert 'class="wall-right-column"' in page
             assert 'id="wallForecast"' in page
             assert 'id="wallRoutinePictogram"' in page
             assert 'id="wallFullscreen"' in page
             assert 'id="routineEditButton"' not in page
             assert "Action Queue" not in page and "Docker status" not in page
+            assert page.index('class="wall-card wall-next-card"') < page.index('class="wall-card wall-routine-card"')
             assert ('href="/admin"' in page) is (role == "owner")
     with wall_environment() as client:
         for asset in [
@@ -200,19 +202,41 @@ def test_apparent_temperature_requires_a_real_finite_value():
     assert "if(number)" not in javascript
 
 
+def test_right_column_natural_flow_prevents_card_overlap():
+    template = (ROOT / "app/static/wall.html").read_text()
+    stylesheet = (ROOT / "app/static/css/wall.css").read_text()
+    right_column_start = template.index('class="wall-right-column"')
+    next_card = template.index('class="wall-card wall-next-card"', right_column_start)
+    tomorrow_label = template.index('id="wallNextDay"', next_card)
+    routine_card = template.index('class="wall-card wall-routine-card"', next_card)
+    assert right_column_start < next_card < tomorrow_label < routine_card
+    assert ".wall-main-grid{grid-area:content;display:grid" in stylesheet
+    assert ".wall-right-column{display:flex;flex-direction:column;gap:12px" in stylesheet
+    assert ".wall-next-card{display:grid;align-content:start;height:auto;min-height:0}" in stylesheet
+    assert ".wall-routine-card{display:grid;gap:10px;height:auto;min-height:0}" in stylesheet
+    assert ".wall-card{position:static;height:auto" in stylesheet
+    assert ".wall-next-event h3{" in stylesheet
+    assert "overflow-wrap:anywhere" in stylesheet
+    assert "word-break:break-word" in stylesheet
+    assert "position:absolute" not in stylesheet
+    assert "grid-area:next" not in stylesheet
+    assert "grid-area:routine" not in stylesheet
+    assert ".wall-right-column{gap:7px}" in stylesheet
+
+
 def test_compact_tablet_landscape_and_portrait_layout():
     stylesheet = (ROOT / "app/static/css/wall.css").read_text()
-    assert 'grid-template-areas:"header header" "notice notice" "calendar next" "calendar routine" "forecast forecast"' in stylesheet
-    assert ".wall-calendar-card{grid-area:calendar" in stylesheet
-    assert ".wall-next-card{grid-area:next" in stylesheet
-    assert ".wall-routine-card{grid-area:routine" in stylesheet
+    assert 'grid-template-areas:"header" "notice" "content" "forecast"' in stylesheet
+    assert ".wall-main-grid{grid-area:content;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.9fr)" in stylesheet
     assert "@media(orientation:landscape) and (max-height:600px)" in stylesheet
+    assert ".wall-main-grid{grid-template-columns:minmax(0,1.38fr) minmax(260px,.92fr);gap:7px" in stylesheet
     assert ".wall-forecast-section{display:none}" in stylesheet
     assert "height:100dvh" in stylesheet
     assert ".wall-menu a,.wall-menu button{min-height:44px" in stylesheet
     assert ".wall-routine-actions .wall-primary-action{min-width:150px;min-height:48px" in stylesheet
     assert "@media(max-width:760px),(orientation:portrait)" in stylesheet
-    assert 'grid-template-areas:"header" "notice" "calendar" "next" "routine" "forecast"' in stylesheet
+    assert ".wall-main-grid{grid-template-columns:1fr;gap:10px}" in stylesheet
+    assert ".wall-right-column{gap:10px}" in stylesheet
     assert "overflow-x:hidden" in stylesheet
 
 
@@ -242,6 +266,7 @@ if __name__ == "__main__":
         test_uv_wall_rendering_categories_and_compact_style,
         test_next_appointment_today_then_tomorrow_only,
         test_apparent_temperature_requires_a_real_finite_value,
+        test_right_column_natural_flow_prevents_card_overlap,
         test_compact_tablet_landscape_and_portrait_layout,
         test_wall_states_labels_and_responsive_presentation,
     ]:

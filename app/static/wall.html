@@ -41,47 +41,49 @@
         <p id="wallNoEvents" class="wall-empty" hidden>Ingen aftaler i dag</p>
       </article>
 
-      <article class="wall-card wall-next-card">
-        <header class="wall-card-heading"><h2>Næste aftale</h2></header>
-        <div id="wallNextEvent" class="wall-next-event">
-          <p id="wallNextDay" class="wall-next-day"></p>
-          <p id="wallNextTime" class="wall-next-time"></p>
-          <h3 id="wallNextTitle">Ingen flere aftaler i dag</h3>
-          <p id="wallNextCalendar" class="wall-subtle"></p>
-        </div>
-      </article>
+      <div class="wall-right-column">
+        <article class="wall-card wall-next-card">
+          <header class="wall-card-heading"><h2>Næste aftale</h2></header>
+          <div id="wallNextEvent" class="wall-next-event">
+            <p id="wallNextDay" class="wall-next-day"></p>
+            <p id="wallNextTime" class="wall-next-time"></p>
+            <h3 id="wallNextTitle">Ingen flere aftaler i dag</h3>
+            <p id="wallNextCalendar" class="wall-subtle"></p>
+          </div>
+        </article>
+
+        <section class="wall-card wall-routine-card" aria-labelledby="wallRoutineHeading">
+          <div class="wall-routine-topline">
+            <div>
+              <p id="wallRoutineLabel" class="wall-kicker">Rutine</p>
+              <h2 id="wallRoutineHeading">Næste trin</h2>
+            </div>
+            <div class="wall-routine-switch" role="group" aria-label="Vælg rutine">
+              <button type="button" data-wall-routine="morning" aria-pressed="false">Morgen</button>
+              <button type="button" data-wall-routine="evening" aria-pressed="false">Aften</button>
+            </div>
+          </div>
+          <div class="wall-routine-content">
+            <div class="wall-routine-picture">
+              <svg id="wallRoutinePictogram" role="img" aria-label="Rutinepiktogram"><use id="wallRoutinePictogramUse" href="/static/pictograms/routines.svg#complete"></use></svg>
+            </div>
+            <div class="wall-routine-copy">
+              <p id="wallRoutineProgress" class="wall-routine-progress"></p>
+              <h3 id="wallRoutineTitle" class="wall-routine-title">Henter rutine…</h3>
+              <p id="wallRoutineMessage" class="wall-subtle" role="status"></p>
+              <div class="wall-routine-actions">
+                <button type="button" id="wallRoutineBack">Tilbage</button>
+                <button type="button" id="wallRoutineComplete" class="wall-primary-action">Færdig</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
     </section>
 
     <section class="wall-forecast-section" aria-labelledby="wallForecastHeading">
       <h2 id="wallForecastHeading">De næste dage</h2>
       <ol id="wallForecast" class="wall-forecast"></ol>
-    </section>
-
-    <section class="wall-card wall-routine-card" aria-labelledby="wallRoutineHeading">
-      <div class="wall-routine-topline">
-        <div>
-          <p id="wallRoutineLabel" class="wall-kicker">Rutine</p>
-          <h2 id="wallRoutineHeading">Næste trin</h2>
-        </div>
-        <div class="wall-routine-switch" role="group" aria-label="Vælg rutine">
-          <button type="button" data-wall-routine="morning" aria-pressed="false">Morgen</button>
-          <button type="button" data-wall-routine="evening" aria-pressed="false">Aften</button>
-        </div>
-      </div>
-      <div class="wall-routine-content">
-        <div class="wall-routine-picture">
-          <svg id="wallRoutinePictogram" role="img" aria-label="Rutinepiktogram"><use id="wallRoutinePictogramUse" href="/static/pictograms/routines.svg#complete"></use></svg>
-        </div>
-        <div class="wall-routine-copy">
-          <p id="wallRoutineProgress" class="wall-routine-progress"></p>
-          <h3 id="wallRoutineTitle" class="wall-routine-title">Henter rutine…</h3>
-          <p id="wallRoutineMessage" class="wall-subtle" role="status"></p>
-          <div class="wall-routine-actions">
-            <button type="button" id="wallRoutineBack">Tilbage</button>
-            <button type="button" id="wallRoutineComplete" class="wall-primary-action">Færdig</button>
-          </div>
-        </div>
-      </div>
     </section>
   </main>
   <script src="/static/js/wall.js" defer></script>
