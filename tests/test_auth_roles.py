@@ -305,19 +305,24 @@ def test_actor_csrf_redirect_and_frontend_contract():
             action_engine.queue_action(asset_id="docker:example", action_type="docker.start_container", requested_by="spoofed", source="spoofed")
             assert call.call_args.kwargs["requested_by"] == "session-owner"
             assert call.call_args.kwargs["source"] == "mission_control"
+
         transition = SimpleNamespace(changed=False, action={"asset_id": "docker:example"}, reason=None)
-        with patch.object(action_engine, "approve_action", return_value=transition) as call:
-            action_engine.approve_action("a", "spoofed")
-            assert call.call_args.args[1] == "session-owner"
-        with patch.object(action_engine, "deny_action", return_value=transition) as call:
-            action_engine.deny_action("a", "spoofed")
-            assert call.call_args.args[1] == "session-owner"
-        with patch.object(action_engine, "cancel_action", return_value=transition) as call:
-            action_engine.cancel_action("a", "spoofed")
-            assert call.call_args.args[1] == "session-owner"
-        with patch.object(action_engine, "run_action", return_value={"action_id": "a"}) as call:
-            action_engine.run_action("a", "spoofed")
-            assert call.call_args.args[1] == "session-owner"
+        with patch("app.actions.engine.approve_action", return_value=transition) as call:
+            result = action_engine.approve_action("a", "spoofed")
+            assert call.call_args.args == ("a", "session-owner")
+            assert result == transition.action
+        with patch("app.actions.engine.deny_action", return_value=transition) as call:
+            result = action_engine.deny_action("a", "spoofed")
+            assert call.call_args.args == ("a", "session-owner")
+            assert result == transition.action
+        with patch("app.actions.engine.cancel_action", return_value=transition) as call:
+            result = action_engine.cancel_action("a", "spoofed")
+            assert call.call_args.args == ("a", "session-owner")
+            assert result == transition.action
+
+        with patch("app.actions.engine.get_action", return_value=None) as call:
+            assert action_engine.run_action("a") is None
+            call.assert_called_once_with("a")
     finally:
         reset_current_actor(actor_context)
 
