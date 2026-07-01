@@ -10,6 +10,7 @@ from app.calendar import router as calendar_router
 from app.db import log_action
 from app.family_view import render_family_page
 from app.main import app
+from app.routine_definitions import EDITOR_ROLES
 from app.routines import ROUTINE_ROLES, router as routines_router
 from app.weather import router as weather_router
 
@@ -32,22 +33,32 @@ async def enforce_local_authentication(request: Request, call_next):
     current_user = auth_service.resolve_session(session_value) if session_value else None
     request.state.current_user = current_user
     actor_context = set_current_actor(current_user["username"] if current_user else None)
-    routine_write = (
+    path = request.url.path
+    routine_progress_write = (
         request.method == "POST"
-        and request.url.path.startswith("/api/family/routines/")
-        and request.url.path.rsplit("/", 1)[-1] in ROUTINE_WRITE_ACTIONS
+        and path.startswith("/api/family/routines/")
+        and "/definitions/" not in path
+        and path.rsplit("/", 1)[-1] in ROUTINE_WRITE_ACTIONS
     )
+    routine_definition_write = (
+        path.startswith("/api/family/routines/definitions/")
+        and (
+            request.method == "PUT"
+            or (request.method == "POST" and path.endswith("/reset-default"))
+        )
+    )
+    routine_write = routine_progress_write or routine_definition_write
     protected_write = (
         request.method in {"POST", "PUT", "PATCH", "DELETE"}
-        and request.url.path.startswith("/api/")
-        and not request.url.path.startswith("/api/auth/")
+        and path.startswith("/api/")
+        and not path.startswith("/api/auth/")
         and not routine_write
     )
     try:
-        if request.method == "GET" and request.url.path == "/":
+        if request.method == "GET" and path == "/":
             return HTMLResponse(render_family_page(current_user))
 
-        if request.url.path == "/admin":
+        if path == "/admin":
             if not current_user:
                 return RedirectResponse("/login?next=/admin", status_code=303)
             if current_user["role"] != "owner":
@@ -56,8 +67,9 @@ async def enforce_local_authentication(request: Request, call_next):
         if routine_write:
             if not current_user:
                 return JSONResponse({"detail": "Authentication required"}, status_code=401)
-            if current_user.get("role") not in ROUTINE_ROLES:
-                return JSONResponse({"detail": "Family role required"}, status_code=403)
+            allowed_roles = EDITOR_ROLES if routine_definition_write else ROUTINE_ROLES
+            if current_user.get("role") not in allowed_roles:
+                return JSONResponse({"detail": "Adult role required" if routine_definition_write else "Family role required"}, status_code=403)
             supplied = request.headers.get("X-CSRF-Token", "")
             expected = current_user.get("csrf_value", "")
             if not supplied or not expected or not hmac.compare_digest(supplied, expected):
@@ -77,7 +89,7 @@ async def enforce_local_authentication(request: Request, call_next):
         if protected_write and current_user:
             log_action(
                 "authenticated_write",
-                request.url.path,
+                path,
                 "ok" if response.status_code < 400 else "error",
                 f"actor={current_user['username']}, status={response.status_code}",
             )

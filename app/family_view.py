@@ -59,6 +59,10 @@ TECHNICAL_CARD = """
       </article>
 """
 
+ROUTINE_EDITOR_ACTION = """
+          <button type="button" class="routine-edit-action" id="routineEditButton">Rediger rutine</button>
+"""
+
 
 def anonymous_context():
     return {
@@ -126,5 +130,6 @@ def render_family_page(current_user):
     page = page.replace("<!-- FAMILY_TECHNICAL_STATUS -->", TECHNICAL_STATUS if context["role"] == "owner" else "", 1)
     page = page.replace("<!-- FAMILY_HOME_CARD -->", "" if context["role"] == "child" else HOME_CARD, 1)
     page = page.replace("<!-- FAMILY_TECHNICAL_CARD -->", TECHNICAL_CARD if context["role"] == "owner" else "", 1)
+    page = page.replace("<!-- ROUTINE_EDITOR_ACTION -->", ROUTINE_EDITOR_ACTION if context["role"] in {"owner", "adult"} else "", 1)
     page = page.replace("<!-- FAMILY_NAVIGATION -->", navigation_for(context["role"]), 1)
     return page

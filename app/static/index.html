@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/static/css/weather.css" />
   <link rel="stylesheet" href="/static/css/calendar.css" />
   <link rel="stylesheet" href="/static/css/routines.css" />
+  <link rel="stylesheet" href="/static/css/routine-editor.css" />
 </head>
 <body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false" data-family-label="Fælles overblik" data-family-subtitle="Her er et roligt overblik over hjemmet.">
   <main class="family-shell">
@@ -31,9 +32,12 @@
         <div class="card-icon" aria-hidden="true">✓</div>
         <div class="card-heading"><p class="card-eyebrow">Min rutine</p><h2>Det næste trin</h2></div>
         <div class="routine-card-content">
-          <div class="routine-switch" role="group" aria-label="Vælg rutine">
-            <button type="button" data-routine-select="morning" aria-pressed="false">Morgen</button>
-            <button type="button" data-routine-select="evening" aria-pressed="false">Aften</button>
+          <div class="routine-toolbar">
+            <div class="routine-switch" role="group" aria-label="Vælg rutine">
+              <button type="button" data-routine-select="morning" aria-pressed="false">Morgen</button>
+              <button type="button" data-routine-select="evening" aria-pressed="false">Aften</button>
+            </div>
+<!-- ROUTINE_EDITOR_ACTION -->
           </div>
           <div class="routine-panel" id="routinePanel">
             <div class="routine-pictogram-frame">
@@ -102,27 +106,29 @@
 
 <!-- FAMILY_HOME_CARD -->
 
-      <article class="family-card placeholder-card" data-family-card="meal">
-        <div class="card-icon" aria-hidden="true">🍽️</div>
-        <div class="card-heading"><p class="card-eyebrow">Madplan</p><h2>Aftensmad</h2></div>
-        <p class="disconnected">Ikke tilsluttet endnu</p>
-      </article>
-
-      <article class="family-card placeholder-card" data-family-card="tasks">
-        <div class="card-icon" aria-hidden="true">✏️</div>
-        <div class="card-heading"><p class="card-eyebrow">Lektier og opgaver</p><h2>Det næste</h2></div>
-        <p class="disconnected">Ikke tilsluttet endnu</p>
-      </article>
+      <article class="family-card placeholder-card" data-family-card="meal"><div class="card-icon" aria-hidden="true">🍽️</div><div class="card-heading"><p class="card-eyebrow">Madplan</p><h2>Aftensmad</h2></div><p class="disconnected">Ikke tilsluttet endnu</p></article>
+      <article class="family-card placeholder-card" data-family-card="tasks"><div class="card-icon" aria-hidden="true">✏️</div><div class="card-heading"><p class="card-eyebrow">Lektier og opgaver</p><h2>Det næste</h2></div><p class="disconnected">Ikke tilsluttet endnu</p></article>
 
 <!-- FAMILY_TECHNICAL_CARD -->
     </section>
 
-    <footer class="family-footer">
-      <p>Familievisningen tilpasser sig den aktive rolle. Administrative kontroller kræver en ejerkonto.</p>
-<!-- FAMILY_NAVIGATION -->
-    </footer>
+    <footer class="family-footer"><p>Familievisningen tilpasser sig den aktive rolle. Administrative kontroller kræver en ejerkonto.</p><!-- FAMILY_NAVIGATION --></footer>
   </main>
+
+  <dialog class="routine-editor" id="routineEditor" aria-labelledby="routineEditorTitle">
+    <form method="dialog" class="routine-editor-shell" id="routineEditorForm">
+      <header class="routine-editor-header"><div><p class="card-eyebrow">Familierutiner</p><h2 id="routineEditorTitle">Rediger rutine</h2></div><button type="button" id="routineEditorClose" aria-label="Luk editor">×</button></header>
+      <div class="routine-editor-switch" role="group" aria-label="Vælg rutine"><button type="button" data-editor-routine="morning">Morgen</button><button type="button" data-editor-routine="evening">Aften</button></div>
+      <label class="routine-editor-label">Rutinenavn<input id="routineEditorLabel" maxlength="40" required /></label>
+      <p class="routine-editor-message" id="routineEditorMessage" role="status"></p>
+      <ol class="routine-editor-list" id="routineEditorList"></ol>
+      <button type="button" class="routine-editor-add" id="routineEditorAdd">Tilføj trin</button>
+      <footer class="routine-editor-footer"><button type="button" class="danger" id="routineEditorRestore">Gendan standard</button><span></span><button type="button" id="routineEditorCancel">Annuller</button><button type="submit" class="primary" id="routineEditorSave">Gem ændringer</button></footer>
+    </form>
+  </dialog>
+
   <script src="/static/js/family.js" defer></script>
   <script src="/static/js/routines.js" defer></script>
+  <script src="/static/js/routine-editor.js" defer></script>
 </body>
 </html>

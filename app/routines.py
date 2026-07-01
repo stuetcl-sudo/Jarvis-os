@@ -2,7 +2,6 @@ import json
 import os
 import tempfile
 import threading
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -10,47 +9,24 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from app import config
+from app.routine_definitions import (
+    DEFAULT_DEFINITIONS,
+    EDITOR_ROLES,
+    PICTOGRAM_LABELS,
+    ROUTINE_IDS,
+    WEEKDAY_LABELS,
+    DefinitionValidationError,
+    RoutineDefinitionStore,
+    RoutineTask,
+    definition_to_dict,
+    tasks_for_date,
+)
 
-ROUTINE_IDS = {"morning", "evening"}
 ROUTINE_ROLES = {"owner", "adult", "child", "wall_display"}
 DEFAULT_STATE_PATH = Path("/data/family_routines.json")
-
-
-@dataclass(frozen=True)
-class RoutineTask:
-    id: str
-    title: str
-    pictogram: str
-    time: str | None = None
-
-
-MORNING_TASKS = (
-    RoutineTask("morning_wake", "Vågne op", "wake", "06:00"),
-    RoutineTask("morning_tv", "Se lidt TV", "tv"),
-    RoutineTask("morning_breakfast", "Spise morgenmad", "breakfast"),
-    RoutineTask("morning_clothes", "Tage tøj på", "clothes"),
-    RoutineTask("morning_teeth", "Børste tænder", "teeth"),
-    RoutineTask("morning_ipad", "Spille lidt på iPad", "tablet"),
-    RoutineTask("morning_outerwear", "Tage overtøj på", "outerwear"),
-    RoutineTask("morning_school", "Gå i skole", "school"),
-)
-
-EVENING_BASE_TASKS = (
-    RoutineTask("evening_homework", "Lektier", "homework", "16:00"),
-    RoutineTask("evening_exercise", "Øvelser og træning", "exercise", "16:30"),
-    RoutineTask("evening_play_before", "Fri leg", "play"),
-    RoutineTask("evening_dinner", "Spise aftensmad", "dinner", "18:00"),
-    RoutineTask("evening_cleanup", "Rydde af bordet", "cleanup"),
-    RoutineTask("evening_play_after", "Fri leg", "play"),
-    RoutineTask("evening_teeth", "Børste tænder", "teeth", "20:00"),
-    RoutineTask("evening_undress", "Tage tøj af", "clothes"),
-    RoutineTask("evening_laundry", "Lægge beskidt tøj i vasketøjskurven", "laundry"),
-    RoutineTask("evening_bed", "Gå i seng", "bed"),
-    RoutineTask("evening_audio", "Høre musik eller lydbog", "audio"),
-    RoutineTask("evening_sleep", "Sove", "sleep", "20:30"),
-)
-BATH_TASK = RoutineTask("evening_bath", "Gå i bad", "bath")
+MORNING_TASKS = DEFAULT_DEFINITIONS["morning"].tasks
+EVENING_BASE_TASKS = tuple(task for task in DEFAULT_DEFINITIONS["evening"].tasks if task.id != "evening_bath")
+BATH_TASK = next(task for task in DEFAULT_DEFINITIONS["evening"].tasks if task.id == "evening_bath")
 
 
 class ProgressPayload(BaseModel):
@@ -74,15 +50,7 @@ def local_now(now=None):
 
 
 def routine_tasks(routine_id, local_date):
-    if routine_id == "morning":
-        return MORNING_TASKS
-    if routine_id != "evening":
-        raise KeyError(routine_id)
-    tasks = list(EVENING_BASE_TASKS)
-    if local_date.weekday() in {2, 6}:
-        cleanup_index = next(index for index, task in enumerate(tasks) if task.id == "evening_cleanup")
-        tasks.insert(cleanup_index + 1, BATH_TASK)
-    return tuple(tasks)
+    return tasks_for_date(definition_store.get(routine_id), local_date)
 
 
 def _default_progress(date_text):
@@ -117,10 +85,27 @@ def _safe_state(raw, date_text):
     return result
 
 
+def _reconcile_progress(progress, tasks):
+    valid_ids = {task.id for task in tasks}
+    remaining = [task_id for task_id in progress["completed_task_ids"] if task_id in valid_ids]
+    prefix = []
+    for task in tasks:
+        if remaining and task.id == remaining[0]:
+            prefix.append(remaining.pop(0))
+        else:
+            break
+    progress["completed_task_ids"] = prefix
+    progress["current_index"] = len(prefix)
+    if len(prefix) < len(tasks):
+        progress["completed_at"] = None
+    return progress
+
+
 class RoutineStore:
-    def __init__(self, path=DEFAULT_STATE_PATH, now_provider=local_now):
+    def __init__(self, path=DEFAULT_STATE_PATH, now_provider=local_now, definitions=None):
         self.path = Path(path)
         self.now_provider = now_provider
+        self.definitions = definitions or definition_store
         self._lock = threading.RLock()
 
     def _read_unlocked(self, date_text):
@@ -144,11 +129,16 @@ class RoutineStore:
             if os.path.exists(temporary_name):
                 os.unlink(temporary_name)
 
+    def _tasks(self, routine_id, local_date):
+        return tasks_for_date(self.definitions.get(routine_id), local_date)
+
     def snapshot(self, now=None):
         current = local_now(now or self.now_provider())
         date_text = current.date().isoformat()
         with self._lock:
             state = self._read_unlocked(date_text)
+            for routine_id in ROUTINE_IDS:
+                _reconcile_progress(state[routine_id], self._tasks(routine_id, current.date()))
             self._write_unlocked(state)
             return self._response(state, current)
 
@@ -158,31 +148,25 @@ class RoutineStore:
         current = local_now(now or self.now_provider())
         date_text = current.date().isoformat()
         timestamp = current.isoformat(timespec="seconds")
-        tasks = routine_tasks(routine_id, current.date())
+        tasks = self._tasks(routine_id, current.date())
         with self._lock:
             state = self._read_unlocked(date_text)
-            progress = state[routine_id]
-            index = min(progress["current_index"], len(tasks))
+            progress = _reconcile_progress(state[routine_id], tasks)
+            index = progress["current_index"]
             if action == "complete":
                 if expected_index is not None and expected_index != index:
                     return self._response(state, current)
                 if index < len(tasks):
-                    completed_ids = list(progress["completed_task_ids"])
-                    task_id = tasks[index].id
-                    if task_id not in completed_ids:
-                        completed_ids.append(task_id)
-                    index += 1
-                    progress["completed_task_ids"] = completed_ids
-                    progress["current_index"] = index
-                    progress["completed_at"] = timestamp if index >= len(tasks) else None
+                    progress["completed_task_ids"].append(tasks[index].id)
+                    progress["current_index"] = index + 1
+                    progress["completed_at"] = timestamp if index + 1 >= len(tasks) else None
                     progress["updated_at"] = timestamp
             elif action == "back":
                 if expected_index is not None and expected_index != index:
                     return self._response(state, current)
                 if index > 0:
-                    index -= 1
-                    progress["current_index"] = index
-                    progress["completed_task_ids"] = [task.id for task in tasks[:index]]
+                    progress["completed_task_ids"] = progress["completed_task_ids"][:-1]
+                    progress["current_index"] = index - 1
                     progress["completed_at"] = None
                     progress["updated_at"] = timestamp
             elif action == "reset":
@@ -193,17 +177,29 @@ class RoutineStore:
             self._write_unlocked(state)
             return self._response(state, current)
 
+    def reconcile_definition(self, routine_id, reset=False, now=None):
+        current = local_now(now or self.now_provider())
+        date_text = current.date().isoformat()
+        with self._lock:
+            state = self._read_unlocked(date_text)
+            if reset:
+                state[routine_id] = _default_progress(date_text)
+            else:
+                _reconcile_progress(state[routine_id], self._tasks(routine_id, current.date()))
+            self._write_unlocked(state)
+            return self._response(state, current)
+
     def _response(self, state, current):
         routines = {}
-        labels = {"morning": "Godmorgen-rutine", "evening": "Aftenrutine"}
+        definitions = self.definitions.all()
         for routine_id in ("morning", "evening"):
-            tasks = routine_tasks(routine_id, current.date())
-            progress = state[routine_id]
-            index = min(progress["current_index"], len(tasks))
+            tasks = tasks_for_date(definitions[routine_id], current.date())
+            progress = _reconcile_progress(state[routine_id], tasks)
+            index = progress["current_index"]
             completed = index >= len(tasks)
             current_task = None if completed else tasks[index]
             routines[routine_id] = {
-                "label": labels[routine_id],
+                "label": definitions[routine_id].label,
                 "date": current.date().isoformat(),
                 "current_index": index,
                 "total": len(tasks),
@@ -215,14 +211,11 @@ class RoutineStore:
                     "time": current_task.time,
                 },
             }
-        return {
-            "status": "ok",
-            "recommended": "morning" if current.hour < 12 else "evening",
-            "routines": routines,
-        }
+        return {"status": "ok", "recommended": "morning" if current.hour < 12 else "evening", "routines": routines}
 
 
-routine_store = RoutineStore()
+definition_store = RoutineDefinitionStore()
+routine_store = RoutineStore(definitions=definition_store)
 router = APIRouter()
 
 
@@ -231,11 +224,35 @@ def _current_user(request):
     return user if isinstance(user, dict) and user.get("role") in ROUTINE_ROLES else None
 
 
+def _editor_user(request):
+    user = _current_user(request)
+    return user if user and user.get("role") in EDITOR_ROLES else None
+
+
+def _definitions_response():
+    definitions = definition_store.all()
+    return {
+        "status": "ok",
+        "routines": {routine_id: definition_to_dict(definitions[routine_id]) for routine_id in ("morning", "evening")},
+        "pictograms": [{"key": key, "label": label} for key, label in PICTOGRAM_LABELS.items()],
+        "weekdays": [{"key": key, "label": label} for key, label in WEEKDAY_LABELS],
+    }
+
+
 @router.get("/api/family/routines")
 def family_routines(request: Request):
     if _current_user(request) is None:
         return {"status": "authentication_required", "routines": []}
     return routine_store.snapshot()
+
+
+@router.get("/api/family/routines/definitions")
+def routine_definitions(request: Request):
+    if _current_user(request) is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if _editor_user(request) is None:
+        raise HTTPException(status_code=403, detail="Adult role required")
+    return _definitions_response()
 
 
 def _change(request, routine_id, action, payload=None):
@@ -260,3 +277,28 @@ def back_routine(request: Request, routine_id: str, payload: ProgressPayload):
 @router.post("/api/family/routines/{routine_id}/reset")
 def reset_routine(request: Request, routine_id: str):
     return _change(request, routine_id, "reset")
+
+
+@router.put("/api/family/routines/definitions/{routine_id}")
+def update_routine_definition(request: Request, routine_id: str, payload: dict):
+    if routine_id not in ROUTINE_IDS:
+        raise HTTPException(status_code=404, detail="Routine not found")
+    if _editor_user(request) is None:
+        raise HTTPException(status_code=403, detail="Adult role required")
+    try:
+        definition_store.update(routine_id, payload)
+    except DefinitionValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    routine_store.reconcile_definition(routine_id)
+    return {**_definitions_response(), "progress": routine_store.snapshot()["routines"]}
+
+
+@router.post("/api/family/routines/definitions/{routine_id}/reset-default")
+def reset_routine_definition(request: Request, routine_id: str):
+    if routine_id not in ROUTINE_IDS:
+        raise HTTPException(status_code=404, detail="Routine not found")
+    if _editor_user(request) is None:
+        raise HTTPException(status_code=403, detail="Adult role required")
+    definition_store.reset_default(routine_id)
+    routine_store.reconcile_definition(routine_id, reset=True)
+    return {**_definitions_response(), "progress": routine_store.snapshot()["routines"]}

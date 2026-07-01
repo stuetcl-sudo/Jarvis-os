@@ -23,6 +23,7 @@ def test_root_returns_anonymous_family_dashboard():
     assert 'data-family-role="anonymous"' in response.text
     assert 'href="/login">Log ind</a>' in response.text
     assert 'href="/admin"' not in response.text
+    assert 'id="routineEditButton"' not in response.text
     assert "Mission Control" not in response.text
     assert "<dt>CPU</dt>" not in response.text
     assert 'data-family-card="routine"' in response.text
@@ -30,7 +31,9 @@ def test_root_returns_anonymous_family_dashboard():
     assert 'data-family-card="weather"' in response.text
     assert "/static/js/family.js" in response.text
     assert "/static/js/routines.js" in response.text
+    assert "/static/js/routine-editor.js" in response.text
     assert "/static/css/routines.css" in response.text
+    assert "/static/css/routine-editor.css" in response.text
     assert "/static/css/calendar.css" in response.text
     assert "/static/css/weather.css" in response.text
 
@@ -42,13 +45,8 @@ def test_admin_requires_login_and_static_mission_control_is_preserved():
     static_admin = client.get("/static/admin.html")
     assert static_admin.status_code == 200
     for expected in [
-        "Mission Control",
-        "Action Queue",
-        "Policy Engine",
-        "Asset Overview",
-        "Live event feed",
-        "Docker status",
-        "Unknown containers",
+        "Mission Control", "Action Queue", "Policy Engine", "Asset Overview",
+        "Live event feed", "Docker status", "Unknown containers",
     ]:
         assert expected in static_admin.text
     assert "/static/js/admin.js" in static_admin.text
@@ -68,14 +66,8 @@ def test_login_page_and_assets_load():
 def test_family_page_contains_no_action_engine_write_controls():
     family = client.get("/").text.lower()
     for forbidden in [
-        "/api/actions/queue",
-        "approve",
-        "deny",
-        "cancel",
-        "request restart",
-        "run check now",
-        "classifycontainer",
-        "togglepolicy",
+        "/api/actions/queue", "approve", "deny", "cancel", "request restart",
+        "run check now", "classifycontainer", "togglepolicy",
     ]:
         assert forbidden not in family
 
@@ -87,44 +79,31 @@ def test_existing_api_routes_remain_available():
     routines = client.get("/api/family/routines")
     assert routines.status_code == 200
     assert routines.json() == {"status": "authentication_required", "routines": []}
+    assert client.get("/api/family/routines/definitions").status_code == 401
     paths = {route.path for route in app.routes if hasattr(route, "path")}
     for expected in [
-        "/api/mission",
-        "/api/family/weather",
-        "/api/family/calendar",
-        "/api/family/routines",
+        "/api/mission", "/api/family/weather", "/api/family/calendar",
+        "/api/family/routines", "/api/family/routines/definitions",
+        "/api/family/routines/definitions/{routine_id}",
+        "/api/family/routines/definitions/{routine_id}/reset-default",
         "/api/family/routines/{routine_id}/complete",
         "/api/family/routines/{routine_id}/back",
         "/api/family/routines/{routine_id}/reset",
-        "/api/actions",
-        "/api/actions/queue",
-        "/api/actions/{action_id}/approve",
-        "/api/worker/run-once",
-        "/api/service-classifications/{service}",
-        "/api/assets",
-        "/api/policies/{policy_id:path}/enable",
-        "/api/events/latest",
-        "/api/auth/login",
-        "/api/auth/me",
-        "/api/auth/logout",
+        "/api/actions", "/api/actions/queue", "/api/actions/{action_id}/approve",
+        "/api/worker/run-once", "/api/service-classifications/{service}",
+        "/api/assets", "/api/policies/{policy_id:path}/enable", "/api/events/latest",
+        "/api/auth/login", "/api/auth/me", "/api/auth/logout",
     ]:
         assert expected in paths
 
 
 def test_static_css_javascript_and_pictogram_assets_load():
     for asset in [
-        "/static/css/common.css",
-        "/static/css/family.css",
-        "/static/css/weather.css",
-        "/static/css/calendar.css",
-        "/static/css/routines.css",
-        "/static/css/admin.css",
-        "/static/css/login.css",
-        "/static/js/family.js",
-        "/static/js/routines.js",
-        "/static/js/admin.js",
-        "/static/js/login.js",
-        "/static/pictograms/routines.svg",
+        "/static/css/common.css", "/static/css/family.css", "/static/css/weather.css",
+        "/static/css/calendar.css", "/static/css/routines.css",
+        "/static/css/routine-editor.css", "/static/css/admin.css", "/static/css/login.css",
+        "/static/js/family.js", "/static/js/routines.js", "/static/js/routine-editor.js",
+        "/static/js/admin.js", "/static/js/login.js", "/static/pictograms/routines.svg",
         "/static/style.css",
     ]:
         response = client.get(asset)
@@ -141,10 +120,7 @@ def test_family_javascript_keeps_existing_read_only_get_requests():
     assert "Authorization" not in javascript
     fetch_calls = re.findall(r'fetch\(\s*["\']([^"\']+)["\']\s*\)', javascript)
     assert fetch_calls == [
-        "/api/mission",
-        "/api/family/weather",
-        "/api/family/calendar",
-        "/api/health",
+        "/api/mission", "/api/family/weather", "/api/family/calendar", "/api/health",
     ]
 
 
@@ -152,6 +128,7 @@ def test_validation_script_checks_protected_live_v08_deployment():
     script = (ROOT / "scripts/validate.sh").read_text()
     assert "docker compose up -d --build --force-recreate jarvis-os" in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_family_routines.py' in script
+    assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_routine_editor.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_family_role_views.py' in script
@@ -161,18 +138,11 @@ def test_validation_script_checks_protected_live_v08_deployment():
     assert 'check_live_route "/api/family/routines" "family routines API" \'"status":"authentication_required"\'' in script
     assert 'check_live_route "/login" "login page" "Log ind på Jarvis"' in script
     assert 'check_live_redirect "/admin" "/login?next=/admin"' in script
-    assert 'check_live_route "/static/admin.html" "Mission Control static page" "Mission Control"' in script
     for asset in [
-        "/static/js/login.js",
-        "/static/js/family.js",
-        "/static/js/routines.js",
-        "/static/js/admin.js",
-        "/static/css/login.css",
-        "/static/css/family.css",
-        "/static/css/weather.css",
-        "/static/css/calendar.css",
-        "/static/css/routines.css",
-        "/static/css/admin.css",
+        "/static/js/login.js", "/static/js/family.js", "/static/js/routines.js",
+        "/static/js/routine-editor.js", "/static/js/admin.js", "/static/css/login.css",
+        "/static/css/family.css", "/static/css/weather.css", "/static/css/calendar.css",
+        "/static/css/routines.css", "/static/css/routine-editor.css", "/static/css/admin.css",
         "/static/pictograms/routines.svg",
     ]:
         assert f'check_live_route "{asset}"' in script

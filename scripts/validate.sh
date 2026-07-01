@@ -72,12 +72,13 @@ bash scripts/privacy_check.sh || {
   exit 1
 }
 
-echo "[2/10] Running focused routine, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
+echo "[2/10] Running focused routine editor, routine, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
 if [ -z "$PYTHON_BIN" ]; then
   echo "ERROR: Python is required for focused tests."
   exit 1
 fi
 PYTHONPATH=. "$PYTHON_BIN" tests/test_family_routines.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_routine_editor.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_family_role_views.py
@@ -126,12 +127,14 @@ check_live_route "/static/admin.html" "Mission Control static page" "Mission Con
 check_live_route "/static/js/login.js" "login JavaScript"
 check_live_route "/static/js/family.js" "family dashboard JavaScript"
 check_live_route "/static/js/routines.js" "routine JavaScript"
+check_live_route "/static/js/routine-editor.js" "routine editor JavaScript"
 check_live_route "/static/js/admin.js" "Mission Control JavaScript"
 check_live_route "/static/css/login.css" "login stylesheet"
 check_live_route "/static/css/family.css" "family dashboard stylesheet"
 check_live_route "/static/css/weather.css" "weather stylesheet"
 check_live_route "/static/css/calendar.css" "calendar stylesheet"
 check_live_route "/static/css/routines.css" "routine stylesheet"
+check_live_route "/static/css/routine-editor.css" "routine editor stylesheet"
 check_live_route "/static/css/admin.css" "Mission Control stylesheet"
 check_live_route "/static/pictograms/routines.svg" "routine pictograms" "symbol id=\"complete\""
 
