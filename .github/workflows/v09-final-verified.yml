@@ -1,0 +1,72 @@
+name: v0.9 final verified
+
+on:
+  push:
+    branches:
+      - v09-final-regression-validation
+    paths:
+      - docs/V09_FINAL_TRIGGER.txt
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/jarvis-v0.9
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          ref: v09-final-regression-validation
+          path: .validation-runner
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply fixes
+        run: python3 .validation-runner/scripts/apply_v09_verified_fix.py .
+
+      - name: Install dependencies
+        run: python3 -m pip install -r requirements.txt
+
+      - name: Focused verification
+        run: |
+          PYTHONPATH=. python3 tests/test_calendar_integration.py
+          PYTHONPATH=. python3 tests/test_dashboard_routes.py
+          PYTHONPATH=. python3 tests/test_weather_integration.py
+          PYTHONPATH=. python3 tests/test_privacy_check.py
+          bash scripts/privacy_check.sh
+
+      - name: Prepare and validate live snapshots
+        run: |
+          bash scripts/validate.sh | tee /tmp/validate-first.log
+          grep -Fx "Validation OK." /tmp/validate-first.log
+
+      - name: Complete Python sweep
+        run: |
+          failed=0
+          for test in tests/test_*.py; do
+            echo "=== $test ==="
+            PYTHONPATH=. python3 "$test" || failed=1
+          done
+          exit "$failed"
+
+      - name: Final complete validation
+        run: |
+          bash scripts/validate.sh | tee /tmp/validate-final.log
+          grep -Fx "Validation OK." /tmp/validate-final.log
+
+      - name: Publish verified commit
+        run: |
+          rm -rf .validation-runner
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git add scripts/privacy_check.sh tests/test_calendar_integration.py tests/test_dashboard_routes.py tests/test_privacy_check.py tests/test_weather_integration.py
+          git commit -m "Fix final v0.9 test and privacy regressions"
+          git push origin HEAD:feature/jarvis-v0.9
