@@ -44,9 +44,9 @@ def test_completed_events_disappear_but_ongoing_events_remain():
     ongoing_end = datetime(2026, 7, 2, 21, 0)
     all_day_end = datetime(2026, 7, 3, 0, 0)
 
-    assert completed_end > now is False
-    assert ongoing_end > now is True
-    assert all_day_end > now is True
+    assert completed_end <= now
+    assert ongoing_end > now
+    assert all_day_end > now
     assert "function calendarEventIsCurrentOrUpcoming" in FAMILY_CALENDAR
     assert "return Boolean(bounds && bounds.end > now);" in FAMILY_CALENDAR
     assert "calendar.events.filter((event) => calendarEventIsCurrentOrUpcoming(event, now))" in FAMILY_CALENDAR
