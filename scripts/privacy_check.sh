@@ -53,13 +53,39 @@ PRIVATE_NETS = (
     ipaddress.ip_network((167772160, 8)), ipaddress.ip_network((2886729728, 12)),
     ipaddress.ip_network((3232235520, 16)), ipaddress.ip_network((334965454937798799971759379190646833152, 7)),
 )
-CREDENTIAL_FIELDS = ("api_key", "apikey", "client_secret", "password", "passwd", "private_key", "secret", "token")
+CREDENTIAL_KEY_NAMES = {
+    "api_key", "apikey", "client_secret", "credential", "credentials", "credential_value",
+    "password", "passwd", "private_key", "secret", "token",
+}
+CREDENTIAL_KEY_SUFFIXES = (
+    "_api_key", "_apikey", "_client_secret", "_password", "_passwd", "_private_key",
+    "_secret", "_token",
+)
+SECURITY_HEADER_KEYS = {"authorization", "x_csrf_token"}
+FETCH_CREDENTIAL_MODES = {"omit", "same-origin", "include"}
 PLACEHOLDERS = ("${", "{{", "<", "changeme", "dummy", "example", "placeholder", "redacted", "replace")
 KEY_HEADER_RE = re.compile("|".join(re.escape("-----BEGIN " + suffix) for suffix in ("OPENSSH PRIVATE KEY-----", "PRIVATE KEY-----", "RSA PRIVATE KEY-----", "EC PRIVATE KEY-----")))
 SSH_PUBLIC_RE = re.compile(r"\bssh-" + r"(?:rsa|dss|ed25519)\s+[A-Za-z0-9+/]{24,}={0,3}(?:\s|$)")
 ASSIGNMENT_RE = re.compile(r"^\s*(?:export\s+)?[\"']?([A-Za-z_][A-Za-z0-9_.-]*)[\"']?\s*[:=]\s*(.*?)\s*,?\s*$")
+INDEXED_ASSIGNMENT_RE = re.compile(
+    r"^\s*[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*"
+    r"\s*\[\s*[\"']([A-Za-z_][A-Za-z0-9_.-]*)[\"']\s*\]\s*=\s*(.*?)\s*;?\s*$",
+    re.I,
+)
 QUOTED_MAPPING_RE = re.compile(r"^\s*[\"'][A-Za-z_][A-Za-z0-9_.-]*[\"']\s*:")
-MEMBER_READ_RE = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)+(?:\s*(?:\|\||\?\?)\s*(?:null|undefined|None))?$", re.I)
+DYNAMIC_REFERENCE_RE = re.compile(
+    r"^(?:await\s+)?[A-Za-z_$][A-Za-z0-9_$]*"
+    r"(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*"
+    r"(?:\(\s*\))?"
+    r"(?:\s*(?:\|\||\?\?)\s*(?:null|undefined|None))?$",
+    re.I,
+)
+PYTHON_INTERPOLATED_RE = re.compile(r"^(?:f|fr|rf)[\"'].*\{[^{}]+\}.*[\"']$", re.I)
+NESTED_LITERAL_RE = re.compile(
+    r"[\"'](?:api_key|apikey|client_secret|credential|credentials|password|passwd|private_key|secret|token)[\"']"
+    r"\s*:\s*[\"'][^\"']+[\"']",
+    re.I,
+)
 IPV4_RE = re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])")
 IPV6_RE = re.compile(r"(?<![\w:])(?:[A-Fa-f0-9]{0,4}:){2,7}[A-Fa-f0-9]{0,4}(?![\w:])")
 DOMAIN_RE = re.compile(r"(?<![@\w-])(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}\b")
@@ -132,12 +158,54 @@ def generic_asset(value):
 
 
 def assignment(line):
+    header_match = INDEXED_ASSIGNMENT_RE.match(line)
+    if header_match:
+        raw_value = header_match.group(2).strip().rstrip(",;").strip()
+        value = raw_value.strip('"').strip("'").strip()
+        return header_match.group(1), value, raw_value
+
     match = ASSIGNMENT_RE.match(line)
     if not match:
         return None, None, None
     raw_value = match.group(2).strip().rstrip(",;").strip()
-    value = raw_value.strip("\"").strip("'").strip()
+    value = raw_value.strip('"').strip("'").strip()
     return match.group(1), value, raw_value
+
+
+def credential_key(normalized):
+    return (
+        normalized in SECURITY_HEADER_KEYS
+        or normalized in CREDENTIAL_KEY_NAMES
+        or normalized.endswith(CREDENTIAL_KEY_SUFFIXES)
+    )
+
+
+def browser_fetch_credential_mode(normalized, raw_value, value, line):
+    return (
+        normalized == "credentials"
+        and value.lower() in FETCH_CREDENTIAL_MODES
+        and re.match(r"""^\s*(?:"credentials"|'credentials'|credentials)\s*:""", line, re.I)
+        and re.fullmatch(r"""(?:"(?:omit|same-origin|include)"|'(?:omit|same-origin|include)')""", raw_value, re.I)
+    )
+
+
+def credential_literal(raw_value, value):
+    lowered = value.lower()
+    if lowered in {"none", "null"} or not value:
+        return False
+    if any(marker in lowered for marker in PLACEHOLDERS):
+        return False
+    if DYNAMIC_REFERENCE_RE.fullmatch(raw_value):
+        return False
+    if PYTHON_INTERPOLATED_RE.fullmatch(raw_value):
+        return False
+    if "${" in raw_value or "{{" in raw_value:
+        return False
+    if NESTED_LITERAL_RE.search(raw_value):
+        return True
+    if len(raw_value) >= 2 and raw_value[0] in {'"', "'", "`"} and raw_value[-1] == raw_value[0]:
+        return True
+    return bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/@:+-]*", raw_value))
 
 
 def scan(path, text):
@@ -152,11 +220,13 @@ def scan(path, text):
         quoted_mapping = bool(QUOTED_MAPPING_RE.match(line))
         if key and value:
             normalized = key.lower().replace("-", "_").replace(".", "_")
-            if any(marker in normalized for marker in CREDENTIAL_FIELDS):
-                lowered = value.lower()
-                member_read = bool(MEMBER_READ_RE.fullmatch(raw_value))
-                if not member_read and lowered not in {"none", "null"} and not any(marker in lowered for marker in PLACEHOLDERS):
-                    findings.add((number, "credential-assignment"))
+            if (
+                credential_key(normalized)
+                and not browser_fetch_credential_mode(normalized, raw_value, value, line)
+                and credential_literal(raw_value, value)
+            ):
+                findings.add((number, "credential-assignment"))
+
             upper = key.upper().replace("-", "_").replace(".", "_")
             if not quoted_mapping and INVENTORY_RE.match(upper) and re.fullmatch(r"[\[\]{}\"'A-Za-z0-9:.,_ >-]*", value):
                 literal_value = re.sub(r"[\[\]{}\"']", "", value)

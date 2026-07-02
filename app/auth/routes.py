@@ -2,7 +2,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app import config
 from app.auth.dependencies import require_authenticated_user, require_csrf
@@ -21,7 +21,11 @@ LOGIN_TEMPLATE = Path("app/static/login.html")
 
 class LoginPayload(BaseModel):
     username: str
-    credential_value: str = Field(..., alias="password")
+    password: str
+
+    @property
+    def credential_value(self) -> str:
+        return self.password
 
 
 def public_user(user, include_csrf=False):

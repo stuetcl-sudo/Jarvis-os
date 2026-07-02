@@ -22,6 +22,7 @@ form.addEventListener("submit", async (event) => {
     payload["password"] = form.elements.password.value;
     const response = await fetch("/api/auth/login", {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });

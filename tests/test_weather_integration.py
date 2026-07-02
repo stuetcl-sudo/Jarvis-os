@@ -432,7 +432,14 @@ def test_weather_card_and_frontend_are_role_aware_and_read_only():
     ]:
         assert label in javascript
 
-    assert 'fetch("/api/family/weather")' in javascript
+    fetch_match = re.search(
+        r'fetch\(\s*["\'](/api/family/weather)["\']\s*,\s*\{([^{}]*)\}\s*\)',
+        javascript,
+    )
+    assert fetch_match
+    options = fetch_match.group(2)
+    assert re.search(r'\bcredentials\s*:\s*["\']same-origin["\']', options)
+    assert not re.search(r'\bmethod\s*:', options, re.IGNORECASE)
     assert "home-assistant.example" not in javascript.lower()
     assert "HOME_ASSISTANT" not in javascript
     assert "Authorization" not in javascript

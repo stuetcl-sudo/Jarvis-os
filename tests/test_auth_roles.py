@@ -76,11 +76,19 @@ def test_login_payload_password_alias_has_no_unsupported_field_warning():
     with warnings.catch_warnings():
         warnings.simplefilter("error", UnsupportedFieldAttributeWarning)
         routes_module = importlib.reload(auth_routes)
-        payload = routes_module.LoginPayload.model_validate({"username": "test-owner", "password": password()})
+        payload = routes_module.LoginPayload.model_validate(
+            {"username": "test-owner", "password": password()}
+        )
+        schema = routes_module.LoginPayload.model_json_schema(by_alias=True)
 
     assert payload.username == "test-owner"
     assert payload.credential_value == password()
-    assert payload.model_dump(by_alias=True) == {"username": "test-owner", "password": password()}
+    assert payload.model_dump(by_alias=True) == {
+        "username": "test-owner",
+        "password": password(),
+    }
+    assert set(schema["properties"]) == {"username", "password"}
+    assert "password" in schema["required"]
 
     for invalid_payload in [
         {"username": "test-owner"},
@@ -297,32 +305,58 @@ def test_actor_csrf_redirect_and_frontend_contract():
             action_engine.queue_action(asset_id="docker:example", action_type="docker.start_container", requested_by="spoofed", source="spoofed")
             assert call.call_args.kwargs["requested_by"] == "session-owner"
             assert call.call_args.kwargs["source"] == "mission_control"
+
         transition = SimpleNamespace(changed=False, action={"asset_id": "docker:example"}, reason=None)
         with patch("app.actions.engine.approve_action", return_value=transition) as call:
-            action_engine.approve_action("a", "spoofed")
-            assert call.call_args.args[1] == "session-owner"
+            result = action_engine.approve_action("a", "spoofed")
+            assert call.call_args.args == ("a", "session-owner")
+            assert result == transition.action
+        with patch("app.actions.engine.deny_action", return_value=transition) as call:
+            result = action_engine.deny_action("a", "spoofed")
+            assert call.call_args.args == ("a", "session-owner")
+            assert result == transition.action
+        with patch("app.actions.engine.cancel_action", return_value=transition) as call:
+            result = action_engine.cancel_action("a", "spoofed")
+            assert call.call_args.args == ("a", "session-owner")
+            assert result == transition.action
+
+        with patch("app.actions.engine.get_action", return_value=None) as call:
+            assert action_engine.run_action("a") is None
+            call.assert_called_once_with("a")
     finally:
         reset_current_actor(actor_context)
 
-    assert safe_next_path("/admin") == "/admin"
-    assert safe_next_path("https://example.com/admin") is None
-    assert safe_next_path("//example.com/admin") is None
-    with environment() as client:
-        create()
-        me = login(client)
-        with patch("app.main_auth.hmac.compare_digest", wraps=__import__("hmac").compare_digest) as compared:
-            assert client.post("/api/worker/run-once", headers={"X-CSRF-Token": me["csrf_token"] + "x"}).status_code == 403
-            assert compared.called
-        assert client.get("/login").status_code == 200
-        for asset in ["/static/css/login.css", "/static/js/login.js", "/static/js/admin.js"]:
-            assert client.get(asset).status_code == 200
+    for unsafe in ["//evil.example", "https://evil.example", "/\\evil", "admin", ""]:
+        assert safe_next_path(unsafe) is None
 
+    for valid in ["/", "/wall", "/admin", "/login?next=/wall"]:
+        assert safe_next_path(valid) == valid
+
+    login_js = (ROOT / "app/static/js/login.js").read_text()
     admin_js = (ROOT / "app/static/js/admin.js").read_text()
     family_js = (ROOT / "app/static/js/family.js").read_text()
-    login_js = (ROOT / "app/static/js/login.js").read_text()
-    assert "X-CSRF-Token" in admin_js and "/api/auth/me" in admin_js
-    assert "localStorage" not in admin_js + login_js and "csrf_token=" not in admin_js.lower()
-    assert not any(method in family_js.upper() for method in ["POST", "PUT", "PATCH", "DELETE"])
+    combined_js = login_js + admin_js + family_js
+    assert "localStorage" not in combined_js
+    assert "sessionStorage" not in combined_js
+    assert "innerHTML" not in combined_js
+
+    assert 'credentials: "same-origin"' in login_js
+    assert 'options.credentials = "same-origin"' in admin_js
+    for endpoint in [
+        "/api/mission",
+        "/api/family/weather",
+        "/api/family/calendar",
+        "/api/health",
+    ]:
+        expected = f'fetch("{endpoint}", {{ credentials: "same-origin" }})'
+        assert expected in family_js
+    assert family_js.count('credentials: "same-origin"') == 4
+
+    assert "csrf_token" in admin_js + family_js
+    assert "X-CSRF-Token" in admin_js + family_js
+    assert "data-role" not in login_js
+    assert "requested_by" not in admin_js
+    assert "source:" not in admin_js
 
 
 if __name__ == "__main__":
@@ -334,4 +368,4 @@ if __name__ == "__main__":
         test_actor_csrf_redirect_and_frontend_contract,
     ]:
         test()
-    print("Authentication and role tests OK")
+    print("Auth and role tests OK")

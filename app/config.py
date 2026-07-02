@@ -102,7 +102,7 @@ def calendar_configuration():
 
 
 APP_NAME = os.getenv("APP_NAME", "Jarvis-os")
-VERSION = "0.7.0"
+VERSION = "0.9.0"
 SAFE_MODE = env_bool("SAFE_MODE", True)
 ALLOW_RESTART_STOPPED = env_bool("ALLOW_RESTART_STOPPED", True)
 WORKER_ENABLED = env_bool("WORKER_ENABLED", True)

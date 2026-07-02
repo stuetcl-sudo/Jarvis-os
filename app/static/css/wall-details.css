@@ -1,0 +1,60 @@
+.wall-uv {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin: 4px 0 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.wall-uv[hidden] {
+  display: none;
+}
+
+.wall-next-day {
+  margin: 0 0 2px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wall-next-event {
+  border-left: 5px solid transparent;
+}
+
+.wall-next-event.calendar-color-green {
+  border-left-color: var(--green);
+}
+
+.wall-next-event.calendar-color-blue {
+  border-left-color: var(--blue);
+}
+
+.wall-next-event.calendar-color-violet {
+  border-left-color: var(--violet);
+}
+
+.wall-next-event.calendar-color-yellow {
+  border-left-color: var(--yellow);
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+  .wall-uv {
+    min-height: 20px;
+    margin-top: 2px;
+    padding: 1px 7px;
+    font-size: 12px;
+  }
+
+  .wall-next-day {
+    font-size: 12px;
+  }
+}

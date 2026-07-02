@@ -1,8 +1,8 @@
-# Jarvis-os v0.7 + Action Engine
+# Jarvis-os v0.9
 
-Jarvis-os is a local server assistant for Docker monitoring, system health, Event Engine, Asset Registry, Policy Engine, Action Engine, safe recommendations and learning normal server behavior over time.
+Jarvis-os is a local server assistant for Docker monitoring, system health, Event Engine, Asset Registry, Policy Engine, Action Engine, family dashboards, local authentication, calendar, weather and routines.
 
-Current branch: `feature/action-engine`.
+Release branch: `feature/jarvis-v0.9`.
 
 ## Current status
 
@@ -17,6 +17,8 @@ Current branch: `feature/action-engine`.
 - Recommendations and incidents are non-destructive.
 - Auto-start remains disabled by default.
 - Unknown Docker containers are discovered dynamically and stay visible until classified.
+- The authenticated family dashboard is available at `/`.
+- The dedicated tablet wall dashboard is available at `/wall`.
 
 ## Action Engine
 
@@ -38,7 +40,7 @@ Action History
 Explanation
 ```
 
-Supported v0.7 action types:
+Supported action types:
 
 - `docker.start_container`
 - `recommendation.create`
@@ -100,16 +102,24 @@ Use any suitable Docker project directory on a trusted host.
 ```bash
 git clone https://github.com/stuetcl-sudo/Jarvis-os.git jarvis-os
 cd jarvis-os
-git checkout feature/action-engine
+git checkout feature/jarvis-v0.9
 cp .env.example .env
 docker compose up -d --build
 ```
 
-Open Mission Control from a trusted network:
+Open the family dashboard from a trusted network:
 
 ```text
-http://localhost:8088
+http://localhost:8088/
 ```
+
+Open the tablet wall dashboard after login:
+
+```text
+http://localhost:8088/wall
+```
+
+Mission Control remains available to the owner role at `/admin`.
 
 For remote access, use a trusted LAN, Tailscale, or an authenticated reverse proxy. Do not expose port `8088` directly to the public internet.
 
@@ -135,6 +145,8 @@ DB_PATH=/data/jarvis.db
 
 Optional containers must be configured explicitly before they can be considered optional. Auto-start remains disabled unless `ALLOWED_AUTO_START_CONTAINERS` or saved asset classification allows it and the Action Engine safety checks pass.
 
+See `.env.example`, `docs/WEATHER.md`, `docs/CALENDAR.md` and `docs/ROUTINES.md` for the family integrations.
+
 ## API
 
 Existing APIs remain available where possible. Legacy `/api/containers/{name}/restart` now queues a safe action instead of executing directly.
@@ -150,7 +162,7 @@ Action Engine:
 - `POST /api/actions/{action_id}/run`
 - `GET /api/action-log`
 
-Core, Brain, Event Engine, Asset Registry, Policy Engine and classification APIs remain available.
+Core, Brain, Event Engine, Asset Registry, Policy Engine, family and classification APIs remain available.
 
 ## Validation
 
@@ -159,11 +171,11 @@ bash scripts/privacy_check.sh
 bash scripts/validate.sh
 ```
 
-The validation script checks privacy rules, starts the Dockerized app with Docker Compose, waits for readiness and checks endpoint health plus Docker, Event Engine, Asset Registry, Policy Engine and Action Engine regressions.
+The validation script checks privacy rules, focused Python regressions, Docker Compose configuration, a rebuilt live service, protected routes, family assets and the Docker, Event Engine, Asset Registry, Policy Engine and Action Engine consistency checks.
 
 ## Security
 
-See `SECURITY.md` before deploying. Jarvis currently has no built-in authentication, and Docker socket access is highly privileged.
+See `SECURITY.md` before deploying. Jarvis includes local session authentication, role-based access and CSRF protection for write requests. Docker socket access remains highly privileged, so deploy only on a trusted host and network.
 
 ## Architecture docs
 
@@ -173,6 +185,9 @@ docs/EVENT_ENGINE.md
 docs/ASSET_REGISTRY.md
 docs/POLICY_ENGINE.md
 docs/ACTION_ENGINE.md
+docs/WEATHER.md
+docs/CALENDAR.md
+docs/ROUTINES.md
 ```
 
 ## Future compatibility
