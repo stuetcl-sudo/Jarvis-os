@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/static/css/family.css" />
   <link rel="stylesheet" href="/static/css/weather.css" />
   <link rel="stylesheet" href="/static/css/calendar.css" />
+  <link rel="stylesheet" href="/static/css/calendar-range.css" />
   <link rel="stylesheet" href="/static/css/routines.css" />
   <link rel="stylesheet" href="/static/css/routine-editor.css" />
 </head>
@@ -61,8 +62,15 @@
 
       <article class="family-card calendar-card" data-family-card="calendar">
         <div class="card-icon" aria-hidden="true">📅</div>
-        <div class="card-heading"><p class="card-eyebrow">Kalender</p><h2>Dagens aftaler</h2></div>
+        <div class="card-heading"><p class="card-eyebrow">Kalender</p><h2>Familiens kalender</h2></div>
         <div class="calendar-card-content">
+          <div class="calendar-range-controls" id="calendarRangeControls" role="group" aria-label="Vælg antal kalenderdage">
+            <span>Vis</span>
+            <button type="button" data-calendar-days="1" aria-pressed="false">1 dag</button>
+            <button type="button" data-calendar-days="3" aria-pressed="true">3 dage</button>
+            <button type="button" data-calendar-days="5" aria-pressed="false">5 dage</button>
+            <button type="button" data-calendar-days="7" aria-pressed="false">7 dage</button>
+          </div>
           <p class="disconnected" id="calendarState">Ikke tilsluttet endnu</p>
           <div class="calendar-data" id="calendarData" hidden>
             <div class="calendar-anonymous-summary" id="calendarAnonymousSummary" hidden>
@@ -72,7 +80,7 @@
             </div>
             <ul class="calendar-legend" id="calendarLegend" aria-label="Fælles kalendere"></ul>
             <ol class="calendar-events" id="calendarEvents" aria-label="Familiens kommende aftaler"></ol>
-            <p class="calendar-empty" id="calendarEmpty" hidden>Ingen aftaler i perioden</p>
+            <p class="calendar-empty" id="calendarEmpty" hidden>Ingen aftaler i den valgte periode</p>
             <p class="calendar-notice" id="calendarNotice" hidden></p>
           </div>
         </div>
@@ -128,6 +136,7 @@
   </dialog>
 
   <script src="/static/js/family.js" defer></script>
+  <script src="/static/js/family-calendar.js" defer></script>
   <script src="/static/js/routines.js" defer></script>
   <script src="/static/js/routine-editor.js" defer></script>
 </body>
