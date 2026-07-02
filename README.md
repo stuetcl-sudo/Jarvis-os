@@ -1,28 +1,39 @@
-# Jarvis-os v0.10
+# Jarvis-os v0.11
 
 Jarvis-os is a local, private home dashboard with family views, local authentication, calendar, weather, routines, Docker monitoring, system health and a safety-first Action Engine.
 
 The product direction for v1.0 is a flexible home dashboard that works without AI. Jarvis AI remains an optional future module rather than a requirement for the dashboard.
 
-Current release: `0.10.0`.
+Current release: `0.11.0`.
 
-## What is new in v0.10
+## What is new in v0.11
 
-v0.10 makes owner administration easier for ordinary home users while preserving the existing backend and security model.
+v0.11 strengthens the family dashboard foundation and makes the shared wall display match the normal family experience.
 
-- New Danish administration areas: **Oversigt**, **Hjemmet**, **Funktioner**, **Forbindelser**, **Brugere og adgang**, **Systemstatus** and **Avanceret**.
+- The family calendar can show 1, 3, 5 or 7 days.
+- Calendar events are grouped clearly by day with family-friendly empty states.
+- Mobile defaults to 1 day, normal family views to 3 days and the shared wall display to 5 days.
+- Completed timed events disappear automatically after their end time.
+- Events in progress remain visible, and all-day events remain visible until midnight.
+- The visible calendar is refreshed every 30 seconds without requiring a page reload.
+- `/wall` now reuses the same family dashboard, calendar, weather and routines as `/`.
+- The shared wall display hides personal names and owner-only technical details.
+- Existing APIs, roles, sessions, CSRF protection and backend behavior remain unchanged.
+
+v0.11 does not add a wizard, a layout editor, module enable/disable APIs, new integrations or Jarvis AI.
+
+## Administration introduced in v0.10
+
+- Danish administration areas: **Oversigt**, **Hjemmet**, **Funktioner**, **Forbindelser**, **Brugere og adgang**, **Systemstatus** and **Avanceret**.
 - A simple overview answers whether the home is operating normally and whether anything needs approval.
 - Docker, policies, queued actions, events and technical asset details are grouped under **Avanceret**.
 - Technical actions use clearer explanations, confirmations and inline status messages.
 - Desktop, tablet, mobile and keyboard navigation are improved.
-- Existing roles, sessions, CSRF protection, APIs, policies and Action Engine behavior remain unchanged.
-
-v0.10 does not add a wizard, a layout editor, module enable/disable APIs, new integrations or Jarvis AI.
 
 ## Current status
 
 - The family dashboard is available at `/`.
-- The dedicated tablet wall dashboard is available at `/wall`.
+- The authenticated shared wall display is available at `/wall` and uses the same family dashboard foundation.
 - Owner administration is available at `/admin`.
 - The background worker runs every 60 seconds by default.
 - Event Engine, Asset Registry, Policy Engine and Action Engine remain enabled.
@@ -125,7 +136,7 @@ Open the family dashboard:
 http://localhost:8088/
 ```
 
-Open the tablet wall dashboard after login:
+Open the shared wall display after login:
 
 ```text
 http://localhost:8088/wall
