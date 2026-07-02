@@ -5,8 +5,8 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
 FAMILY_CALENDAR = (ROOT / "app/static/js/family-calendar.js").read_text(encoding="utf-8")
 CALENDAR_RANGE_CSS = (ROOT / "app/static/css/calendar-range.css").read_text(encoding="utf-8")
-WALL_HTML = (ROOT / "app/static/wall.html").read_text(encoding="utf-8")
-WALL_CALENDAR = (ROOT / "app/static/js/wall-calendar.js").read_text(encoding="utf-8")
+WALL_MODE_JS = (ROOT / "app/static/js/wall-mode.js").read_text(encoding="utf-8")
+WALL_MODE_CSS = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
 WALL_VIEW = (ROOT / "app/wall_view.py").read_text(encoding="utf-8")
 
 
@@ -50,21 +50,23 @@ def test_all_day_end_date_remains_exclusive_reference():
     assert intersects(datetime(2026, 7, 3)) is False
 
 
-def test_wall_dashboard_separates_today_from_tomorrow():
-    assert "<h2>I morgen</h2>" in WALL_HTML
-    assert "Næste aftale" not in WALL_HTML
-    assert "Ingen aftaler i morgen" in WALL_HTML
-    assert '/static/js/wall-calendar.js?v=__WALL_ASSET_VERSION__' in WALL_HTML
-    assert 'const tomorrow = tomorrowKey(now);' in WALL_CALENDAR
-    assert 'eventIntersectsDate(event, tomorrow)' in WALL_CALENDAR
-    assert 'day: "tomorrow"' in WALL_CALENDAR
-    assert "remainingToday" not in WALL_CALENDAR
-    assert 'event?.title || "Ingen aftaler i morgen"' in WALL_CALENDAR
-    assert 'STATIC_ROOT / "js" / "wall-calendar.js"' in WALL_VIEW
+def test_wall_route_reuses_family_dashboard_in_shared_display_mode():
+    assert "from app.family_view import render_family_page" in WALL_VIEW
+    assert 'shared_display = {"role": "wall_display", "display_name": ""}' in WALL_VIEW
+    assert "render_family_page(shared_display" in WALL_VIEW
+    assert 'data-wall-dashboard="true"' in WALL_VIEW
+    assert "WALL_TEMPLATE" not in WALL_VIEW
+    assert "wall_asset_version" not in WALL_VIEW
+    assert '<!-- WALL_DISPLAY_ACTIONS -->' in INDEX
+    assert '/static/css/wall-mode.css' in INDEX
+    assert '/static/js/wall-mode.js' in INDEX
+    assert 'id="wallFullscreen"' in WALL_VIEW
+    assert "requestFullscreen" in WALL_MODE_JS
+    assert 'body[data-wall-dashboard="true"]' in WALL_MODE_CSS
 
 
-def test_v011_calendar_enhancements_do_not_change_api_or_security():
-    combined = FAMILY_CALENDAR + "\n" + WALL_CALENDAR
+def test_v011_calendar_and_wall_enhancements_do_not_change_api_or_storage():
+    combined = FAMILY_CALENDAR + "\n" + WALL_MODE_JS
     for forbidden in [
         "fetch(",
         "localStorage",
@@ -84,8 +86,8 @@ if __name__ == "__main__":
         test_family_calendar_offers_supported_day_ranges,
         test_family_calendar_is_grouped_by_visible_day,
         test_all_day_end_date_remains_exclusive_reference,
-        test_wall_dashboard_separates_today_from_tomorrow,
-        test_v011_calendar_enhancements_do_not_change_api_or_security,
+        test_wall_route_reuses_family_dashboard_in_shared_display_mode,
+        test_v011_calendar_and_wall_enhancements_do_not_change_api_or_storage,
     ]:
         test()
     print("Family dashboard v0.11 tests OK")
