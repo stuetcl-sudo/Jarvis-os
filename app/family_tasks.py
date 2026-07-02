@@ -7,7 +7,8 @@ from datetime import datetime
 from typing import Callable
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field
 
 from app import config
 from app.home_assistant import (
@@ -22,10 +23,15 @@ AUTHENTICATED_ROLES = {"owner", "adult", "child", "wall_display"}
 MAX_LABEL_LENGTH = 32
 MAX_SUMMARY_LENGTH = 160
 MAX_DESCRIPTION_LENGTH = 320
+MAX_ITEM_ID_LENGTH = 200
 
 
 class FamilyTasksConfigurationError(ValueError):
     pass
+
+
+class CompleteTaskRequest(BaseModel):
+    item: str = Field(min_length=1, max_length=MAX_ITEM_ID_LENGTH)
 
 
 @dataclass(frozen=True)
@@ -117,7 +123,7 @@ def _clean_text(value, maximum):
 def _normalize_item(raw_item, source):
     if not isinstance(raw_item, dict):
         return None
-    uid = _clean_text(raw_item.get("uid"), 200)
+    uid = _clean_text(raw_item.get("uid"), MAX_ITEM_ID_LENGTH)
     summary = _clean_text(raw_item.get("summary"), MAX_SUMMARY_LENGTH)
     if not uid or not summary or raw_item.get("status") != "needs_action":
         return None
@@ -180,6 +186,16 @@ class HomeAssistantTasksClient:
             limited_lists.append({**task_list, "items": items})
         return limited_lists, failures
 
+    def complete(self, source, item_uid):
+        HomeAssistantClient(self.settings.connection, self.client_factory).post_json(
+            "/api/services/todo/update_item",
+            json_body={
+                "entity_id": source.entity_id,
+                "item": item_uid,
+                "status": "completed",
+            },
+        )
+
 
 def _empty_snapshot(status, sources=(), unavailable_lists=0):
     return {
@@ -212,6 +228,10 @@ def _public_snapshot(snapshot, current_user):
         "unavailable_lists": 0,
         "stale": False,
     }
+
+
+def _authenticated(current_user):
+    return isinstance(current_user, dict) and current_user.get("role") in AUTHENTICATED_ROLES
 
 
 class FamilyTasksService:
@@ -277,6 +297,22 @@ class FamilyTasksService:
                 current_user,
             )
 
+    def complete_task(self, list_key, item_uid, current_user=None):
+        if not _authenticated(current_user):
+            raise PermissionError("Family role required")
+        settings = self.settings_loader()
+        if settings is None:
+            raise FamilyTasksConfigurationError("Task lists are not configured")
+        source = next((candidate for candidate in settings.sources if candidate.key == list_key), None)
+        if source is None:
+            raise KeyError("Task list was not found")
+        cleaned_uid = " ".join(str(item_uid or "").split())
+        if not cleaned_uid or len(cleaned_uid) > MAX_ITEM_ID_LENGTH:
+            raise ValueError("Task item is invalid")
+        HomeAssistantTasksClient(settings, self.client_factory).complete(source, cleaned_uid)
+        self.clear_cache()
+        return self.get_tasks(current_user)
+
 
 family_tasks_service = FamilyTasksService()
 router = APIRouter()
@@ -286,3 +322,18 @@ router = APIRouter()
 def family_tasks(request: Request):
     current_user = getattr(request.state, "current_user", None)
     return family_tasks_service.get_tasks(current_user)
+
+
+@router.post("/api/family/tasks/{list_key}/complete")
+def complete_family_task(list_key: str, payload: CompleteTaskRequest, request: Request):
+    current_user = getattr(request.state, "current_user", None)
+    try:
+        return family_tasks_service.complete_task(list_key, payload.item, current_user)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail="Family role required") from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Task list not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Task item is invalid") from exc
+    except (FamilyTasksConfigurationError, HomeAssistantUnavailable) as exc:
+        raise HTTPException(status_code=503, detail="Tasks are unavailable") from exc
