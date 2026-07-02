@@ -101,6 +101,17 @@ def calendar_configuration():
     }
 
 
+def meal_plan_configuration():
+    return {
+        **home_assistant_configuration(),
+        "entity_id": os.getenv("HOME_ASSISTANT_MEAL_CALENDAR", "calendar.madplan").strip(),
+        "lookahead_days": env_positive_int("MEAL_PLAN_LOOKAHEAD_DAYS", 7),
+        "cache_seconds": env_positive_int("MEAL_PLAN_CACHE_SECONDS", 300),
+        "stale_seconds": env_positive_int("MEAL_PLAN_STALE_SECONDS", 3600),
+        "max_events": env_positive_int("MEAL_PLAN_MAX_EVENTS", 20),
+    }
+
+
 APP_NAME = os.getenv("APP_NAME", "Jarvis-os")
 VERSION = "0.11.0"
 SAFE_MODE = env_bool("SAFE_MODE", True)
