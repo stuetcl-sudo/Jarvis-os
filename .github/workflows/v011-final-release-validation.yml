@@ -91,7 +91,7 @@ jobs:
           failures=0
           for test_file in tests/test_*.py; do
             case "${test_file}" in
-              tests/test_admin_ui.py|tests/test_family_dashboard_v011.py|tests/test_wall_dashboard.py|tests/test_frontend_safety.py|tests/test_dashboard_routes.py|tests/test_privacy_check.py|tests/test_auth*.py|tests/test_login*.py|tests/test_family*.py|tests/test_calendar*.py|tests/test_weather*.py|tests/test_routine*.py|tests/test_live_family*.py|tests/test_action*.py|tests/test_policy*.py|tests/test_dependency*.py|tests/test_docker*.py|tests/test_worker*.py|tests/test_event*.py|tests/test_asset*.py|tests/test_mission*.py|tests/test_service*.py|tests/test_classification*.py|tests/test_brain*.py)
+              tests/test_admin_ui.py|tests/test_family_dashboard_v011.py|tests/test_wall_dashboard.py|tests/test_frontend_safety.py|tests/test_dashboard_routes.py|tests/test_privacy_check.py|tests/test_live_validation.py|tests/test_auth*.py|tests/test_login*.py|tests/test_family*.py|tests/test_calendar*.py|tests/test_weather*.py|tests/test_routine*.py|tests/test_live_family*.py|tests/test_action*.py|tests/test_policy*.py|tests/test_dependency*.py|tests/test_docker*.py|tests/test_worker*.py|tests/test_event*.py|tests/test_asset*.py|tests/test_mission*.py|tests/test_service*.py|tests/test_classification*.py|tests/test_brain*.py)
                 continue
                 ;;
             esac
