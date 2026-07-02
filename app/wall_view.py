@@ -8,6 +8,7 @@ WALL_ASSETS = (
     STATIC_ROOT / "css" / "wall.css",
     STATIC_ROOT / "css" / "wall-details.css",
     STATIC_ROOT / "js" / "wall.js",
+    STATIC_ROOT / "js" / "wall-calendar.js",
 )
 WALL_ASSET_VERSION_PLACEHOLDER = "__WALL_ASSET_VERSION__"
 WALL_ROLES = {"owner", "adult", "child", "wall_display"}
