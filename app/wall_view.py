@@ -1,26 +1,16 @@
-import hashlib
-from functools import lru_cache
-from pathlib import Path
+from app.family_view import render_family_page
 
-STATIC_ROOT = Path(__file__).resolve().parent / "static"
-WALL_TEMPLATE = STATIC_ROOT / "wall.html"
-WALL_ASSETS = (
-    STATIC_ROOT / "css" / "wall.css",
-    STATIC_ROOT / "css" / "wall-details.css",
-    STATIC_ROOT / "js" / "wall.js",
-    STATIC_ROOT / "js" / "wall-calendar.js",
-)
-WALL_ASSET_VERSION_PLACEHOLDER = "__WALL_ASSET_VERSION__"
 WALL_ROLES = {"owner", "adult", "child", "wall_display"}
 
 
-@lru_cache(maxsize=1)
-def wall_asset_version():
-    digest = hashlib.sha256()
-    for path in WALL_ASSETS:
-        digest.update(path.name.encode("utf-8"))
-        digest.update(path.read_bytes())
-    return digest.hexdigest()[:12]
+def wall_actions_for(role):
+    links = [
+        '<button type="button" id="wallFullscreen">Fuld skærm</button>',
+        '<a href="/">Familie</a>',
+    ]
+    if role == "owner":
+        links.append('<a href="/admin">Administration</a>')
+    return '<nav class="wall-display-actions" aria-label="Vægskærm">' + "".join(links) + "</nav>"
 
 
 def render_wall_page(current_user):
@@ -28,13 +18,8 @@ def render_wall_page(current_user):
     if role not in WALL_ROLES:
         raise ValueError("wall role required")
 
-    page = WALL_TEMPLATE.read_text(encoding="utf-8")
-    mission_link = (
-        '<a class="wall-menu-link" href="/admin">Mission Control</a>'
-        if role == "owner"
-        else ""
-    )
-    page = page.replace("<!-- WALL_MISSION_LINK -->", mission_link, 1)
-    page = page.replace('data-wall-role="wall_display"', f'data-wall-role="{role}"', 1)
-    page = page.replace(WALL_ASSET_VERSION_PLACEHOLDER, wall_asset_version())
+    shared_display = {"role": "wall_display", "display_name": ""}
+    page = render_family_page(shared_display, wall_actions=wall_actions_for(role))
+    page = page.replace("<title>Jarvis – Hjem</title>", "<title>Jarvis – Vægskærm</title>", 1)
+    page = page.replace("<body ", f'<body data-wall-dashboard="true" data-wall-actor-role="{role}" ', 1)
     return page
