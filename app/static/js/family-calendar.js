@@ -47,6 +47,11 @@ function calendarEventBounds(event) {
   return { start, end };
 }
 
+function calendarEventIsCurrentOrUpcoming(event, now = new Date()) {
+  const bounds = calendarEventBounds(event);
+  return Boolean(bounds && bounds.end > now);
+}
+
 function calendarEventIntersectsDay(event, key) {
   const bounds = calendarEventBounds(event);
   const day = calendarDateFromKey(key);
@@ -105,11 +110,14 @@ function updateCalendarRangeButtons() {
 }
 
 function renderCalendarDays(calendar) {
-  const events = Array.isArray(calendar.events) ? calendar.events : [];
+  const now = new Date();
+  const events = Array.isArray(calendar.events)
+    ? calendar.events.filter((event) => calendarEventIsCurrentOrUpcoming(event, now))
+    : [];
   const container = document.getElementById("calendarEvents");
   if (!container) return;
 
-  const keys = calendarRangeKeys(calendarVisibleDays);
+  const keys = calendarRangeKeys(calendarVisibleDays, now);
   container.className = `calendar-events calendar-days-${calendarVisibleDays}`;
   container.setAttribute("aria-label", `Familiens aftaler for ${calendarVisibleDays} dage`);
   container.replaceChildren();
@@ -154,3 +162,6 @@ document.querySelectorAll("[data-calendar-days]").forEach((button) => {
 const calendarRangeControls = document.getElementById("calendarRangeControls");
 if (calendarRangeControls) calendarRangeControls.hidden = pageRole === "anonymous";
 updateCalendarRangeButtons();
+setInterval(() => {
+  if (latestCalendarSnapshot) renderCalendarDays(latestCalendarSnapshot);
+}, 30000);
