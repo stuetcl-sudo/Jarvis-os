@@ -9,6 +9,8 @@
     minute: "2-digit",
     hour12: false,
   });
+  const pendingTasks = new Set();
+  let taskCsrfToken = null;
 
   function setTaskState(message) {
     const state = document.getElementById("familyTasksState");
@@ -20,6 +22,13 @@
     if (data) data.hidden = true;
   }
 
+  function setTaskNotice(message) {
+    const notice = document.getElementById("familyTasksNotice");
+    if (!notice) return;
+    notice.textContent = message;
+    notice.hidden = !message;
+  }
+
   function dueText(value) {
     if (!value) return "";
     const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -29,13 +38,63 @@
     return dateOnly ? `Senest ${date}` : `Senest ${date} kl. ${dueTimeFormatter.format(parsed)}`;
   }
 
-  function createTaskItem(item) {
+  async function loadTaskCsrfToken() {
+    if (taskCsrfToken) return taskCsrfToken;
+    const response = await fetch("/api/auth/me", { credentials: "same-origin" });
+    if (!response.ok) throw new Error("Login kræves");
+    const profile = await response.json();
+    taskCsrfToken = profile.csrf_token || null;
+    if (!taskCsrfToken) throw new Error("Sikkerhedstoken mangler");
+    return taskCsrfToken;
+  }
+
+  async function completeFamilyTask(listKey, item, button) {
+    const uid = String(item?.uid || "").trim();
+    const safeListKey = String(listKey || "").trim();
+    if (!uid || !safeListKey) return;
+    const pendingKey = `${safeListKey}\u0000${uid}`;
+    if (pendingTasks.has(pendingKey)) return;
+
+    pendingTasks.add(pendingKey);
+    button.disabled = true;
+    button.classList.add("is-saving");
+    button.setAttribute("aria-busy", "true");
+    setTaskNotice("Markerer som færdig…");
+
+    try {
+      const csrfToken = await loadTaskCsrfToken();
+      const response = await fetch(`/api/family/tasks/${encodeURIComponent(safeListKey)}/complete`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken,
+        },
+        body: JSON.stringify({ item: uid }),
+      });
+      if (!response.ok) throw new Error("Opgaven kunne ikke markeres som færdig");
+      renderFamilyTasks(await response.json());
+    } catch (error) {
+      setTaskNotice("Kunne ikke markere punktet som færdigt. Prøv igen.");
+    } finally {
+      pendingTasks.delete(pendingKey);
+      if (button.isConnected) {
+        button.disabled = false;
+        button.classList.remove("is-saving");
+        button.removeAttribute("aria-busy");
+      }
+    }
+  }
+
+  function createTaskItem(item, listKey) {
     const row = document.createElement("li");
     row.className = "family-task-item";
 
-    const marker = document.createElement("span");
-    marker.className = "family-task-marker";
-    marker.setAttribute("aria-hidden", "true");
+    const complete = document.createElement("button");
+    complete.type = "button";
+    complete.className = "family-task-complete";
+    complete.setAttribute("aria-label", `Markér ${item.summary || "opgaven"} som færdig`);
+    complete.addEventListener("click", () => completeFamilyTask(listKey, item, complete));
 
     const copy = document.createElement("div");
     const summary = document.createElement("p");
@@ -58,7 +117,7 @@
       copy.append(description);
     }
 
-    row.append(marker, copy);
+    row.append(complete, copy);
     return row;
   }
 
@@ -83,7 +142,7 @@
       empty.textContent = "Ingen åbne punkter";
       items.append(empty);
     } else {
-      taskList.items.forEach((item) => items.append(createTaskItem(item)));
+      taskList.items.forEach((item) => items.append(createTaskItem(item, taskList.key)));
     }
 
     section.append(heading, items);
@@ -115,15 +174,11 @@
       (tasks.lists || []).forEach((taskList) => lists.append(createTaskList(taskList)));
     }
 
-    const notice = document.getElementById("familyTasksNotice");
-    if (notice) {
-      const messages = {
-        partial: "En af listerne kunne ikke hentes",
-        stale: "Viser senest hentede opgaver og lektier",
-      };
-      notice.textContent = messages[tasks.status] || "";
-      notice.hidden = !messages[tasks.status];
-    }
+    const messages = {
+      partial: "En af listerne kunne ikke hentes",
+      stale: "Viser senest hentede opgaver og lektier",
+    };
+    setTaskNotice(messages[tasks.status] || "");
   }
 
   async function refreshFamilyTasks() {
