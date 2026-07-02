@@ -1,0 +1,126 @@
+.family-tasks-content {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.family-tasks-data {
+  margin-top: 20px;
+}
+
+.family-task-lists {
+  display: grid;
+  gap: 14px;
+}
+
+.family-task-list {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  background: var(--soft);
+}
+
+.family-task-list-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.family-task-list-heading h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.family-task-list-heading span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+  white-space: nowrap;
+}
+
+.family-task-items {
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.family-task-item {
+  min-width: 0;
+  padding: 10px 0;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.family-task-marker {
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  border: 2px solid var(--accent);
+  border-radius: 5px;
+  background: transparent;
+}
+
+.family-task-summary,
+.family-task-due,
+.family-task-description {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.family-task-summary {
+  font-size: 16px;
+  font-weight: 760;
+}
+
+.family-task-due,
+.family-task-description {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.family-task-empty {
+  padding: 12px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 680;
+}
+
+.family-tasks-notice {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 680;
+}
+
+body[data-family-role="wall_display"] .family-task-list {
+  padding: 20px;
+}
+
+body[data-family-role="wall_display"] .family-task-list-heading h3 {
+  font-size: 24px;
+}
+
+body[data-family-role="wall_display"] .family-task-list-heading span,
+body[data-family-role="wall_display"] .family-task-due,
+body[data-family-role="wall_display"] .family-task-description {
+  font-size: 16px;
+}
+
+body[data-family-role="wall_display"] .family-task-summary {
+  font-size: 22px;
+}
+
+body[data-family-role="wall_display"] .family-task-marker {
+  width: 22px;
+  height: 22px;
+}
