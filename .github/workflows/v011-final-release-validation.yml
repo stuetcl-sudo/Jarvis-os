@@ -37,10 +37,33 @@ jobs:
           done
           bash scripts/privacy_check.sh
 
-      - name: Run every test file
+      - name: Test release metadata and administration
+        run: PYTHONPATH=. python tests/test_admin_ui.py
+
+      - name: Test family dashboard v0.11
+        run: PYTHONPATH=. python tests/test_family_dashboard_v011.py
+
+      - name: Test wall dashboard
+        run: PYTHONPATH=. python tests/test_wall_dashboard.py
+
+      - name: Test frontend safety
+        run: PYTHONPATH=. python tests/test_frontend_safety.py
+
+      - name: Test dashboard routes
+        run: PYTHONPATH=. python tests/test_dashboard_routes.py
+
+      - name: Test privacy scanner regressions
+        run: PYTHONPATH=. python tests/test_privacy_check.py
+
+      - name: Run remaining test files
         run: |
           failures=0
           for test_file in tests/test_*.py; do
+            case "${test_file}" in
+              tests/test_admin_ui.py|tests/test_family_dashboard_v011.py|tests/test_wall_dashboard.py|tests/test_frontend_safety.py|tests/test_dashboard_routes.py|tests/test_privacy_check.py)
+                continue
+                ;;
+            esac
             if PYTHONPATH=. python "${test_file}" >/tmp/test-output.txt 2>&1; then
               echo "PASS ${test_file}"
             else
