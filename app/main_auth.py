@@ -10,6 +10,7 @@ from app.calendar import router as calendar_router
 from app.db import log_action
 from app.family_view import render_family_page
 from app.main import app
+from app.meal_plan import router as meal_plan_router
 from app.routine_definitions import EDITOR_ROLES
 from app.routines import ROUTINE_ROLES, router as routines_router
 from app.wall_view import WALL_ROLES, render_wall_page
@@ -18,6 +19,7 @@ from app.weather import router as weather_router
 app.include_router(auth_router)
 app.include_router(weather_router)
 app.include_router(calendar_router)
+app.include_router(meal_plan_router)
 app.include_router(routines_router)
 
 ROUTINE_WRITE_ACTIONS = {"complete", "back", "reset"}
