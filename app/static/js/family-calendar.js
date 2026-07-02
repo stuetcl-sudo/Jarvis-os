@@ -4,11 +4,7 @@ const calendarDateFormatter = new Intl.DateTimeFormat("da-DK", {
   month: "short",
 });
 
-let calendarVisibleDays = window.matchMedia("(max-width: 640px)").matches
-  ? 1
-  : pageRole === "wall_display"
-    ? 5
-    : 3;
+let calendarVisibleDays = 3;
 let latestCalendarSnapshot = null;
 
 function calendarKeyFromDate(date) {
