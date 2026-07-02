@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/static/css/weather.css" />
   <link rel="stylesheet" href="/static/css/calendar.css" />
   <link rel="stylesheet" href="/static/css/calendar-range.css" />
+  <link rel="stylesheet" href="/static/css/meal-plan.css" />
   <link rel="stylesheet" href="/static/css/routines.css" />
   <link rel="stylesheet" href="/static/css/routine-editor.css" />
   <link rel="stylesheet" href="/static/css/wall-mode.css" />
@@ -118,7 +119,18 @@
 
 <!-- FAMILY_HOME_CARD -->
 
-      <article class="family-card placeholder-card" data-family-card="meal"><div class="card-icon" aria-hidden="true">🍽️</div><div class="card-heading"><p class="card-eyebrow">Madplan</p><h2>Aftensmad</h2></div><p class="disconnected">Ikke tilsluttet endnu</p></article>
+      <article class="family-card meal-card" data-family-card="meal">
+        <div class="card-icon" aria-hidden="true">🍽️</div>
+        <div class="card-heading"><p class="card-eyebrow">Madplan</p><h2>Aftensmad</h2></div>
+        <div class="meal-card-content">
+          <p class="disconnected" id="mealPlanState">Henter madplan…</p>
+          <div class="meal-plan-data" id="mealPlanData" hidden>
+            <div class="meal-plan-today"><span>I dag</span><strong id="mealPlanToday">Ikke planlagt</strong></div>
+            <ol class="meal-plan-days" id="mealPlanDays" aria-label="Madplan for de næste dage"></ol>
+            <p class="meal-plan-notice" id="mealPlanNotice" hidden></p>
+          </div>
+        </div>
+      </article>
       <article class="family-card placeholder-card" data-family-card="tasks"><div class="card-icon" aria-hidden="true">✏️</div><div class="card-heading"><p class="card-eyebrow">Lektier og opgaver</p><h2>Det næste</h2></div><p class="disconnected">Ikke tilsluttet endnu</p></article>
 
 <!-- FAMILY_TECHNICAL_CARD -->
@@ -141,6 +153,7 @@
 
   <script src="/static/js/family.js" defer></script>
   <script src="/static/js/family-calendar.js" defer></script>
+  <script src="/static/js/family-meals.js" defer></script>
   <script src="/static/js/routines.js" defer></script>
   <script src="/static/js/routine-editor.js" defer></script>
   <script src="/static/js/wall-mode.js" defer></script>
