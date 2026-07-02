@@ -1,5 +1,6 @@
 name: v0.11 completed events validation
 
+# Temporary validation workflow; do not merge.
 on:
   pull_request:
     branches:
