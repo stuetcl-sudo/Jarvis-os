@@ -102,7 +102,7 @@ def navigation_for(role):
     return '<nav class="family-navigation" aria-label="Bruger">' + "".join(links) + "</nav>"
 
 
-def render_family_page(current_user):
+def render_family_page(current_user, wall_actions=""):
     context = resolve_family_context(current_user)
     page = FAMILY_TEMPLATE.read_text(encoding="utf-8")
     body = (
@@ -131,5 +131,6 @@ def render_family_page(current_user):
     page = page.replace("<!-- FAMILY_HOME_CARD -->", "" if context["role"] == "child" else HOME_CARD, 1)
     page = page.replace("<!-- FAMILY_TECHNICAL_CARD -->", TECHNICAL_CARD if context["role"] == "owner" else "", 1)
     page = page.replace("<!-- ROUTINE_EDITOR_ACTION -->", ROUTINE_EDITOR_ACTION if context["role"] in {"owner", "adult"} else "", 1)
+    page = page.replace("<!-- WALL_DISPLAY_ACTIONS -->", wall_actions, 1)
     page = page.replace("<!-- FAMILY_NAVIGATION -->", navigation_for(context["role"]), 1)
     return page
