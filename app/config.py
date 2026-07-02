@@ -126,7 +126,7 @@ def family_tasks_configuration():
 
 
 APP_NAME = os.getenv("APP_NAME", "Jarvis-os")
-VERSION = "0.11.0"
+VERSION = "0.12.0"
 SAFE_MODE = env_bool("SAFE_MODE", True)
 ALLOW_RESTART_STOPPED = env_bool("ALLOW_RESTART_STOPPED", True)
 WORKER_ENABLED = env_bool("WORKER_ENABLED", True)
