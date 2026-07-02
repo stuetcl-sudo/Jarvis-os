@@ -38,15 +38,24 @@ def test_root_returns_anonymous_family_dashboard():
     assert "/static/css/weather.css" in response.text
 
 
-def test_admin_requires_login_and_static_mission_control_is_preserved():
+def test_admin_requires_login_and_static_home_administration_is_preserved():
     response = client.get("/admin")
     assert response.status_code == 303
     assert response.headers["location"] == "/login?next=/admin"
     static_admin = client.get("/static/admin.html")
     assert static_admin.status_code == 200
     for expected in [
-        "Mission Control", "Action Queue", "Policy Engine", "Asset Overview",
-        "Live event feed", "Docker status", "Unknown containers",
+        "Hjemmets administration",
+        "Oversigt",
+        "Hjemmet",
+        "Funktioner",
+        "Forbindelser",
+        "Brugere og adgang",
+        "Systemstatus",
+        "Avanceret",
+        "Handlinger og godkendelser",
+        "Automatiske regler",
+        "Docker og tekniske tjenester",
     ]:
         assert expected in static_admin.text
     assert "/static/js/admin.js" in static_admin.text
@@ -134,7 +143,8 @@ def test_static_css_javascript_and_pictogram_assets_load():
         "/static/css/calendar.css", "/static/css/routines.css",
         "/static/css/routine-editor.css", "/static/css/admin.css", "/static/css/login.css",
         "/static/js/family.js", "/static/js/routines.js", "/static/js/routine-editor.js",
-        "/static/js/admin.js", "/static/js/login.js", "/static/pictograms/routines.svg",
+        "/static/js/admin.js", "/static/js/admin-render.js", "/static/js/admin-page.js",
+        "/static/js/login.js", "/static/pictograms/routines.svg",
         "/static/style.css",
     ]:
         response = client.get(asset)
@@ -161,10 +171,11 @@ def test_family_javascript_keeps_existing_read_only_get_requests():
         assert not re.search(r'\bmethod\s*:', options, re.IGNORECASE)
 
 
-def test_validation_script_checks_protected_live_v08_deployment():
+def test_validation_script_checks_protected_live_v010_deployment():
     script = (ROOT / "scripts/validate.sh").read_text()
     helper = (ROOT / "scripts/validate_family_status.py").read_text()
     assert "docker compose up -d --build --force-recreate jarvis-os" in script
+    assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_admin_ui.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_family_routines.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_routine_editor.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_live_family_status_validation.py' in script
@@ -178,11 +189,13 @@ def test_validation_script_checks_protected_live_v08_deployment():
     assert 'check_live_route "/api/family/routines" "family routines API" \'"status":"authentication_required"\'' in script
     assert 'check_live_route "/login" "login page" "Log ind på Jarvis"' in script
     assert 'check_live_redirect "/admin" "/login?next=/admin"' in script
+    assert 'check_live_route "/static/admin.html" "home administration static page" "Hjemmets administration"' in script
     assert '"weather": {"ok", "stale", "not_configured", "unavailable"}' in helper
     assert '"calendar": {"ok", "partial", "stale", "not_configured", "unavailable"}' in helper
     for asset in [
         "/static/js/login.js", "/static/js/family.js", "/static/js/routines.js",
-        "/static/js/routine-editor.js", "/static/js/admin.js", "/static/css/login.css",
+        "/static/js/routine-editor.js", "/static/js/admin.js", "/static/js/admin-render.js",
+        "/static/js/admin-page.js", "/static/css/login.css",
         "/static/css/family.css", "/static/css/weather.css", "/static/css/calendar.css",
         "/static/css/routines.css", "/static/css/routine-editor.css", "/static/css/admin.css",
         "/static/pictograms/routines.svg",
@@ -193,13 +206,13 @@ def test_validation_script_checks_protected_live_v08_deployment():
 if __name__ == "__main__":
     for test in [
         test_root_returns_anonymous_family_dashboard,
-        test_admin_requires_login_and_static_mission_control_is_preserved,
+        test_admin_requires_login_and_static_home_administration_is_preserved,
         test_login_page_and_assets_load,
         test_family_page_contains_no_action_engine_write_controls,
         test_existing_api_routes_remain_available,
         test_static_css_javascript_and_pictogram_assets_load,
         test_family_javascript_keeps_existing_read_only_get_requests,
-        test_validation_script_checks_protected_live_v08_deployment,
+        test_validation_script_checks_protected_live_v010_deployment,
     ]:
         test()
     print("Dashboard route tests OK")
