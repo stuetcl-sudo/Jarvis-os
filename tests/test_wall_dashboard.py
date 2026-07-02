@@ -170,14 +170,13 @@ def test_uv_backend_validation_and_categories_remain_strict():
     assert math.isfinite(float(_safe_uv_index("7")))
 
 
-def test_wall_defaults_to_five_calendar_days_and_remains_responsive():
+def test_wall_defaults_to_three_calendar_days_and_remains_responsive():
     calendar = (ROOT / "app/static/js/family-calendar.js").read_text(encoding="utf-8")
     calendar_styles = (ROOT / "app/static/css/calendar-range.css").read_text(encoding="utf-8")
     wall_styles = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
 
-    assert 'pageRole === "wall_display"' in calendar
-    assert "? 5" in calendar
-    assert ".calendar-events.calendar-days-5" in calendar_styles
+    assert "let calendarVisibleDays = 3;" in calendar
+    assert ".calendar-events.calendar-days-3" in calendar_styles
     assert "overflow-x:auto" in calendar_styles.replace(" ", "")
     assert "@media(max-width:640px)" in calendar_styles.replace(" ", "")
     assert "min-height:44px" in wall_styles.replace(" ", "")
@@ -202,7 +201,7 @@ if __name__ == "__main__":
         test_wall_family_assets_are_available,
         test_wall_mode_frontend_is_read_only_and_role_safe,
         test_uv_backend_validation_and_categories_remain_strict,
-        test_wall_defaults_to_five_calendar_days_and_remains_responsive,
+        test_wall_defaults_to_three_calendar_days_and_remains_responsive,
         test_render_wall_page_rejects_invalid_roles,
     ]:
         test()

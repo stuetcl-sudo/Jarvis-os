@@ -19,8 +19,8 @@ def test_family_calendar_offers_supported_day_ranges():
         assert f'data-calendar-days="{days}"' in INDEX
         assert f"calendar-days-{days}" in CALENDAR_RANGE_CSS
     assert "calendarDayChoices = new Set([1, 3, 5, 7])" in FAMILY_CALENDAR
-    assert 'pageRole === "wall_display"' in FAMILY_CALENDAR
-    assert 'window.matchMedia("(max-width: 640px)")' in FAMILY_CALENDAR
+    assert "let calendarVisibleDays = 3;" in FAMILY_CALENDAR
+    assert "window.matchMedia" not in FAMILY_CALENDAR
 
 
 def test_family_calendar_is_grouped_by_visible_day():
