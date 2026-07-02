@@ -25,29 +25,31 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          python -m pip install -q --upgrade pip
+          python -m pip install -q -r requirements.txt
           cp .env.example .env
 
-      - name: Compile Python
-        run: python -m compileall -q app tests
-
-      - name: Check JavaScript syntax
+      - name: Compile and syntax checks
         run: |
+          python -m compileall -q app tests
           for script in app/static/js/*.js; do
-            echo "=== ${script} ==="
             node --check "${script}"
           done
-
-      - name: Run Privacy Check
-        run: bash scripts/privacy_check.sh
+          bash scripts/privacy_check.sh
 
       - name: Run every test file
         run: |
+          failures=0
           for test_file in tests/test_*.py; do
-            echo "=== ${test_file} ==="
-            PYTHONPATH=. python "${test_file}"
+            if PYTHONPATH=. python "${test_file}" >/tmp/test-output.txt 2>&1; then
+              echo "PASS ${test_file}"
+            else
+              echo "FAIL ${test_file}"
+              cat /tmp/test-output.txt
+              failures=1
+            fi
           done
+          exit "${failures}"
 
       - name: Run complete Docker and live validation
         run: |
