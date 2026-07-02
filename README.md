@@ -1,26 +1,37 @@
-# Jarvis-os v0.11
+# Jarvis-os v0.12
 
-Jarvis-os is a local, private home dashboard with family views, local authentication, calendar, weather, routines, Docker monitoring, system health and a safety-first Action Engine.
+Jarvis-os is a local, private home dashboard with family views, local authentication, calendar, weather, routines, Home Assistant family content, Docker monitoring, system health and a safety-first Action Engine.
 
 The product direction for v1.0 is a flexible home dashboard that works without AI. Jarvis AI remains an optional future module rather than a requirement for the dashboard.
 
-Current release: `0.11.0`.
+Current release: `0.12.0`.
 
-## What is new in v0.11
+## What is new in v0.12
 
-v0.11 strengthens the family dashboard foundation and makes the shared wall display match the normal family experience.
+v0.12 connects the family dashboard to standard Home Assistant entities for meal plans, family tasks and homework.
+
+- `calendar.madplan` supplies the family meal plan.
+- `todo.familieopgaver` supplies shared family tasks.
+- `todo.lektier` supplies homework items.
+- Today's dinner is shown prominently, followed by the upcoming meal plan.
+- Family tasks and homework are shown as separate lists with deadlines and descriptions when available.
+- Authenticated family members and the shared wall display can mark items completed through Home Assistant.
+- Task completion uses the existing session, role and CSRF protection and only calls `todo.update_item` with status `completed`.
+- The family calendar now defaults to 3 days on mobile, normal family views and `/wall`; 1, 3, 5 and 7 day choices remain available.
+- Meal plans, tasks and homework are shown on both `/` and `/wall` and refresh automatically.
+- No additional family-content database is introduced in Jarvis.
+
+v0.12 does not add task creation, task deletion, meal-plan editing, a layout editor or Jarvis AI.
+
+## Family dashboard foundation introduced in v0.11
 
 - The family calendar can show 1, 3, 5 or 7 days.
 - Calendar events are grouped clearly by day with family-friendly empty states.
-- Mobile defaults to 1 day, normal family views to 3 days and the shared wall display to 5 days.
 - Completed timed events disappear automatically after their end time.
 - Events in progress remain visible, and all-day events remain visible until midnight.
 - The visible calendar is refreshed every 30 seconds without requiring a page reload.
-- `/wall` now reuses the same family dashboard, calendar, weather and routines as `/`.
+- `/wall` reuses the same family dashboard, calendar, weather and routines as `/`.
 - The shared wall display hides personal names and owner-only technical details.
-- Existing APIs, roles, sessions, CSRF protection and backend behavior remain unchanged.
-
-v0.11 does not add a wizard, a layout editor, module enable/disable APIs, new integrations or Jarvis AI.
 
 ## Administration introduced in v0.10
 
@@ -34,6 +45,7 @@ v0.11 does not add a wizard, a layout editor, module enable/disable APIs, new in
 
 - The family dashboard is available at `/`.
 - The authenticated shared wall display is available at `/wall` and uses the same family dashboard foundation.
+- Home Assistant meal plans, family tasks and homework are available after login when the configured entities exist.
 - Owner administration is available at `/admin`.
 - The background worker runs every 60 seconds by default.
 - Event Engine, Asset Registry, Policy Engine and Action Engine remain enabled.
@@ -177,6 +189,12 @@ See `.env.example`, `docs/WEATHER.md`, `docs/CALENDAR.md` and `docs/ROUTINES.md`
 ## API
 
 Existing APIs remain available. The legacy `/api/containers/{name}/restart` route queues a safe action instead of executing directly.
+
+Family content:
+
+- `GET /api/family/meal-plan`
+- `GET /api/family/tasks`
+- `POST /api/family/tasks/{list_key}/complete`
 
 Action Engine:
 
