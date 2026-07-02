@@ -310,3 +310,17 @@ function classificationSelect(index, current, scope = "table") {
   });
   return select;
 }
+
+function loadAdminScript(path) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = path;
+    script.addEventListener("load", resolve, { once: true });
+    script.addEventListener("error", () => reject(new Error(`Kunne ikke indlæse ${path}`)), { once: true });
+    document.head.append(script);
+  });
+}
+
+loadAdminScript("/static/js/admin-render.js")
+  .then(() => loadAdminScript("/static/js/admin-page.js"))
+  .catch((error) => showNotice(`Administrationen kunne ikke startes: ${error.message}`, "error", 0));
