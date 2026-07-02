@@ -1,0 +1,61 @@
+name: v0.10 final validation
+
+on:
+  pull_request:
+    branches:
+      - feature/admin-simplification-v0.10
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          cp .env.example .env
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check app/static/js/admin.js
+          node --check app/static/js/admin-render.js
+          node --check app/static/js/admin-page.js
+
+      - name: Run focused release regressions
+        run: |
+          PYTHONPATH=. python tests/test_admin_ui.py
+          PYTHONPATH=. python tests/test_frontend_safety.py
+          PYTHONPATH=. python tests/test_dashboard_routes.py
+          PYTHONPATH=. python tests/test_auth_roles.py
+          bash scripts/privacy_check.sh
+
+      - name: Build and run live validation
+        run: |
+          bash scripts/validate.sh | tee /tmp/v010-validation.log
+          grep -Fx "Validation OK." /tmp/v010-validation.log
+
+      - name: Run every test file
+        run: |
+          for test_file in tests/test_*.py; do
+            echo "=== ${test_file} ==="
+            PYTHONPATH=. python "${test_file}"
+          done
+
+      - name: Run final validation
+        run: |
+          bash scripts/validate.sh | tee /tmp/v010-final-validation.log
+          grep -Fx "Validation OK." /tmp/v010-final-validation.log
