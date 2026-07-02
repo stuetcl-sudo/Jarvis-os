@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from app import config
+
 ROOT = Path(__file__).resolve().parents[1]
 HTML = (ROOT / "app/static/admin.html").read_text(encoding="utf-8")
 ADMIN_SCRIPTS = [
@@ -10,6 +12,7 @@ ADMIN_SCRIPTS = [
 JAVASCRIPT = "\n".join(ADMIN_SCRIPTS)
 CORE_JAVASCRIPT = ADMIN_SCRIPTS[0]
 CSS = (ROOT / "app/static/css/admin.css").read_text(encoding="utf-8")
+README = (ROOT / "README.md").read_text(encoding="utf-8")
 
 
 def test_admin_has_plain_language_information_architecture():
@@ -100,6 +103,23 @@ def test_admin_uses_inline_feedback_and_status_aware_actions():
     assert "backgroundRefreshShouldPause" in JAVASCRIPT
 
 
+def test_v010_release_polish_and_metadata():
+    assert config.VERSION == "0.10.0"
+    assert README.startswith("# Jarvis-os v0.10")
+    assert "Current release: `0.10.0`." in README
+    for expected in [
+        'label: "Afventer godkendelse"',
+        'value: data.overall_status === "ok" ? "Alt kører normalt"',
+        "Det er opsætning, ikke en driftsfejl.",
+        "Avancerede indstillinger",
+        "Kontrollér systemet igen",
+        "Starter eller stopper ikke tjenester.",
+        "renderAdvancedSummaries",
+        "actionGroup.open = waiting > 0",
+    ]:
+        assert expected in JAVASCRIPT
+
+
 def test_admin_avoids_unsafe_html_and_inline_handlers():
     combined = HTML + "\n" + JAVASCRIPT
     for forbidden in [
@@ -121,6 +141,7 @@ if __name__ == "__main__":
         test_admin_feedback_and_navigation_are_accessible,
         test_admin_keeps_existing_api_contract_and_security_helpers,
         test_admin_uses_inline_feedback_and_status_aware_actions,
+        test_v010_release_polish_and_metadata,
         test_admin_avoids_unsafe_html_and_inline_handlers,
     ]:
         test()
