@@ -8,6 +8,7 @@ from app.auth.routes import router as auth_router
 from app.auth.service import SESSION_COOKIE_NAME, auth_service
 from app.calendar import router as calendar_router
 from app.db import log_action
+from app.family_tasks import AUTHENTICATED_ROLES as FAMILY_TASK_ROLES
 from app.family_tasks import router as family_tasks_router
 from app.family_view import render_family_page
 from app.main import app
@@ -53,11 +54,17 @@ async def enforce_local_authentication(request: Request, call_next):
         )
     )
     routine_write = routine_progress_write or routine_definition_write
+    family_task_write = (
+        request.method == "POST"
+        and path.startswith("/api/family/tasks/")
+        and path.endswith("/complete")
+    )
     protected_write = (
         request.method in {"POST", "PUT", "PATCH", "DELETE"}
         and path.startswith("/api/")
         and not path.startswith("/api/auth/")
         and not routine_write
+        and not family_task_write
     )
     try:
         if request.method == "GET" and path == "/":
@@ -87,6 +94,16 @@ async def enforce_local_authentication(request: Request, call_next):
             if not supplied or not expected or not hmac.compare_digest(supplied, expected):
                 return JSONResponse({"detail": "Invalid request token"}, status_code=403)
 
+        if family_task_write:
+            if not current_user:
+                return JSONResponse({"detail": "Authentication required"}, status_code=401)
+            if current_user.get("role") not in FAMILY_TASK_ROLES:
+                return JSONResponse({"detail": "Family role required"}, status_code=403)
+            supplied = request.headers.get("X-CSRF-Token", "")
+            expected = current_user.get("csrf_value", "")
+            if not supplied or not expected or not hmac.compare_digest(supplied, expected):
+                return JSONResponse({"detail": "Invalid request token"}, status_code=403)
+
         if protected_write:
             if not current_user:
                 return JSONResponse({"detail": "Authentication required"}, status_code=401)
@@ -98,7 +115,7 @@ async def enforce_local_authentication(request: Request, call_next):
                 return JSONResponse({"detail": "Invalid request token"}, status_code=403)
 
         response = await call_next(request)
-        if protected_write and current_user:
+        if (protected_write or family_task_write) and current_user:
             log_action(
                 "authenticated_write",
                 path,
