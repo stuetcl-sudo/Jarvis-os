@@ -103,10 +103,11 @@ def test_admin_uses_inline_feedback_and_status_aware_actions():
     assert "backgroundRefreshShouldPause" in JAVASCRIPT
 
 
-def test_v010_release_polish_and_metadata():
-    assert config.VERSION == "0.10.0"
-    assert README.startswith("# Jarvis-os v0.10")
-    assert "Current release: `0.10.0`." in README
+def test_release_metadata_and_v010_admin_polish():
+    assert config.VERSION == "0.11.0"
+    assert README.startswith("# Jarvis-os v0.11")
+    assert "Current release: `0.11.0`." in README
+    assert "## What is new in v0.11" in README
     for expected in [
         'label: "Afventer godkendelse"',
         'value: data.overall_status === "ok" ? "Alt kører normalt"',
@@ -141,7 +142,7 @@ if __name__ == "__main__":
         test_admin_feedback_and_navigation_are_accessible,
         test_admin_keeps_existing_api_contract_and_security_helpers,
         test_admin_uses_inline_feedback_and_status_aware_actions,
-        test_v010_release_polish_and_metadata,
+        test_release_metadata_and_v010_admin_polish,
         test_admin_avoids_unsafe_html_and_inline_handlers,
     ]:
         test()
