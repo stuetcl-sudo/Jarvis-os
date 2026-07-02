@@ -42,6 +42,47 @@
   font-weight: 680;
 }
 
+.weather-uv {
+  width: fit-content;
+  margin: 10px 0 0;
+  padding: 7px 11px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 760;
+}
+
+.weather-uv[hidden] {
+  display: none;
+}
+
+.weather-uv strong {
+  font-size: 15px;
+}
+
+.weather-uv span {
+  padding-left: 8px;
+  border-left: 1px solid currentColor;
+}
+
+.weather-uv-green {
+  background: #18794e;
+  color: #ffffff;
+}
+
+.weather-uv-yellow {
+  background: #f4c542;
+  color: #2b2200;
+}
+
+.weather-uv-red {
+  background: #c93434;
+  color: #ffffff;
+}
+
 .weather-measurements {
   margin: 22px 0 0;
   display: grid;
@@ -138,6 +179,15 @@ body[data-family-role="child"] .weather-child-summary {
   font-size: 20px;
 }
 
+body[data-family-role="child"] .weather-uv {
+  padding: 9px 13px;
+  font-size: 16px;
+}
+
+body[data-family-role="child"] .weather-uv strong {
+  font-size: 17px;
+}
+
 body[data-family-role="wall_display"] .weather-card {
   grid-column: span 2;
   min-height: 360px;
@@ -156,6 +206,17 @@ body[data-family-role="wall_display"] .weather-temperature {
 
 body[data-family-role="wall_display"] .weather-condition {
   font-size: clamp(22px, 2vw, 30px);
+}
+
+body[data-family-role="wall_display"] .weather-uv {
+  margin-top: 14px;
+  padding: 11px 16px;
+  gap: 10px;
+  font-size: 20px;
+}
+
+body[data-family-role="wall_display"] .weather-uv strong {
+  font-size: 22px;
 }
 
 body[data-family-role="wall_display"] .weather-forecast-item {
