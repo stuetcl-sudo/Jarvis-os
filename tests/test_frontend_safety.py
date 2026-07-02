@@ -1,10 +1,19 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_NAMES = (
+    "login.js",
+    "admin.js",
+    "admin-render.js",
+    "admin-page.js",
+    "family.js",
+    "wall.js",
+)
 SCRIPTS = {
     name: (ROOT / "app" / "static" / "js" / name).read_text(encoding="utf-8")
-    for name in ("login.js", "admin.js", "family.js", "wall.js")
+    for name in SCRIPT_NAMES
 }
+ADMIN = "\n".join(SCRIPTS[name] for name in ("admin.js", "admin-render.js", "admin-page.js"))
 
 
 def test_frontend_scripts_do_not_use_html_parser_sinks():
@@ -22,25 +31,23 @@ def test_frontend_scripts_do_not_use_html_parser_sinks():
 
 
 def test_admin_dynamic_values_use_text_dom_apis():
-    admin = SCRIPTS["admin.js"]
-    assert "node.textContent = String(text)" in admin
-    assert "document.createElement" in admin
-    assert "document.createTextNode" in admin
-    assert "node.replaceChildren(...children)" in admin
-    assert ".addEventListener(" in admin
-    assert "escapeHtml" not in admin
-    assert "onclick=" not in admin
+    assert "node.textContent = String(text)" in ADMIN
+    assert "document.createElement" in ADMIN
+    assert "document.createTextNode" in ADMIN
+    assert "node.replaceChildren(...children)" in ADMIN
+    assert ".addEventListener(" in ADMIN
+    assert "escapeHtml" not in ADMIN
+    assert "onclick=" not in ADMIN
 
 
-def test_xss_shaped_payload_can_only_be_assigned_as_text():
-    payload = "<" + "img src=x onerror=" + "alert(1)>"
-    admin = SCRIPTS["admin.js"]
+def test_html_shaped_payload_can_only_be_assigned_as_text():
+    payload = "<" + "img src=x data-probe=blocked>"
 
     assert payload.startswith("<img")
-    assert "node.textContent = String(text)" in admin
-    assert 'element("p", "", decision.explanation)' in admin
-    assert 'element("p", "muted", action.explanation || action.reason)' in admin
-    assert 'element("p", "", item.detail)' in admin
+    assert "node.textContent = String(text)" in ADMIN
+    assert 'element("p", "", decision.explanation)' in ADMIN
+    assert 'element("p", "muted", action.explanation || action.reason)' in ADMIN
+    assert 'element("p", "", item.detail)' in ADMIN
 
 
 def test_same_origin_credentials_are_explicit_for_each_frontend():
@@ -78,14 +85,13 @@ def test_same_origin_credentials_are_explicit_for_each_frontend():
 
 
 def test_admin_classification_controls_have_unique_scopes():
-    admin = SCRIPTS["admin.js"]
-    assert 'function classificationControlId(control, index, scope = "table")' in admin
-    assert 'classificationControlId("prot", index)' in admin
-    assert 'classificationControlId("auto", index)' in admin
-    assert 'classificationSelect(index, container.classification, "unknown")' in admin
-    assert 'classificationControlId("prot", index, "unknown")' in admin
-    assert 'classificationControlId("auto", index, "unknown")' in admin
-    assert 'classifyContainer(index, null, "unknown")' in admin
+    assert 'function classificationControlId(control, index, scope = "table")' in ADMIN
+    assert 'classificationControlId("prot", index)' in ADMIN
+    assert 'classificationControlId("auto", index)' in ADMIN
+    assert 'classificationSelect(index, container.classification, "unknown")' in ADMIN
+    assert 'classificationControlId("prot", index, "unknown")' in ADMIN
+    assert 'classificationControlId("auto", index, "unknown")' in ADMIN
+    assert 'classifyContainer(index, null, "unknown")' in ADMIN
 
 
 def test_existing_frontend_security_contract_remains_present():
@@ -106,7 +112,7 @@ def test_existing_frontend_security_contract_remains_present():
 if __name__ == "__main__":
     test_frontend_scripts_do_not_use_html_parser_sinks()
     test_admin_dynamic_values_use_text_dom_apis()
-    test_xss_shaped_payload_can_only_be_assigned_as_text()
+    test_html_shaped_payload_can_only_be_assigned_as_text()
     test_same_origin_credentials_are_explicit_for_each_frontend()
     test_admin_classification_controls_have_unique_scopes()
     test_existing_frontend_security_contract_remains_present()

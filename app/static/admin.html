@@ -3,34 +3,285 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jarvis-os Mission Control</title>
+  <title>Jarvis OS Administration</title>
   <link rel="stylesheet" href="/static/css/common.css" />
   <link rel="stylesheet" href="/static/css/admin.css" />
 </head>
 <body>
-  <main>
-    <header class="hero">
-      <div>
-        <p class="eyebrow">Mission Control + Action Engine</p>
-        <h1>Jarvis-os</h1>
-        <p class="subtitle">Event-driven platform with Asset Registry, Policy Engine and safe manual Action Queue.</p>
-        <p class="security-note">Mission Control kræver en aktiv owner-session. Alle skrivehandlinger kontrolleres på serveren og kræver CSRF-beskyttelse.</p>
+  <a class="skip-link" href="#adminContent">Spring til indhold</a>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" aria-label="Administration">
+      <div class="admin-brand">
+        <span class="admin-brand-mark" aria-hidden="true">J</span>
+        <div>
+          <strong>Jarvis OS</strong>
+          <span>Hjemmets administration</span>
+        </div>
       </div>
-      <div class="hero-actions"><span class="pill" id="authenticatedUser">Indlæser bruger…</span><a class="family-link" href="/">Familievisning</a><button onclick="runOnce()">Run check now</button><button class="secondary" onclick="refreshAll()">Refresh</button><button class="secondary" onclick="logout()">Log ud</button></div>
-    </header>
-    <section class="mission-grid" id="missionCards"></section>
-    <section class="panel wide"><div class="panel-head"><h2>Worker status</h2><span id="workerBadge" class="pill">Loading</span></div><p id="workerText" class="large-text">Loading worker status...</p></section>
-    <section class="panel wide"><div class="panel-head"><h2>Action Queue</h2><span class="pill working">Manual approval</span></div><div id="actionQueue" class="policy-list"></div><div class="asset-detail muted">Actions run only through queue, approval, safety check and verification.</div></section>
-    <section class="panel wide"><div class="panel-head"><h2>Policy Engine</h2><span class="pill working">Dry-run safe</span></div><div class="columns"><article><h3>Policies</h3><div id="policyList" class="policy-list"></div></article><article><h3>Latest decisions</h3><div id="policyDecisions" class="policy-list"></div></article></div><div id="policyExplanation" class="asset-detail muted">Select a decision to see the explanation.</div></section>
-    <section class="panel wide"><div class="panel-head"><h2>Asset Overview</h2><input id="assetFilter" placeholder="Filter assets..." oninput="renderAssets()"></div><div id="assetOverview" class="asset-groups"></div><div id="assetDetail" class="asset-detail muted">Select an asset to see details.</div></section>
-    <section class="panel wide"><div class="panel-head"><h2>Live event feed</h2><span class="pill working">Event Engine</span></div><div id="eventFeed" class="event-list"></div></section>
-    <section class="panel wide"><div class="panel-head"><div><h2>Unknown containers</h2><p class="muted">Unknown containers are never auto-started. Classify them first.</p></div><span class="pill">Needs classification</span></div><div id="unknownContainers" class="unknown-grid"></div></section>
-    <section class="columns"><article class="panel"><h2>Observations</h2><div id="observations"></div></article><article class="panel"><h2>Recommendations</h2><div id="recommendations"></div></article></section>
-    <section class="columns"><article class="panel"><h2>Critical services</h2><div id="criticalServices" class="service-list"></div></article><article class="panel"><h2>System health</h2><div id="systemHealth" class="metric-list"></div></article></section>
-    <section class="panel"><h2>Docker status</h2><div class="table-wrap"><table><thead><tr><th>Name</th><th>Asset</th><th>Type</th><th>Docker state</th><th>Health</th><th>Protected</th><th>Auto</th><th>Classify</th><th>Action</th></tr></thead><tbody id="containers"></tbody></table></div></section>
-    <section class="panel"><h2>Stopped by design</h2><div id="stoppedByDesign" class="service-list"></div></section>
-    <section class="columns"><article class="panel"><h2>Active incidents</h2><div id="incidents"></div></article><article class="panel"><h2>Latest legacy log entry</h2><div id="latestAction"></div></article></section>
-  </main>
+
+      <nav class="admin-nav" aria-label="Administrationsområder" role="tablist" aria-orientation="vertical">
+        <button id="nav-overview" class="admin-nav-button" type="button" role="tab" aria-selected="true" aria-controls="section-overview" data-admin-target="overview">Oversigt</button>
+        <button id="nav-home" class="admin-nav-button" type="button" role="tab" aria-selected="false" aria-controls="section-home" data-admin-target="home">Hjemmet</button>
+        <button id="nav-modules" class="admin-nav-button" type="button" role="tab" aria-selected="false" aria-controls="section-modules" data-admin-target="modules">Funktioner</button>
+        <button id="nav-connections" class="admin-nav-button" type="button" role="tab" aria-selected="false" aria-controls="section-connections" data-admin-target="connections">Forbindelser</button>
+        <button id="nav-users" class="admin-nav-button" type="button" role="tab" aria-selected="false" aria-controls="section-users" data-admin-target="users">Brugere og adgang</button>
+        <button id="nav-system" class="admin-nav-button" type="button" role="tab" aria-selected="false" aria-controls="section-system" data-admin-target="system">Systemstatus</button>
+        <button id="nav-advanced" class="admin-nav-button admin-nav-advanced" type="button" role="tab" aria-selected="false" aria-controls="section-advanced" data-admin-target="advanced">Avanceret</button>
+      </nav>
+
+      <div class="admin-sidebar-footer">
+        <span class="pill" id="authenticatedUser">Indlæser bruger…</span>
+        <button id="logoutButton" class="secondary" type="button">Log ud</button>
+      </div>
+    </aside>
+
+    <main id="adminContent" class="admin-content">
+      <header class="admin-header">
+        <div>
+          <p class="eyebrow">Hjemmets administration</p>
+          <h1>Administration</h1>
+          <p class="subtitle">Se om hjemmets funktioner virker, og find tekniske detaljer, når du har brug for dem.</p>
+        </div>
+        <div class="admin-header-actions">
+          <a class="family-link" href="/">Åbn familievisning</a>
+          <button id="refreshButton" class="secondary" type="button">Opdater status</button>
+        </div>
+      </header>
+
+      <div id="adminNotice" class="admin-notice" role="status" aria-live="polite" hidden></div>
+
+      <section id="section-overview" class="admin-section" role="tabpanel" aria-labelledby="nav-overview" data-admin-section="overview">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Oversigt</p>
+            <h2>Sådan har hjemmet det lige nu</h2>
+            <p>Her ser du først det, der kræver din opmærksomhed.</p>
+          </div>
+        </div>
+        <div id="overviewBanner" class="overview-banner" role="status"></div>
+        <section class="status-grid" id="missionCards" aria-label="Vigtig status"></section>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Kræver din opmærksomhed</h3>
+              <p class="panel-help">Vigtige problemer, anbefalinger og handlinger samles her.</p>
+            </div>
+          </div>
+          <div id="overviewAttention" class="attention-list"></div>
+        </section>
+      </section>
+
+      <section id="section-home" class="admin-section" role="tabpanel" aria-labelledby="nav-home" data-admin-section="home" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Hjemmet</p>
+            <h2>Hjemmets vigtigste tjenester</h2>
+            <p>Se de funktioner, som familievisningen og hjemmets daglige brug afhænger af.</p>
+          </div>
+        </div>
+        <div class="content-grid two-columns">
+          <article class="panel">
+            <h3>Vigtige tjenester</h3>
+            <p class="panel-help">Disse tjenester bør normalt være i gang.</p>
+            <div id="criticalServices" class="service-list"></div>
+          </article>
+          <article class="panel">
+            <h3>Observationer</h3>
+            <p class="panel-help">Det systemet har lagt mærke til, uden at ændre noget.</p>
+            <div id="observations"></div>
+          </article>
+        </div>
+        <section class="panel">
+          <h3>Anbefalinger</h3>
+          <p class="panel-help">Forslag, du selv kan vælge at følge eller skjule.</p>
+          <div id="recommendations"></div>
+        </section>
+      </section>
+
+      <section id="section-modules" class="admin-section" role="tabpanel" aria-labelledby="nav-modules" data-admin-section="modules" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Funktioner</p>
+            <h2>Tilgængelige funktioner</h2>
+            <p>Dette er en statusvisning. Funktioner kan endnu ikke slås til eller fra her.</p>
+          </div>
+        </div>
+        <section class="panel">
+          <div id="moduleOverview" class="module-grid"></div>
+        </section>
+      </section>
+
+      <section id="section-connections" class="admin-section" role="tabpanel" aria-labelledby="nav-connections" data-admin-section="connections" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Forbindelser</p>
+            <h2>Tjenester og datakilder</h2>
+            <p>Se de tjenester, enheder og datakilder, som Jarvis OS har fundet.</p>
+          </div>
+        </div>
+        <section class="panel">
+          <div class="panel-head connection-head">
+            <div>
+              <h3>Registrerede forbindelser</h3>
+              <p class="panel-help">Vælg en forbindelse for at se en enkel forklaring.</p>
+            </div>
+            <label class="filter-label" for="assetFilter">Søg i forbindelser
+              <input id="assetFilter" type="search" placeholder="Søg efter navn…" />
+            </label>
+          </div>
+          <div id="assetOverview" class="asset-groups"></div>
+          <div id="assetDetail" class="asset-detail muted">Vælg en forbindelse for at se flere oplysninger.</div>
+        </section>
+      </section>
+
+      <section id="section-users" class="admin-section" role="tabpanel" aria-labelledby="nav-users" data-admin-section="users" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Brugere og adgang</p>
+            <h2>Hvem har adgang?</h2>
+            <p>Se din aktuelle adgang og hvordan roller beskytter hjemmets administration.</p>
+          </div>
+        </div>
+        <div class="content-grid two-columns">
+          <article class="panel access-card">
+            <h3>Din adgang</h3>
+            <dl class="access-list">
+              <div><dt>Navn</dt><dd id="accessDisplayName">Indlæser…</dd></div>
+              <div><dt>Brugernavn</dt><dd id="accessUsername">Indlæser…</dd></div>
+              <div><dt>Rolle</dt><dd id="accessRole">Indlæser…</dd></div>
+            </dl>
+            <p id="accessExplanation" class="panel-help"></p>
+          </article>
+          <article class="panel">
+            <h3>Roller i hjemmet</h3>
+            <dl class="role-list">
+              <div><dt>Ejer</dt><dd>Kan åbne administrationen og godkende sikre handlinger.</dd></div>
+              <div><dt>Voksen</dt><dd>Kan bruge familievisningen og redigere tilladte familieoplysninger.</dd></div>
+              <div><dt>Barn</dt><dd>Kan se de familieoplysninger, som er beregnet til børn.</dd></div>
+              <div><dt>Vægskærm</dt><dd>Har adgang til den beskyttede vægvisning uden administrationsrettigheder.</dd></div>
+            </dl>
+            <p class="security-note">Brugere administreres fortsat lokalt på serveren. v0.10 tilføjer ikke et nyt bruger-API.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="section-system" class="admin-section" role="tabpanel" aria-labelledby="nav-system" data-admin-section="system" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Systemstatus</p>
+            <h2>Server og automatisk kontrol</h2>
+            <p>Se om serveren har ressourcer nok, og om den automatiske kontrol fungerer.</p>
+          </div>
+        </div>
+        <div class="content-grid two-columns">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Automatisk kontrol</h3>
+                <p class="panel-help">Kontrollen læser status og opretter sikre forslag. Den ændrer ikke noget uden de eksisterende sikkerhedsregler.</p>
+              </div>
+              <span id="workerBadge" class="pill">Indlæser</span>
+            </div>
+            <p id="workerText" class="large-text">Indlæser status…</p>
+          </article>
+          <article class="panel">
+            <h3>Serverens ressourcer</h3>
+            <div id="systemHealth" class="metric-list"></div>
+          </article>
+        </div>
+        <section class="panel">
+          <h3>Aktive problemer</h3>
+          <p class="panel-help">Problemer med betydning for driften vises her.</p>
+          <div id="incidents"></div>
+        </section>
+      </section>
+
+      <section id="section-advanced" class="admin-section" role="tabpanel" aria-labelledby="nav-advanced" data-admin-section="advanced" hidden>
+        <div class="section-heading advanced-heading">
+          <div>
+            <p class="section-kicker">Avanceret</p>
+            <h2>Teknisk administration</h2>
+            <p>Ændringer her kan påvirke hjemmets tjenester. Alle skrivehandlinger bruger fortsat ejeradgang, CSRF-beskyttelse og Action Engine.</p>
+          </div>
+          <button id="runCheckButton" type="button">Kør systemkontrol nu</button>
+        </div>
+
+        <details class="advanced-group" open>
+          <summary>Handlinger og godkendelser</summary>
+          <div class="advanced-body">
+            <p class="panel-help">Handlinger kører kun gennem kø, godkendelse, sikkerhedskontrol og efterfølgende kontrol af resultatet.</p>
+            <div id="actionQueue" class="policy-list"></div>
+          </div>
+        </details>
+
+        <details class="advanced-group">
+          <summary>Automatiske regler</summary>
+          <div class="advanced-body">
+            <p class="warning-copy">Aktivering eller deaktivering ændrer, hvilke automatiske forslag systemet kan oprette.</p>
+            <div class="content-grid two-columns">
+              <article><h3>Regler</h3><div id="policyList" class="policy-list"></div></article>
+              <article><h3>Seneste beslutninger</h3><div id="policyDecisions" class="policy-list"></div></article>
+            </div>
+            <div id="policyExplanation" class="asset-detail muted">Vælg en beslutning for at se forklaringen.</div>
+          </div>
+        </details>
+
+        <details class="advanced-group">
+          <summary>Docker og tekniske tjenester</summary>
+          <div class="advanced-body">
+            <section class="advanced-subsection">
+              <div class="panel-head">
+                <div>
+                  <h3>Ikke-genkendte tjenester</h3>
+                  <p class="panel-help">Ikke-genkendte tjenester startes aldrig automatisk. Vurder dem først.</p>
+                </div>
+                <span class="pill warning">Kræver vurdering</span>
+              </div>
+              <div id="unknownContainers" class="unknown-grid"></div>
+            </section>
+            <section class="advanced-subsection">
+              <h3>Docker-status</h3>
+              <div class="table-wrap">
+                <table>
+                  <caption class="visually-hidden">Teknisk status og klassifikation for Docker-tjenester</caption>
+                  <thead><tr><th>Navn</th><th>Teknisk ID</th><th>Betydning</th><th>Status</th><th>Sundhed</th><th>Beskyttet</th><th>Automatisk start</th><th>Gem</th><th>Handling</th></tr></thead>
+                  <tbody id="containers"></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="advanced-subsection">
+              <h3>Bevidst stoppede tjenester</h3>
+              <div id="stoppedByDesign" class="service-list"></div>
+            </section>
+          </div>
+        </details>
+
+        <details class="advanced-group">
+          <summary>Teknisk inventar</summary>
+          <div class="advanced-body">
+            <p class="panel-help">Tekniske ID’er, typer og kilder for registrerede assets.</p>
+            <div id="assetTechnicalOverview" class="asset-groups"></div>
+          </div>
+        </details>
+
+        <details class="advanced-group">
+          <summary>Systemhændelser og historik</summary>
+          <div class="advanced-body">
+            <div class="content-grid two-columns">
+              <article>
+                <h3>Seneste systemhændelser</h3>
+                <div id="eventFeed" class="event-list"></div>
+              </article>
+              <article>
+                <h3>Seneste tekniske logpost</h3>
+                <div id="latestAction"></div>
+              </article>
+            </div>
+          </div>
+        </details>
+      </section>
+    </main>
+  </div>
   <script src="/static/js/admin.js" defer></script>
 </body>
 </html>
