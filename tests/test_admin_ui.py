@@ -104,10 +104,10 @@ def test_admin_uses_inline_feedback_and_status_aware_actions():
 
 
 def test_release_metadata_and_v010_admin_polish():
-    assert config.VERSION == "0.11.0"
-    assert README.startswith("# Jarvis-os v0.11")
-    assert "Current release: `0.11.0`." in README
-    assert "## What is new in v0.11" in README
+    assert config.VERSION == "0.12.0"
+    assert README.startswith("# Jarvis-os v0.12")
+    assert "Current release: `0.12.0`." in README
+    assert "## What is new in v0.12" in README
     for expected in [
         'label: "Afventer godkendelse"',
         'value: data.overall_status === "ok" ? "Alt kører normalt"',
