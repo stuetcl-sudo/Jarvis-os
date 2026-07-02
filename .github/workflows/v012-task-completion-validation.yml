@@ -1,0 +1,51 @@
+name: v0.12 task completion validation
+
+on:
+  pull_request:
+    branches:
+      - feature/family-content-v0.12
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -q --upgrade pip
+          python -m pip install -q -r requirements.txt
+          cp .env.example .env
+
+      - name: Compile and JavaScript syntax
+        run: |
+          python -m compileall -q app tests
+          for script in app/static/js/*.js; do
+            node --check "${script}"
+          done
+
+      - name: Run focused regressions
+        run: |
+          PYTHONPATH=. python tests/test_family_dashboard_v011.py
+          PYTHONPATH=. python tests/test_meal_plan_v012.py
+          PYTHONPATH=. python tests/test_family_tasks_v012.py
+          PYTHONPATH=. python tests/test_auth_roles.py
+          PYTHONPATH=. python tests/test_frontend_safety.py
+
+      - name: Run privacy check
+        run: bash scripts/privacy_check.sh
+
+      - name: Run complete validation
+        run: |
+          bash scripts/validate.sh | tee /tmp/v012-task-completion.log
+          grep -Fx "Validation OK." /tmp/v012-task-completion.log
