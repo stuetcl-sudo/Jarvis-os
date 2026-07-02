@@ -22,7 +22,7 @@ function calendarKeyFromDate(date) {
 function calendarDateFromKey(key) {
   const parts = String(key).split("-").map(Number);
   if (parts.length !== 3 || !parts.every(Number.isFinite)) return null;
-  return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
 }
 
 function calendarRangeKeys(days, now = new Date()) {
