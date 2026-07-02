@@ -112,6 +112,19 @@ def meal_plan_configuration():
     }
 
 
+def family_tasks_configuration():
+    return {
+        **home_assistant_configuration(),
+        "sources": os.getenv(
+            "HOME_ASSISTANT_TASK_LISTS",
+            "todo.familieopgaver|Familieopgaver,todo.lektier|Lektier",
+        ).strip(),
+        "cache_seconds": env_positive_int("FAMILY_TASKS_CACHE_SECONDS", 60),
+        "stale_seconds": env_positive_int("FAMILY_TASKS_STALE_SECONDS", 900),
+        "max_items": env_positive_int("FAMILY_TASKS_MAX_ITEMS", 20),
+    }
+
+
 APP_NAME = os.getenv("APP_NAME", "Jarvis-os")
 VERSION = "0.11.0"
 SAFE_MODE = env_bool("SAFE_MODE", True)
