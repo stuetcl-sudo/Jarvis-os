@@ -1,0 +1,65 @@
+name: v0.11 family dashboard validation
+
+on:
+  pull_request:
+    branches:
+      - feature/family-dashboard-v0.11
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          cp .env.example .env
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check app/static/js/family.js
+          node --check app/static/js/family-calendar.js
+          node --check app/static/js/wall.js
+          node --check app/static/js/wall-calendar.js
+
+      - name: Run focused v0.11 regressions
+        run: |
+          PYTHONPATH=. python tests/test_family_dashboard_v011.py
+          PYTHONPATH=. python tests/test_frontend_safety.py
+          PYTHONPATH=. python tests/test_wall_dashboard.py
+          PYTHONPATH=. python tests/test_calendar_integration.py
+          PYTHONPATH=. python tests/test_family_role_views.py
+          PYTHONPATH=. python tests/test_dashboard_routes.py
+          bash scripts/privacy_check.sh
+
+      - name: Run complete project validation
+        run: |
+          bash scripts/validate.sh | tee /tmp/v011-validation.log
+          grep -Fx "Validation OK." /tmp/v011-validation.log
+
+      - name: Check new live assets
+        run: |
+          curl -fsS http://localhost:8088/static/js/family-calendar.js | grep -F "calendarDayChoices"
+          curl -fsS http://localhost:8088/static/css/calendar-range.css | grep -F ".calendar-range-controls"
+          curl -fsS http://localhost:8088/static/js/wall-calendar.js | grep -F "selectTomorrowAppointment"
+
+      - name: Run every test file
+        run: |
+          for test_file in tests/test_*.py; do
+            echo "=== ${test_file} ==="
+            PYTHONPATH=. python "${test_file}"
+          done
