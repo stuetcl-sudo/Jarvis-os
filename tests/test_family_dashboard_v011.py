@@ -38,6 +38,22 @@ def test_family_calendar_is_grouped_by_visible_day():
     assert "innerHTML" not in FAMILY_CALENDAR
 
 
+def test_completed_events_disappear_but_ongoing_events_remain():
+    now = datetime(2026, 7, 2, 20, 6)
+    completed_end = datetime(2026, 7, 2, 12, 0)
+    ongoing_end = datetime(2026, 7, 2, 21, 0)
+    all_day_end = datetime(2026, 7, 3, 0, 0)
+
+    assert completed_end > now is False
+    assert ongoing_end > now is True
+    assert all_day_end > now is True
+    assert "function calendarEventIsCurrentOrUpcoming" in FAMILY_CALENDAR
+    assert "return Boolean(bounds && bounds.end > now);" in FAMILY_CALENDAR
+    assert "calendar.events.filter((event) => calendarEventIsCurrentOrUpcoming(event, now))" in FAMILY_CALENDAR
+    assert "if (latestCalendarSnapshot) renderCalendarDays(latestCalendarSnapshot);" in FAMILY_CALENDAR
+    assert "}, 30000);" in FAMILY_CALENDAR
+
+
 def test_all_day_end_date_remains_exclusive_reference():
     start = datetime(2026, 7, 2)
     end = datetime(2026, 7, 3)
@@ -85,6 +101,7 @@ if __name__ == "__main__":
     for test in [
         test_family_calendar_offers_supported_day_ranges,
         test_family_calendar_is_grouped_by_visible_day,
+        test_completed_events_disappear_but_ongoing_events_remain,
         test_all_day_end_date_remains_exclusive_reference,
         test_wall_route_reuses_family_dashboard_in_shared_display_mode,
         test_v011_calendar_and_wall_enhancements_do_not_change_api_or_storage,
