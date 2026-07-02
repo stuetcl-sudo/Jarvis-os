@@ -5,22 +5,31 @@ function openSectionButton(section, label) {
   return button;
 }
 
+function pendingApprovalCount() {
+  return actionRows.filter((action) => ["waiting_approval", "queued", "approved"].includes(action.status)).length;
+}
+
 function renderMissionCards(data) {
-  const waiting = actionRows.filter((action) => ["waiting_approval", "queued", "approved"].includes(action.status)).length;
+  const waiting = pendingApprovalCount();
+  const unknown = (data.unknown_containers || []).length;
   const critical = data.critical_services || [];
   const criticalRunning = critical.filter((service) => (service.docker_state || service.status) === "running").length;
   const cards = [
     {
       label: "Hjemmets status",
-      value: labelStatus(data.overall_status),
-      detail: data.overall_status === "ok" ? "Ingen kendte problemer" : "Se hvad der kræver opmærksomhed",
+      value: data.overall_status === "ok" ? "Alt kører normalt" : labelStatus(data.overall_status),
+      detail: data.overall_status === "ok" && unknown
+        ? `${unknown} tjeneste${unknown === 1 ? "" : "r"} mangler vurdering`
+        : data.overall_status === "ok"
+          ? "Ingen kendte problemer"
+          : "Se hvad der kræver opmærksomhed",
       tone: data.overall_status,
       section: "overview",
       link: "Se status",
     },
     {
-      label: "Afventer dig",
-      value: waiting === 0 ? "Intet" : String(waiting),
+      label: "Afventer godkendelse",
+      value: waiting === 0 ? "Ingen" : String(waiting),
       detail: waiting === 0 ? "Ingen handlinger kræver godkendelse" : "Handlinger kræver din beslutning",
       tone: waiting ? "warning" : "ok",
       section: "advanced",
@@ -69,15 +78,18 @@ function formatTimestamp(value) {
 
 function renderOverviewBanner(data) {
   const banner = document.getElementById("overviewBanner");
+  const unknown = (data.unknown_containers || []).length;
   banner.className = `overview-banner ${safeClassToken(data.overall_status)}`;
   const title = data.overall_status === "ok"
-    ? "Hjemmets systemer ser normale ud"
+    ? "Hjemmets systemer kører normalt"
     : data.overall_status === "critical"
       ? "Et vigtigt problem kræver opmærksomhed"
       : "Noget bør kontrolleres";
-  const detail = data.overall_status === "ok"
-    ? "Du behøver ikke gøre noget lige nu."
-    : "Se listen nedenfor for at finde den vigtigste næste handling.";
+  const detail = data.overall_status === "ok" && unknown
+    ? `${unknown} tjeneste${unknown === 1 ? "" : "r"} mangler stadig vurdering. Det er opsætning, ikke en driftsfejl.`
+    : data.overall_status === "ok"
+      ? "Du behøver ikke gøre noget lige nu."
+      : "Se listen nedenfor for at finde den vigtigste næste handling.";
   banner.replaceChildren(element("strong", "", title), element("span", "", detail));
 }
 
@@ -94,7 +106,7 @@ function renderOverviewAttention(data, brain) {
   }
   if (pending.length) {
     items.push({
-      title: `${pending.length} handling${pending.length === 1 ? "" : "er"} afventer dig`,
+      title: `${pending.length} handling${pending.length === 1 ? "" : "er"} afventer godkendelse`,
       detail: "Ingen handling udføres uden den eksisterende godkendelse og sikkerhedskontrol.",
       section: "advanced",
       label: "Se handlinger",
@@ -147,6 +159,52 @@ function renderSystemHealth(health) {
   replaceContent("systemHealth", metrics);
 }
 
+function renderAdvancedSummaries(data, events) {
+  const summaries = Array.from(document.querySelectorAll("#section-advanced .advanced-group > summary"));
+  const waiting = pendingApprovalCount();
+  const enabledPolicies = policyRows.filter((policy) => policy.enabled).length;
+  const unknown = (data.unknown_containers || []).length;
+  const latestEvent = events.events && events.events.length ? formatTimestamp(events.events[0].timestamp) : "ingen endnu";
+  const labels = [
+    `Handlinger og godkendelser · ${waiting} afventer`,
+    `Automatiske regler · ${enabledPolicies}/${policyRows.length} aktive`,
+    `Docker og tekniske tjenester · ${unknown} ikke vurderet`,
+    `Teknisk inventar · ${assetRows.length} registreret`,
+    `Systemhændelser og historik · senest ${latestEvent}`,
+  ];
+  summaries.forEach((summary, index) => {
+    if (labels[index]) summary.textContent = labels[index];
+  });
+  const actionGroup = summaries[0]?.closest("details");
+  if (actionGroup && !actionGroup.dataset.userToggled) {
+    actionGroup.open = waiting > 0;
+  }
+}
+
+function prepareStaticPolish() {
+  const advancedTitle = document.querySelector("#section-advanced .advanced-heading h2");
+  if (advancedTitle) advancedTitle.textContent = "Avancerede indstillinger";
+
+  const runCheckButton = document.getElementById("runCheckButton");
+  if (runCheckButton) {
+    runCheckButton.textContent = "Kontrollér systemet igen";
+    runCheckButton.className = "secondary";
+    runCheckButton.title = "Læser status igen. Starter eller stopper ikke tjenester.";
+    const controls = element("div", "admin-header-actions");
+    controls.append(
+      element("small", "muted", "Læser status igen. Starter eller stopper ikke tjenester."),
+      runCheckButton,
+    );
+    document.querySelector("#section-advanced .advanced-heading")?.append(controls);
+  }
+
+  document.querySelectorAll("#section-advanced .advanced-group").forEach((group) => {
+    group.addEventListener("toggle", () => {
+      group.dataset.userToggled = "true";
+    });
+  });
+}
+
 function backgroundRefreshShouldPause() {
   const active = document.activeElement;
   return Boolean(active && active.closest("#section-advanced") && active.matches("input, select"));
@@ -181,6 +239,7 @@ async function refreshAll(options = {}) {
     renderModules();
     renderAssets();
     renderTechnicalAssets();
+    renderAdvancedSummaries(data, events);
 
     document.getElementById("workerBadge").textContent = data.worker.running ? "Kører" : "Klar";
     document.getElementById("workerBadge").className = data.worker.running ? "pill working" : "pill";
@@ -266,6 +325,7 @@ function bindControls() {
 }
 
 async function initializeAdmin() {
+  prepareStaticPolish();
   bindNavigation();
   bindControls();
   const initialSection = window.location.hash.replace("#", "");
