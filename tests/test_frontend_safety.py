@@ -9,7 +9,7 @@ SCRIPT_NAMES = (
     "family.js",
     "family-calendar.js",
     "wall.js",
-    "wall-calendar.js",
+    "wall-mode.js",
 )
 SCRIPTS = {
     name: (ROOT / "app" / "static" / "js" / name).read_text(encoding="utf-8")
@@ -86,8 +86,8 @@ def test_same_origin_credentials_are_explicit_for_each_frontend():
     assert wall.count('credentials: "same-origin"') == 6
 
 
-def test_calendar_enhancements_are_read_only_and_storage_free():
-    enhancements = SCRIPTS["family-calendar.js"] + SCRIPTS["wall-calendar.js"]
+def test_calendar_and_wall_mode_enhancements_are_read_only_and_storage_free():
+    enhancements = SCRIPTS["family-calendar.js"] + SCRIPTS["wall-mode.js"]
     assert "fetch(" not in enhancements
     assert "localStorage" not in enhancements
     assert "sessionStorage" not in enhancements
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     test_admin_dynamic_values_use_text_dom_apis()
     test_html_shaped_payload_can_only_be_assigned_as_text()
     test_same_origin_credentials_are_explicit_for_each_frontend()
-    test_calendar_enhancements_are_read_only_and_storage_free()
+    test_calendar_and_wall_mode_enhancements_are_read_only_and_storage_free()
     test_admin_classification_controls_have_unique_scopes()
     test_existing_frontend_security_contract_remains_present()
     print("Frontend safety tests OK")
