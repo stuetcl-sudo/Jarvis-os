@@ -8,6 +8,7 @@ from app.auth.routes import router as auth_router
 from app.auth.service import SESSION_COOKIE_NAME, auth_service
 from app.calendar import router as calendar_router
 from app.db import log_action
+from app.family_tasks import router as family_tasks_router
 from app.family_view import render_family_page
 from app.main import app
 from app.meal_plan import router as meal_plan_router
@@ -20,6 +21,7 @@ app.include_router(auth_router)
 app.include_router(weather_router)
 app.include_router(calendar_router)
 app.include_router(meal_plan_router)
+app.include_router(family_tasks_router)
 app.include_router(routines_router)
 
 ROUTINE_WRITE_ACTIONS = {"complete", "back", "reset"}
