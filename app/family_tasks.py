@@ -333,7 +333,9 @@ def complete_family_task(list_key: str, payload: CompleteTaskRequest, request: R
         raise HTTPException(status_code=403, detail="Family role required") from exc
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Task list not found") from exc
+    except FamilyTasksConfigurationError as exc:
+        raise HTTPException(status_code=503, detail="Tasks are unavailable") from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="Task item is invalid") from exc
-    except (FamilyTasksConfigurationError, HomeAssistantUnavailable) as exc:
+    except HomeAssistantUnavailable as exc:
         raise HTTPException(status_code=503, detail="Tasks are unavailable") from exc
