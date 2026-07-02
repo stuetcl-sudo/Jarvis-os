@@ -91,11 +91,12 @@ bash scripts/privacy_check.sh || {
   exit 1
 }
 
-echo "[2/10] Running focused wall dashboard, login payload, frontend safety, routine editor, routine, family status validation, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
+echo "[2/10] Running focused admin UI, wall dashboard, login payload, frontend safety, routine editor, routine, family status validation, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
 if [ -z "$PYTHON_BIN" ]; then
   echo "ERROR: Python is required for focused tests."
   exit 1
 fi
+PYTHONPATH=. "$PYTHON_BIN" tests/test_admin_ui.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_wall_dashboard.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_login_payload.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_frontend_safety.py
@@ -139,7 +140,7 @@ while true; do
   sleep 2
 done
 
-echo "[7/10] Checking live authenticated v0.9 routes and assets"
+echo "[7/10] Checking live authenticated v0.10 routes and assets"
 check_live_route "/" "family dashboard" "Her er et roligt overblik over hjemmet"
 check_live_redirect "/wall" "/login?next=/wall"
 check_live_json_status "/api/family/weather" "family weather API" "weather"
@@ -147,13 +148,15 @@ check_live_json_status "/api/family/calendar" "family calendar API" "calendar"
 check_live_route "/api/family/routines" "family routines API" '"status":"authentication_required"'
 check_live_route "/login" "login page" "Log ind på Jarvis"
 check_live_redirect "/admin" "/login?next=/admin"
-check_live_route "/static/admin.html" "Mission Control static page" "Mission Control"
+check_live_route "/static/admin.html" "home administration static page" "Hjemmets administration"
 check_live_route "/static/js/login.js" "login JavaScript"
 check_live_route "/static/js/family.js" "family dashboard JavaScript"
 check_live_route "/static/js/routines.js" "routine JavaScript"
 check_live_route "/static/js/routine-editor.js" "routine editor JavaScript"
 check_live_route "/static/js/wall.js" "wall dashboard JavaScript" "wallRoutineEndpoints"
-check_live_route "/static/js/admin.js" "Mission Control JavaScript"
+check_live_route "/static/js/admin.js" "home administration JavaScript" "adminSections"
+check_live_route "/static/js/admin-render.js" "admin render JavaScript" "renderActions"
+check_live_route "/static/js/admin-page.js" "admin page JavaScript" "initializeAdmin"
 check_live_route "/static/css/login.css" "login stylesheet"
 check_live_route "/static/css/family.css" "family dashboard stylesheet"
 check_live_route "/static/css/weather.css" "weather stylesheet"
@@ -162,7 +165,7 @@ check_live_route "/static/css/routines.css" "routine stylesheet"
 check_live_route "/static/css/routine-editor.css" "routine editor stylesheet"
 check_live_route "/static/css/wall.css" "wall dashboard stylesheet" ".wall-shell"
 check_live_route "/static/css/wall-details.css" "wall dashboard detail stylesheet" ".wall-uv"
-check_live_route "/static/css/admin.css" "Mission Control stylesheet"
+check_live_route "/static/css/admin.css" "home administration stylesheet" ".admin-shell"
 check_live_route "/static/pictograms/routines.svg" "routine pictograms" "symbol id=\"complete\""
 
 echo "[8/10] Checking API endpoints"
