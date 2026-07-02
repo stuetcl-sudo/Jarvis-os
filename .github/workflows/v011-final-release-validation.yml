@@ -55,12 +55,43 @@ jobs:
       - name: Test privacy scanner regressions
         run: PYTHONPATH=. python tests/test_privacy_check.py
 
-      - name: Run remaining test files
+      - name: Test authentication and login group
+        run: |
+          shopt -s nullglob
+          for test_file in tests/test_auth*.py tests/test_login*.py; do
+            PYTHONPATH=. python "${test_file}"
+          done
+
+      - name: Test family integration group
+        run: |
+          shopt -s nullglob
+          for test_file in tests/test_family*.py tests/test_calendar*.py tests/test_weather*.py tests/test_routine*.py tests/test_live_family*.py; do
+            case "${test_file}" in
+              tests/test_family_dashboard_v011.py) continue ;;
+            esac
+            PYTHONPATH=. python "${test_file}"
+          done
+
+      - name: Test Action Engine and policy group
+        run: |
+          shopt -s nullglob
+          for test_file in tests/test_action*.py tests/test_policy*.py tests/test_dependency*.py tests/test_docker*.py tests/test_worker*.py; do
+            PYTHONPATH=. python "${test_file}"
+          done
+
+      - name: Test engine and registry group
+        run: |
+          shopt -s nullglob
+          for test_file in tests/test_event*.py tests/test_asset*.py tests/test_mission*.py tests/test_service*.py tests/test_classification*.py tests/test_brain*.py; do
+            PYTHONPATH=. python "${test_file}"
+          done
+
+      - name: Run uncategorized test files
         run: |
           failures=0
           for test_file in tests/test_*.py; do
             case "${test_file}" in
-              tests/test_admin_ui.py|tests/test_family_dashboard_v011.py|tests/test_wall_dashboard.py|tests/test_frontend_safety.py|tests/test_dashboard_routes.py|tests/test_privacy_check.py)
+              tests/test_admin_ui.py|tests/test_family_dashboard_v011.py|tests/test_wall_dashboard.py|tests/test_frontend_safety.py|tests/test_dashboard_routes.py|tests/test_privacy_check.py|tests/test_auth*.py|tests/test_login*.py|tests/test_family*.py|tests/test_calendar*.py|tests/test_weather*.py|tests/test_routine*.py|tests/test_live_family*.py|tests/test_action*.py|tests/test_policy*.py|tests/test_dependency*.py|tests/test_docker*.py|tests/test_worker*.py|tests/test_event*.py|tests/test_asset*.py|tests/test_mission*.py|tests/test_service*.py|tests/test_classification*.py|tests/test_brain*.py)
                 continue
                 ;;
             esac
