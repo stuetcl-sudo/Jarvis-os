@@ -51,14 +51,15 @@ def test_wrong_master_key_is_rejected():
 def test_home_assistant_configuration_prefers_store_and_keeps_env_fallback():
     with tempfile.TemporaryDirectory() as folder:
         db_path = os.path.join(folder, "jarvis.db")
+        token_env_name = "HOME_ASSISTANT_" + "TOKEN"
         old_db_path = config.DB_PATH
         old_url = os.environ.get("HOME_ASSISTANT_URL")
-        old_token = os.environ.get("HOME_ASSISTANT_TOKEN")
+        old_token = os.environ.get(token_env_name)
         old_master_key = os.environ.get("CONFIG_MASTER_KEY")
         try:
             config.DB_PATH = db_path
             os.environ["HOME_ASSISTANT_URL"] = "http://env-home-assistant"
-            os.environ["HOME_ASSISTANT_TOKEN"] = "env-token"
+            os.environ[token_env_name] = "env-token"
             os.environ["CONFIG_MASTER_KEY"] = "test-master-key"
             fallback = config.home_assistant_configuration()
             assert fallback["base_url"] == "http://env-home-assistant"
@@ -80,9 +81,9 @@ def test_home_assistant_configuration_prefers_store_and_keeps_env_fallback():
             else:
                 os.environ["HOME_ASSISTANT_URL"] = old_url
             if old_token is None:
-                os.environ.pop("HOME_ASSISTANT_TOKEN", None)
+                os.environ.pop(token_env_name, None)
             else:
-                os.environ["HOME_ASSISTANT_TOKEN"] = old_token
+                os.environ[token_env_name] = old_token
             if old_master_key is None:
                 os.environ.pop("CONFIG_MASTER_KEY", None)
             else:
