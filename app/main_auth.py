@@ -9,6 +9,7 @@ from app.auth.service import SESSION_COOKIE_NAME, auth_service
 from app.calendar import router as calendar_router
 from app.db import log_action
 from app.family_tasks import AUTHENTICATED_ROLES as FAMILY_TASK_ROLES
+from app.family_tasks import EDITOR_ROLES as FAMILY_TASK_EDITOR_ROLES
 from app.family_tasks import router as family_tasks_router
 from app.family_view import render_family_page
 from app.main import app
@@ -54,11 +55,17 @@ async def enforce_local_authentication(request: Request, call_next):
         )
     )
     routine_write = routine_progress_write or routine_definition_write
-    family_task_write = (
+    family_task_complete = (
         request.method == "POST"
         and path.startswith("/api/family/tasks/")
         and path.endswith("/complete")
     )
+    family_task_edit = (
+        request.method in {"POST", "PUT", "DELETE"}
+        and path.startswith("/api/family/tasks/")
+        and path.endswith("/items")
+    )
+    family_task_write = family_task_complete or family_task_edit
     protected_write = (
         request.method in {"POST", "PUT", "PATCH", "DELETE"}
         and path.startswith("/api/")
@@ -97,8 +104,9 @@ async def enforce_local_authentication(request: Request, call_next):
         if family_task_write:
             if not current_user:
                 return JSONResponse({"detail": "Authentication required"}, status_code=401)
-            if current_user.get("role") not in FAMILY_TASK_ROLES:
-                return JSONResponse({"detail": "Family role required"}, status_code=403)
+            allowed_roles = FAMILY_TASK_EDITOR_ROLES if family_task_edit else FAMILY_TASK_ROLES
+            if current_user.get("role") not in allowed_roles:
+                return JSONResponse({"detail": "Adult role required" if family_task_edit else "Family role required"}, status_code=403)
             supplied = request.headers.get("X-CSRF-Token", "")
             expected = current_user.get("csrf_value", "")
             if not supplied or not expected or not hmac.compare_digest(supplied, expected):
