@@ -26,20 +26,24 @@ def test_wall_display_shopping_list_is_limited_and_two_column():
     assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in stylesheet
 
 
-def test_wall_display_uv_is_less_noisy_and_weather_refreshes_faster():
+def test_wall_display_uv_is_guidance_and_weather_refreshes_faster():
     source = (ROOT / "app/static/js/family-uv.js").read_text(encoding="utf-8")
+    weather = (ROOT / "app/weather.py").read_text(encoding="utf-8")
     config = (ROOT / "app/config.py").read_text(encoding="utf-8")
 
     assert "UV_REFRESH_INTERVAL_MS = 120000" in source
-    assert "isWallDisplay() && value < 0.5" in source
-    assert "UV nu" in source
+    assert "uv_max_index" in source
+    assert "UV i dag" in source
+    assert "Solcreme ikke nødvendig" in source
+    assert "isWallDisplay() && value < 0.5" not in source
+    assert "DEFAULT_UV_MAX_ENTITY" in weather
     assert 'env_positive_int("WEATHER_CACHE_SECONDS", 120)' in config
 
 
 def test():
     test_wall_display_uses_more_compact_type_and_cards()
     test_wall_display_shopping_list_is_limited_and_two_column()
-    test_wall_display_uv_is_less_noisy_and_weather_refreshes_faster()
+    test_wall_display_uv_is_guidance_and_weather_refreshes_faster()
     print("Wall display feedback tests OK")
 
 
