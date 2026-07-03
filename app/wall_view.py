@@ -42,6 +42,7 @@ MODULE_SIZE_STYLES = {
 
 def wall_actions_for(role):
     links = [
+        '<div class="wall-home-status unknown" id="wallHomeStatusBadge" role="status" aria-live="polite"><span class="wall-home-status-dot" id="wallHomeStatusDot" aria-hidden="true"></span><span id="wallHomeStatusText">Status hentes…</span></div>',
         '<button type="button" id="wallFullscreen">Fuld skærm</button>',
         '<a href="/">Familie</a>',
     ]
@@ -52,8 +53,8 @@ def wall_actions_for(role):
 
 def module_visibility_style(screen):
     modules = set(screen.get("modules") or [])
-    hidden = []
-    for module in ["routine", "calendar", "weather", "meal", "tasks", "home", "system"]:
+    hidden = ['body[data-wall-dashboard="true"] [data-family-card="home"]{display:none!important}']
+    for module in ["routine", "calendar", "weather", "meal", "tasks", "system"]:
         if module not in modules:
             hidden.append(f'body[data-wall-dashboard="true"] [data-family-card="{module}"]{{display:none!important}}')
     return "".join(hidden)
@@ -64,7 +65,7 @@ def module_layout_rules(screen, breakpoint):
     modules = set(screen.get("modules") or [])
     layout = screen.get("module_layout") or {}
     styles = MODULE_SIZE_STYLES[breakpoint]
-    for module in ["routine", "calendar", "weather", "meal", "tasks", "home", "system"]:
+    for module in ["routine", "calendar", "weather", "meal", "tasks", "system"]:
         if module not in modules:
             continue
         selector = MODULE_CARD_SELECTORS.get(module)
