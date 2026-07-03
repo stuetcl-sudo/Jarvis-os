@@ -91,12 +91,13 @@ bash scripts/privacy_check.sh || {
   exit 1
 }
 
-echo "[2/10] Running focused admin UI, setup, wall dashboard, login payload, frontend safety, routine editor, routine, family status validation, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
+echo "[2/10] Running focused admin UI, frontend foundation, setup, wall dashboard, login payload, frontend safety, routine editor, routine, family status validation, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
 if [ -z "$PYTHON_BIN" ]; then
   echo "ERROR: Python is required for focused tests."
   exit 1
 fi
 PYTHONPATH=. "$PYTHON_BIN" tests/test_admin_ui.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_frontend_foundation.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_wall_dashboard.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_login_payload.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_frontend_safety.py
@@ -166,6 +167,10 @@ check_live_route "/static/js/admin-render.js" "admin render JavaScript" "renderA
 check_live_route "/static/js/admin-page.js" "admin page JavaScript" "initializeAdmin"
 check_live_route "/static/js/admin-screens.js" "admin screen management JavaScript" "screenAdminPanel"
 check_live_route "/static/js/setup.js" "setup JavaScript" "credentials = \"same-origin\""
+check_live_route "/static/css/tokens.css" "shared design tokens" "--jarvis-color-bg"
+check_live_route "/static/css/base.css" "shared base stylesheet" "button:focus-visible"
+check_live_route "/static/css/components.css" "shared component stylesheet" ".jarvis-card"
+check_live_route "/static/css/layout.css" "shared layout stylesheet" ".jarvis-grid"
 check_live_route "/static/css/login.css" "login stylesheet"
 check_live_route "/static/css/family.css" "family dashboard stylesheet"
 check_live_route "/static/css/weather.css" "weather stylesheet"
