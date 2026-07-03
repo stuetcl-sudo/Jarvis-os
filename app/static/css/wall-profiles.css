@@ -124,6 +124,40 @@ body[data-wall-dashboard="true"][data-wall-screen-profile="tablet"] .weather-for
   padding: 10px;
 }
 
+body[data-wall-dashboard="true"][data-wall-screen-profile="square"] .calendar-events,
+body[data-wall-dashboard="true"][data-wall-screen-profile="mobile"] .calendar-events {
+  grid-template-columns: 1fr !important;
+  overflow-x: visible;
+}
+
+body[data-wall-dashboard="true"][data-wall-screen-profile="tablet"] .calendar-events.calendar-days-3,
+body[data-wall-dashboard="true"][data-wall-screen-profile="tablet"] .calendar-events.calendar-days-5,
+body[data-wall-dashboard="true"][data-wall-screen-profile="tablet"] .calendar-events.calendar-days-7 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body[data-wall-dashboard="true"][data-wall-screen-profile="square"] .calendar-day-group,
+body[data-wall-dashboard="true"][data-wall-screen-profile="tablet"] .calendar-day-group,
+body[data-wall-dashboard="true"][data-wall-screen-profile="mobile"] .calendar-day-group {
+  min-width: 0;
+  min-height: 0;
+}
+
+body[data-wall-dashboard="true"][data-wall-screen-profile="square"] .calendar-day-events .calendar-event,
+body[data-wall-dashboard="true"][data-wall-screen-profile="tablet"] .calendar-day-events .calendar-event,
+body[data-wall-dashboard="true"][data-wall-screen-profile="mobile"] .calendar-day-events .calendar-event {
+  grid-template-columns: minmax(62px, auto) minmax(0, 1fr);
+}
+
+body[data-wall-dashboard="true"][data-wall-screen-profile="square"] .calendar-day-events .calendar-event-title,
+body[data-wall-dashboard="true"][data-wall-screen-profile="tablet"] .calendar-day-events .calendar-event-title,
+body[data-wall-dashboard="true"][data-wall-screen-profile="mobile"] .calendar-day-events .calendar-event-title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.25;
+}
+
 body[data-wall-dashboard="true"][data-wall-screen-profile="square"] .family-task-list-heading h3,
 body[data-wall-dashboard="true"][data-wall-screen-profile="tablet"] .family-task-list-heading h3 {
   white-space: normal;
