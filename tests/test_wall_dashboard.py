@@ -43,7 +43,9 @@ def login(client, role, display_name=None):
         json={"username": username, "password": credential()},
     )
     assert response.status_code == 200, response.text
-    return response.json()["csrf_token"]
+    profile = client.get("/api/auth/me")
+    assert profile.status_code == 200, profile.text
+    return profile.json().get("csrf_token") or profile.json().get("csrf_value")
 
 
 def weather_payload():
