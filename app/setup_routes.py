@@ -1,0 +1,64 @@
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from app import config, home_assistant_setup, settings_store
+
+
+router = APIRouter(prefix="/api/admin/setup", tags=["setup"])
+
+
+class HomeAssistantConnectionPayload(BaseModel):
+    base_url: str
+    token: str = ""
+
+
+def _connection_values(payload=None):
+    current = config.home_assistant_configuration()
+    base_url = payload.base_url if payload else current["base_url"]
+    token = payload.token.strip() if payload and payload.token.strip() else current["access_value"]
+    return base_url, token, current["timeout_seconds"]
+
+
+@router.get("/home-assistant")
+def home_assistant_summary():
+    summary = settings_store.public_connection_summary(db_path=config.DB_PATH)
+    if not summary["home_assistant_url"]:
+        summary["home_assistant_url"] = config.home_assistant_configuration()["base_url"]
+    summary["configured"] = bool(
+        summary["home_assistant_url"]
+        and (
+            summary["home_assistant_token_configured"]
+            or bool(config.home_assistant_configuration()["access_value"])
+        )
+    )
+    return summary
+
+
+@router.post("/home-assistant/test")
+def test_home_assistant_connection(payload: HomeAssistantConnectionPayload):
+    base_url, token, timeout_seconds = _connection_values(payload)
+    try:
+        return home_assistant_setup.test_connection(base_url, token, timeout_seconds)
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/home-assistant/save")
+def save_home_assistant_connection(payload: HomeAssistantConnectionPayload):
+    base_url, token, timeout_seconds = _connection_values(payload)
+    try:
+        result = home_assistant_setup.test_connection(base_url, token, timeout_seconds)
+        summary = home_assistant_setup.save_connection(base_url, token, db_path=config.DB_PATH)
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {**summary, **result}
+
+
+@router.post("/home-assistant/entities")
+def discover_home_assistant_entities(payload: HomeAssistantConnectionPayload):
+    base_url, token, timeout_seconds = _connection_values(payload)
+    try:
+        entities = home_assistant_setup.discover_entities(base_url, token, timeout_seconds)
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"entities": entities, "count": len(entities)}
