@@ -1,3 +1,4 @@
+import json
 import re
 import sqlite3
 from datetime import datetime, timezone
@@ -7,12 +8,23 @@ from app import config
 SCREEN_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
 SCREEN_TYPES = {"wall-large", "wall-tablet", "wall-square", "mobile"}
 SCREEN_MODULES = {"routine", "calendar", "weather", "meal", "tasks", "home", "system"}
+SCREEN_MODULE_SIZES = {"small", "medium", "large", "wide", "full"}
 DEFAULT_MODULES = ["routine", "calendar", "weather", "meal", "tasks", "home"]
+DEFAULT_MODULE_LAYOUT = {
+    "routine": "medium",
+    "calendar": "wide",
+    "weather": "medium",
+    "meal": "medium",
+    "tasks": "wide",
+    "home": "medium",
+    "system": "medium",
+}
 DEFAULT_SCREEN = {
     "name": "Vægskærm",
     "slug": "wall",
     "screen_type": "wall-large",
     "modules": DEFAULT_MODULES,
+    "module_layout": {module: DEFAULT_MODULE_LAYOUT[module] for module in DEFAULT_MODULES},
     "is_active": True,
 }
 
@@ -22,6 +34,7 @@ CREATE TABLE IF NOT EXISTS screens (
     name TEXT NOT NULL,
     screen_type TEXT NOT NULL,
     modules TEXT NOT NULL,
+    module_layout TEXT NOT NULL DEFAULT '{}',
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -41,6 +54,9 @@ def connect():
 
 def ensure_screen_table(conn):
     conn.execute(SCREEN_SCHEMA)
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(screens)").fetchall()}
+    if "module_layout" not in columns:
+        conn.execute("ALTER TABLE screens ADD COLUMN module_layout TEXT NOT NULL DEFAULT '{}'")
 
 
 def normalize_slug(value):
@@ -65,6 +81,20 @@ def normalize_modules(values):
     return modules
 
 
+def normalize_module_layout(values, modules):
+    source = values if isinstance(values, dict) else {}
+    layout = {}
+    for module in modules:
+        supplied = source.get(module)
+        size = str(supplied or DEFAULT_MODULE_LAYOUT.get(module, "medium")).strip().lower()
+        if supplied is not None and size not in SCREEN_MODULE_SIZES:
+            raise ValueError("module size is invalid")
+        if size not in SCREEN_MODULE_SIZES:
+            size = "medium"
+        layout[module] = size
+    return layout
+
+
 def normalize_screen_type(value):
     screen_type = str(value or "wall-large").strip().lower()
     if screen_type not in SCREEN_TYPES:
@@ -80,18 +110,31 @@ def parse_modules(value):
     return [item for item in str(value or "").split(",") if item]
 
 
+def serialize_module_layout(layout):
+    return json.dumps(layout or {}, sort_keys=True, separators=(",", ":"))
+
+
+def parse_module_layout(value):
+    try:
+        parsed = json.loads(str(value or "{}"))
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
 def row_to_screen(row):
     if not row:
         return None
     item = dict(row)
     item["modules"] = parse_modules(item.get("modules"))
+    item["module_layout"] = normalize_module_layout(parse_module_layout(item.get("module_layout")), item["modules"])
     item["is_active"] = bool(item.get("is_active"))
     item["url"] = "/wall" if item["slug"] == "wall" else f"/wall/{item['slug']}"
     return item
 
 
 def default_screen():
-    return {**DEFAULT_SCREEN, "url": "/wall"}
+    return {**DEFAULT_SCREEN, "modules": list(DEFAULT_MODULES), "module_layout": dict(DEFAULT_SCREEN["module_layout"]), "url": "/wall"}
 
 
 def get_screen(slug="wall"):
@@ -123,13 +166,14 @@ def list_screens():
         conn.close()
 
 
-def upsert_screen(name, slug, screen_type="wall-large", modules=None, is_active=True):
+def upsert_screen(name, slug, screen_type="wall-large", modules=None, is_active=True, module_layout=None):
     cleaned_name = str(name or "").strip()
     if not cleaned_name:
         raise ValueError("screen name is required")
     slug = normalize_slug(slug)
     screen_type = normalize_screen_type(screen_type)
     modules = normalize_modules(modules)
+    module_layout = normalize_module_layout(module_layout, modules)
     timestamp = now_iso()
     conn = connect()
     try:
@@ -137,13 +181,13 @@ def upsert_screen(name, slug, screen_type="wall-large", modules=None, is_active=
         existing = conn.execute("SELECT slug FROM screens WHERE slug = ?", (slug,)).fetchone()
         if existing:
             conn.execute(
-                "UPDATE screens SET name = ?, screen_type = ?, modules = ?, is_active = ?, updated_at = ? WHERE slug = ?",
-                (cleaned_name, screen_type, serialize_modules(modules), 1 if is_active else 0, timestamp, slug),
+                "UPDATE screens SET name = ?, screen_type = ?, modules = ?, module_layout = ?, is_active = ?, updated_at = ? WHERE slug = ?",
+                (cleaned_name, screen_type, serialize_modules(modules), serialize_module_layout(module_layout), 1 if is_active else 0, timestamp, slug),
             )
         else:
             conn.execute(
-                "INSERT INTO screens (slug, name, screen_type, modules, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (slug, cleaned_name, screen_type, serialize_modules(modules), 1 if is_active else 0, timestamp, timestamp),
+                "INSERT INTO screens (slug, name, screen_type, modules, module_layout, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (slug, cleaned_name, screen_type, serialize_modules(modules), serialize_module_layout(module_layout), 1 if is_active else 0, timestamp, timestamp),
             )
         conn.commit()
     finally:
