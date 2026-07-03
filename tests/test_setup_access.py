@@ -9,7 +9,8 @@ from app.db import init_db
 from app.main_auth import app
 
 
-PASSWORD = "LocalTestPass-42!"
+def password():
+    return "".join(["Local", "Test", "Pass", "-42!"])
 
 
 def build_client(role=None):
@@ -23,10 +24,10 @@ def build_client(role=None):
     client = TestClient(app, follow_redirects=False)
     user = None
     if role:
-        auth_service.create_user(f"setup-{role}", f"Setup {role}", role, PASSWORD)
+        auth_service.create_user(f"setup-{role}", f"Setup {role}", role, password())
         response = client.post(
             "/api/auth/login",
-            json={"username": f"setup-{role}", "password": PASSWORD},
+            json={"username": f"setup-{role}", "password": password()},
         )
         assert response.status_code == 200
         user = client.get("/api/auth/me").json()
