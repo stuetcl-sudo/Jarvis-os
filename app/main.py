@@ -94,6 +94,11 @@ def admin_ui():
     return FileResponse("app/static/admin.html")
 
 
+@app.get("/setup")
+def setup_ui():
+    return FileResponse("app/static/setup.html")
+
+
 @app.get("/api/health")
 def health():
     data = get_health()
