@@ -58,6 +58,34 @@ function calendarEventIntersectsDay(event, key) {
   return bounds.start < end && bounds.end > start;
 }
 
+function calendarRangeDisplayName(value) {
+  if (typeof calendarDisplayName === "function") return calendarDisplayName(value);
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (value && typeof value === "object") {
+    const candidate = value.label || value.name || value.summary || value.title;
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
+  return "Kalender";
+}
+
+function createCalendarRangeLegendItem(item) {
+  if (typeof createCalendarLegendItem === "function") return createCalendarLegendItem(item);
+  const entry = document.createElement("li");
+  const color = calendarColors.has(item?.color) ? item.color : "green";
+  entry.className = "calendar-legend-item";
+  entry.dataset.calendarColor = color;
+
+  const marker = document.createElement("span");
+  marker.className = `calendar-color-marker calendar-color-${color}`;
+  marker.setAttribute("aria-hidden", "true");
+
+  const label = document.createElement("span");
+  label.textContent = calendarRangeDisplayName(item);
+
+  entry.append(marker, label);
+  return entry;
+}
+
 function calendarDayTitle(key, index) {
   if (index === 0) return "I dag";
   if (index === 1) return "I morgen";
@@ -144,7 +172,7 @@ renderAuthenticatedCalendar = function renderAuthenticatedCalendarRange(calendar
   if (legend) {
     legend.hidden = false;
     legend.replaceChildren();
-    (calendar.calendars || []).forEach((item) => legend.append(createCalendarLegendItem(item)));
+    (calendar.calendars || []).forEach((item) => legend.append(createCalendarRangeLegendItem(item)));
   }
   if (events) events.hidden = false;
   renderCalendarDays(calendar);
