@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Opsæt Jarvis OS</title>
+  <link rel="stylesheet" href="/static/css/common.css" />
+  <link rel="stylesheet" href="/static/css/setup.css" />
+</head>
+<body>
+  <main class="setup-shell">
+    <header class="setup-header">
+      <div class="setup-brand-mark" aria-hidden="true">J</div>
+      <div>
+        <p class="eyebrow">Førstegangsopsætning</p>
+        <h1>Gør Jarvis klar til hjemmet</h1>
+        <p>Guiden gemmer kun de valg, Jarvis skal bruge. Tekniske detaljer kan ændres senere under Administration.</p>
+      </div>
+    </header>
+
+    <div id="setupNotice" class="setup-notice" role="status" aria-live="polite" hidden></div>
+
+    <nav class="setup-progress" aria-label="Opsætningstrin">
+      <button type="button" data-step-button="0" aria-current="step">1. Hjemmet</button>
+      <button type="button" data-step-button="1">2. Home Assistant</button>
+      <button type="button" data-step-button="2">3. Indhold</button>
+      <button type="button" data-step-button="3">4. Færdig</button>
+    </nav>
+
+    <section class="setup-card" data-step="0">
+      <p class="section-kicker">Trin 1</p>
+      <h2>Fortæl lidt om hjemmet</h2>
+      <p class="setup-help">Det bruges til almindelige tekster, tidsvisning og velkomst i Jarvis.</p>
+      <form id="homeSetupForm" class="setup-form">
+        <label>Hjemmets navn
+          <input id="setupHomeName" type="text" maxlength="80" placeholder="For eksempel Mit hjem" required />
+        </label>
+        <label>Ejerens navn
+          <input id="setupOwnerName" type="text" maxlength="80" placeholder="Dit navn" required />
+        </label>
+        <label>Tidszone
+          <select id="setupTimezone">
+            <option value="Europe/Copenhagen">Danmark · Europe/Copenhagen</option>
+            <option value="Europe/Oslo">Norge · Europe/Oslo</option>
+            <option value="Europe/Stockholm">Sverige · Europe/Stockholm</option>
+            <option value="Europe/Berlin">Centraleuropa · Europe/Berlin</option>
+          </select>
+        </label>
+      </form>
+    </section>
+
+    <section class="setup-card" data-step="1" hidden>
+      <p class="section-kicker">Trin 2</p>
+      <h2>Forbind Home Assistant</h2>
+      <p class="setup-help">Forbindelsen testes, før tokenet gemmes krypteret.</p>
+      <div class="setup-form">
+        <label>Home Assistant-adresse
+          <input id="setupHaUrl" type="url" placeholder="Indtast Home Assistant-adressen" required />
+        </label>
+        <label>Langtidstoken
+          <input id="setupHaToken" type="password" autocomplete="new-password" placeholder="Lad stå tomt for at beholde gemt token" />
+        </label>
+        <div class="setup-actions left">
+          <button id="setupTestHaButton" type="button" class="secondary">Test forbindelse</button>
+          <button id="setupSaveHaButton" type="button">Gem forbindelse</button>
+        </div>
+        <p id="setupHaStatus" class="setup-inline-status">Ikke testet endnu.</p>
+      </div>
+    </section>
+
+    <section class="setup-card" data-step="2" hidden>
+      <p class="section-kicker">Trin 3</p>
+      <h2>Vælg indhold</h2>
+      <p class="setup-help">Entiteter vælges under Administration i den nye søgbare vælger. Guiden viser status og fører dig direkte videre.</p>
+      <div id="setupContentSummary" class="summary-grid"></div>
+      <div class="setup-actions left">
+        <a class="button-link" href="/admin#connections">Åbn Home Assistant-vælgeren</a>
+      </div>
+    </section>
+
+    <section class="setup-card" data-step="3" hidden>
+      <p class="section-kicker">Trin 4</p>
+      <h2>Jarvis er næsten klar</h2>
+      <div id="setupFinalSummary" class="summary-grid"></div>
+      <p class="setup-help">Du kan altid ændre det hele senere under Administration.</p>
+    </section>
+
+    <footer class="setup-footer">
+      <button id="setupBackButton" type="button" class="secondary" disabled>Tilbage</button>
+      <div class="setup-actions">
+        <a href="/admin" class="button-link secondary-link">Spring til administration</a>
+        <button id="setupNextButton" type="button">Gem og fortsæt</button>
+      </div>
+    </footer>
+  </main>
+  <script src="/static/js/setup.js" defer></script>
+</body>
+</html>
