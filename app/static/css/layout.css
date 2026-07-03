@@ -1,0 +1,79 @@
+/* Shared layout primitives for Jarvis OS. */
+.jarvis-shell {
+  width: min(var(--jarvis-content-max-width), 100%);
+  margin: 0 auto;
+  padding: var(--jarvis-space-xl);
+}
+
+.jarvis-stack {
+  display: grid;
+  gap: var(--jarvis-space-md);
+}
+
+.jarvis-stack.large {
+  gap: var(--jarvis-space-lg);
+}
+
+.jarvis-grid {
+  display: grid;
+  gap: var(--jarvis-space-md);
+}
+
+.jarvis-grid.two-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.jarvis-grid.three-columns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.jarvis-grid.four-columns {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.jarvis-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--jarvis-space-lg);
+}
+
+.jarvis-section-heading h1,
+.jarvis-section-heading h2,
+.jarvis-section-heading h3 {
+  margin: 0;
+}
+
+.jarvis-section-heading p:not(.jarvis-kicker) {
+  margin: var(--jarvis-space-xs) 0 0;
+  color: var(--jarvis-color-muted);
+  line-height: 1.55;
+}
+
+@media (max-width: 860px) {
+  .jarvis-shell {
+    padding: var(--jarvis-space-lg);
+  }
+
+  .jarvis-grid.three-columns,
+  .jarvis-grid.four-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .jarvis-shell {
+    padding: var(--jarvis-space-md);
+  }
+
+  .jarvis-grid.two-columns,
+  .jarvis-grid.three-columns,
+  .jarvis-grid.four-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-section-heading {
+    display: grid;
+    align-items: start;
+  }
+}
