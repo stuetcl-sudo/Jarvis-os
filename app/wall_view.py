@@ -38,6 +38,17 @@ MODULE_SIZE_STYLES = {
         "full": "grid-column:1 / -1;min-height:300px",
     },
 }
+WALL_STATUS_STYLE = """
+body[data-wall-dashboard=\"true\"] .family-grid{align-items:stretch}
+body[data-wall-dashboard=\"true\"] .family-card{height:100%}
+.wall-home-status{min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid var(--card-border);border-radius:14px;background:var(--soft);color:var(--text);font-weight:820;letter-spacing:.04em}
+.wall-home-status-dot{width:13px;height:13px;border-radius:999px;background:var(--muted);box-shadow:0 0 0 6px var(--soft)}
+.wall-home-status.ok .wall-home-status-dot{background:var(--good)}
+.wall-home-status.warning .wall-home-status-dot{background:var(--warning)}
+.wall-home-status.critical .wall-home-status-dot{background:var(--critical)}
+.wall-home-status.unknown .wall-home-status-dot{background:var(--muted)}
+@media(max-width:640px){.wall-home-status{grid-column:1 / -1;justify-content:center}}
+""".strip()
 
 
 def wall_actions_for(role):
@@ -93,7 +104,7 @@ def module_layout_style(screen):
 
 
 def screen_style(screen):
-    css = module_visibility_style(screen) + module_layout_style(screen)
+    css = WALL_STATUS_STYLE + module_visibility_style(screen) + module_layout_style(screen)
     return "<style>" + css + "</style>" if css else ""
 
 
