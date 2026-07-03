@@ -14,12 +14,36 @@
     ["home", "Hjem"],
     ["system", "Systemstatus"],
   ];
+  const moduleSizes = [
+    ["small", "Lille"],
+    ["medium", "Normal"],
+    ["large", "Stor"],
+    ["wide", "Bred"],
+    ["full", "Fuld bredde"],
+  ];
   const defaultModules = ["routine", "calendar", "weather", "meal", "tasks", "home"];
+  const defaultModuleLayout = {
+    routine: "medium",
+    calendar: "wide",
+    weather: "medium",
+    meal: "medium",
+    tasks: "wide",
+    home: "medium",
+    system: "medium",
+  };
   let selectedScreen = null;
 
   function moduleLabels(values) {
     const lookup = Object.fromEntries(modules);
     return (values || []).map((key) => lookup[key] || key).join(", ") || "Ingen moduler";
+  }
+
+  function moduleLayoutLabels(screen) {
+    const sizeLookup = Object.fromEntries(moduleSizes);
+    const layout = screen?.module_layout || {};
+    return (screen?.modules || [])
+      .map((key) => `${modules.find(([module]) => module === key)?.[1] || key}: ${sizeLookup[layout[key] || defaultModuleLayout[key] || "medium"]}`)
+      .join(" · ");
   }
 
   function slugFromName(value) {
@@ -38,6 +62,16 @@
 
   function selectedModules() {
     return Array.from(document.querySelectorAll("[data-screen-module]:checked")).map((input) => input.value);
+  }
+
+  function selectedModuleLayout() {
+    const activeModules = new Set(selectedModules());
+    const layout = {};
+    document.querySelectorAll("[data-screen-module-size]").forEach((select) => {
+      const module = select.dataset.screenModuleSize;
+      if (activeModules.has(module)) layout[module] = select.value;
+    });
+    return layout;
   }
 
   function labeledInput(labelText, input) {
@@ -67,8 +101,13 @@
     type.value = screen?.screen_type || "wall-large";
     active.checked = screen?.is_active !== false;
     const activeModules = screen?.modules || defaultModules;
+    const activeLayout = screen?.module_layout || defaultModuleLayout;
     document.querySelectorAll("[data-screen-module]").forEach((input) => {
       input.checked = activeModules.includes(input.value);
+    });
+    document.querySelectorAll("[data-screen-module-size]").forEach((select) => {
+      const module = select.dataset.screenModuleSize;
+      select.value = activeLayout[module] || defaultModuleLayout[module] || "medium";
     });
     document.getElementById("screenFormTitle").textContent = screen ? `Rediger ${screen.name}` : "Opret ny skærm";
     document.getElementById("screenSaveButton").textContent = screen ? "Gem skærm" : "Opret skærm";
@@ -79,6 +118,7 @@
     const title = element("strong", "", screen.name);
     const url = element("span", "", screen.url);
     const detail = element("small", "", `${screenTypes.find(([key]) => key === screen.screen_type)?.[1] || screen.screen_type} · ${moduleLabels(screen.modules)}`);
+    const layout = element("small", "", moduleLayoutLabels(screen));
     const actions = element("div", "quick-buttons");
 
     const open = element("a", "family-link", "Åbn");
@@ -97,7 +137,7 @@
       remove.addEventListener("click", () => deleteScreen(screen));
       actions.append(remove);
     }
-    card.append(title, url, detail, actions);
+    card.append(title, url, detail, layout, actions);
     return card;
   }
 
@@ -121,6 +161,7 @@
       slug: selectedScreen?.slug === "wall" ? "wall" : rawSlug,
       screen_type: document.getElementById("screenType").value,
       modules: selectedModules(),
+      module_layout: selectedModuleLayout(),
       is_active: document.getElementById("screenActive").checked,
     };
     try {
@@ -170,17 +211,32 @@
     return label;
   }
 
+  function createModuleSizeSelect(module) {
+    const select = document.createElement("select");
+    select.dataset.screenModuleSize = module;
+    select.setAttribute("aria-label", `Størrelse for ${modules.find(([key]) => key === module)?.[1] || module}`);
+    moduleSizes.forEach(([value, label]) => {
+      const option = element("option", "", label);
+      option.value = value;
+      select.append(option);
+    });
+    select.value = defaultModuleLayout[module] || "medium";
+    return select;
+  }
+
   function createModulePicker() {
     const fieldset = element("fieldset", "screen-module-picker");
-    fieldset.append(element("legend", "", "Moduler"));
+    fieldset.append(element("legend", "", "Moduler og størrelse"));
     modules.forEach(([value, labelText]) => {
+      const row = element("div", "screen-module-row");
       const label = element("label", "checkbox-control", "");
       const input = document.createElement("input");
       input.type = "checkbox";
       input.value = value;
       input.dataset.screenModule = "true";
       label.append(input, document.createTextNode(` ${labelText}`));
-      fieldset.append(label);
+      row.append(label, labeledInput("Størrelse", createModuleSizeSelect(value)));
+      fieldset.append(row);
     });
     return fieldset;
   }
@@ -225,7 +281,7 @@
     const text = document.createElement("div");
     text.append(
       element("h3", "", "Skærme"),
-      element("p", "panel-help", "Opret faste links til stue, køkken, børneskærm eller andre vægvisninger."),
+      element("p", "panel-help", "Opret faste links til stue, køkken, børneskærm eller andre vægvisninger. Vælg både moduler og hvor meget plads hvert modul skal have."),
     );
     const reset = element("button", "secondary", "Ny skærm");
     reset.type = "button";
