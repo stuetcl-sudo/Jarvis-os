@@ -8,9 +8,11 @@ ADMIN_SCRIPTS = [
     (ROOT / "app/static/js/admin.js").read_text(encoding="utf-8"),
     (ROOT / "app/static/js/admin-render.js").read_text(encoding="utf-8"),
     (ROOT / "app/static/js/admin-page.js").read_text(encoding="utf-8"),
+    (ROOT / "app/static/js/admin-screens.js").read_text(encoding="utf-8"),
 ]
 JAVASCRIPT = "\n".join(ADMIN_SCRIPTS)
 CORE_JAVASCRIPT = ADMIN_SCRIPTS[0]
+SCREEN_JAVASCRIPT = ADMIN_SCRIPTS[3]
 CSS = (ROOT / "app/static/css/admin.css").read_text(encoding="utf-8")
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 
@@ -83,15 +85,31 @@ def test_admin_keeps_existing_api_contract_and_security_helpers():
         "/api/policies",
         "/api/policy-decisions/latest?limit=20",
         "/api/actions?limit=25",
+        "/api/admin/screens",
     ]:
         assert endpoint in JAVASCRIPT
     assert '/static/js/admin-render.js' in CORE_JAVASCRIPT
     assert '/static/js/admin-page.js' in CORE_JAVASCRIPT
+    assert '/static/js/admin-screens.js' in CORE_JAVASCRIPT
     assert 'options.credentials = "same-origin"' in CORE_JAVASCRIPT
     assert '"X-CSRF-Token": csrfToken' in CORE_JAVASCRIPT
     assert 'window.location.assign("/login?next=/admin")' in CORE_JAVASCRIPT
     assert "requested_by" not in JAVASCRIPT
     assert "source:" not in JAVASCRIPT
+
+
+def test_admin_screen_management_ui_is_plain_and_safe():
+    assert "screenAdminPanel" in SCREEN_JAVASCRIPT
+    assert "Skærme" in SCREEN_JAVASCRIPT
+    assert "Opret ny skærm" in SCREEN_JAVASCRIPT
+    assert "wall-large" in SCREEN_JAVASCRIPT
+    assert "wall-tablet" in SCREEN_JAVASCRIPT
+    assert "wall-square" in SCREEN_JAVASCRIPT
+    assert "Vejr / UV" in SCREEN_JAVASCRIPT
+    assert "data-screen-module" in SCREEN_JAVASCRIPT
+    assert "deleteScreen" in SCREEN_JAVASCRIPT
+    assert 'method: "DELETE"' in SCREEN_JAVASCRIPT
+    assert "innerHTML" not in SCREEN_JAVASCRIPT
 
 
 def test_admin_uses_inline_feedback_and_status_aware_actions():
@@ -141,6 +159,7 @@ if __name__ == "__main__":
         test_technical_controls_are_grouped_under_advanced,
         test_admin_feedback_and_navigation_are_accessible,
         test_admin_keeps_existing_api_contract_and_security_helpers,
+        test_admin_screen_management_ui_is_plain_and_safe,
         test_admin_uses_inline_feedback_and_status_aware_actions,
         test_release_metadata_and_v010_admin_polish,
         test_admin_avoids_unsafe_html_and_inline_handlers,
