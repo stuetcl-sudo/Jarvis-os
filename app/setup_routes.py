@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app import config, home_assistant_setup, home_entity_settings, settings_store
+from app import config, home_assistant_setup, home_entity_settings, home_setup, settings_store
 
 
 router = APIRouter(prefix="/api/admin/setup", tags=["setup"])
@@ -24,11 +24,50 @@ class HomeAssistantEntitySettingsPayload(BaseModel):
     humidity_entities: list[str] = []
 
 
+class HomeSettingsPayload(BaseModel):
+    home_name: str
+    timezone: str
+    owner_name: str
+
+
 def _connection_values(payload=None):
     current = config.home_assistant_configuration()
     base_url = payload.base_url if payload else current["base_url"]
     token = payload.token.strip() if payload and payload.token.strip() else current["access_value"]
     return base_url, token, current["timeout_seconds"]
+
+
+@router.get("/summary")
+def get_setup_summary():
+    summary = home_setup.setup_summary(db_path=config.DB_PATH)
+    summary["home_assistant"] = home_assistant_summary()
+    return summary
+
+
+@router.get("/home")
+def get_home_settings():
+    return home_setup.load_home_settings(db_path=config.DB_PATH)
+
+
+@router.post("/home")
+def save_home_settings(payload: HomeSettingsPayload):
+    try:
+        return home_setup.save_home_settings(
+            payload.home_name,
+            payload.timezone,
+            payload.owner_name,
+            db_path=config.DB_PATH,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/complete")
+def complete_setup():
+    try:
+        return home_setup.complete_setup(db_path=config.DB_PATH)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/home-assistant")
