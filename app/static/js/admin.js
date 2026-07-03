@@ -230,7 +230,7 @@ async function togglePolicy(id, enable) {
     await getJson(`/api/policies/${encodeURIComponent(id)}/${enable ? "enable" : "disable"}`, {
       method: "POST",
     });
-    showNotice(`Den automatiske regel er ${enable ? "aktiveret" : "deaktiveret"}.`, "success");
+    showNotice(`Den automatiske regel er ${enable ? "aktiveret" : "deaktiveret"}.", "success");
     await refreshAll();
   } catch (error) {
     showNotice(`Reglen kunne ikke ændres: ${error.message}`, "error", 0);
@@ -324,4 +324,5 @@ function loadAdminScript(path) {
 loadAdminScript("/static/js/admin-render.js")
   .then(() => loadAdminScript("/static/js/admin-page.js"))
   .then(() => loadAdminScript("/static/js/admin-connections.js"))
+  .then(() => loadAdminScript("/static/js/admin-screens.js"))
   .catch((error) => showNotice(`Administrationen kunne ikke startes: ${error.message}`, "error", 0));
