@@ -176,11 +176,23 @@ def test_wall_defaults_to_three_calendar_days_and_remains_responsive():
     wall_styles = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
 
     assert "let calendarVisibleDays = 3;" in calendar
+    assert "document.body.dataset.calendarDays = String(calendarVisibleDays);" in calendar
     assert ".calendar-events.calendar-days-3" in calendar_styles
     assert "overflow-x:auto" in calendar_styles.replace(" ", "")
     assert "@media(max-width:640px)" in calendar_styles.replace(" ", "")
     assert "min-height:44px" in wall_styles.replace(" ", "")
     assert "@media(max-width:640px)" in wall_styles.replace(" ", "")
+
+
+def test_one_day_wall_layout_pairs_calendar_and_routine_at_half_width():
+    wall_styles = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
+    compact = wall_styles.replace(" ", "").replace("\n", "")
+    assert 'body[data-wall-dashboard="true"][data-calendar-days="1"].routine-card' in compact
+    assert 'body[data-wall-dashboard="true"][data-calendar-days="1"].calendar-card' in compact
+    assert "grid-template-columns:repeat(4,minmax(0,1fr))" in compact
+    assert "grid-column:span2" in compact
+    assert "min-width:921px" in compact
+    assert "max-width:1180px" in compact
 
 
 def test_render_wall_page_rejects_invalid_roles():
@@ -202,6 +214,7 @@ if __name__ == "__main__":
         test_wall_mode_frontend_is_read_only_and_role_safe,
         test_uv_backend_validation_and_categories_remain_strict,
         test_wall_defaults_to_three_calendar_days_and_remains_responsive,
+        test_one_day_wall_layout_pairs_calendar_and_routine_at_half_width,
         test_render_wall_page_rejects_invalid_roles,
     ]:
         test()
