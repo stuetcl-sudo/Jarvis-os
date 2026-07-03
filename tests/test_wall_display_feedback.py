@@ -40,10 +40,30 @@ def test_wall_display_uv_is_guidance_and_weather_refreshes_faster():
     assert 'env_positive_int("WEATHER_CACHE_SECONDS", 120)' in config
 
 
+def test_wall_screen_profiles_are_loaded_and_adaptive():
+    html = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
+    source = (ROOT / "app/static/js/wall-mode.js").read_text(encoding="utf-8")
+    stylesheet = (ROOT / "app/static/css/wall-profiles.css").read_text(encoding="utf-8")
+
+    assert "/static/css/wall-profiles.css" in html
+    assert "data.wallScreenProfile" in source
+    assert 'return "mobile"' in source
+    assert 'return "square"' in source
+    assert 'return "tablet"' in source
+    assert 'return "wide"' in source
+    assert 'data-wall-screen-profile="square"' in stylesheet
+    assert 'data-wall-screen-profile="tablet"' in stylesheet
+    assert 'data-wall-screen-profile="mobile"' in stylesheet
+    assert ".routine-card" in stylesheet
+    assert "grid-column: 1 / -1" in stylesheet
+    assert "word-break: normal" in stylesheet
+
+
 def test():
     test_wall_display_uses_more_compact_type_and_cards()
     test_wall_display_shopping_list_is_limited_and_two_column()
     test_wall_display_uv_is_guidance_and_weather_refreshes_faster()
+    test_wall_screen_profiles_are_loaded_and_adaptive()
     print("Wall display feedback tests OK")
 
 
