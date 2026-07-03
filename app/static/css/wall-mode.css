@@ -24,61 +24,27 @@ body[data-wall-dashboard="true"] .routine-card {
 }
 
 body[data-wall-dashboard="true"] .calendar-card {
-  grid-column: 1 / -1;
-}
-
-body[data-wall-dashboard="true"][data-calendar-days="1"] .calendar-card {
   grid-column: span 6;
 }
 
 body[data-wall-dashboard="true"] .weather-card {
-  grid-column: span 8;
+  grid-column: span 6;
 }
 
 body[data-wall-dashboard="true"] .home-card {
-  grid-column: span 4;
+  grid-column: span 3;
 }
 
 body[data-wall-dashboard="true"] .meal-card {
-  grid-column: span 4;
+  grid-column: span 6;
 }
 
 body[data-wall-dashboard="true"] .family-tasks-card {
-  grid-column: span 8;
+  grid-column: span 6;
 }
 
 body[data-wall-dashboard="true"] .system-card {
-  grid-column: span 4;
-}
-
-body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-card,
-body[data-wall-dashboard="true"][data-calendar-days="1"] .calendar-card {
-  min-height: clamp(340px, 39vw, 460px);
-}
-
-body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-panel {
-  grid-template-columns: minmax(130px, 0.72fr) minmax(0, 1.28fr);
-  gap: clamp(14px, 1.7vw, 24px);
-}
-
-body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-pictogram-frame {
-  min-height: clamp(190px, 24vw, 280px);
-}
-
-body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-title {
-  font-size: clamp(32px, 3.9vw, 54px);
-}
-
-body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-label,
-body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-progress,
-body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-time {
-  font-size: clamp(14px, 1.5vw, 19px);
-}
-
-body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-actions button {
-  min-height: clamp(48px, 4.4vw, 58px);
-  padding-inline: clamp(14px, 1.7vw, 20px);
-  font-size: clamp(16px, 1.7vw, 20px);
+  grid-column: span 3;
 }
 
 body[data-wall-dashboard="true"] .card-heading h2 {
@@ -134,7 +100,7 @@ body[data-wall-dashboard="true"] .family-clock {
 }
 
 body[data-wall-dashboard="true"] .family-card {
-  min-height: 235px;
+  min-height: 320px;
   padding: 24px;
 }
 
@@ -148,6 +114,33 @@ body[data-wall-dashboard="true"] .disconnected,
 body[data-wall-dashboard="true"] dd,
 body[data-wall-dashboard="true"] dt {
   font-size: 17px;
+}
+
+body[data-wall-dashboard="true"] .calendar-range-controls {
+  margin: 12px 0 12px;
+}
+
+body[data-wall-dashboard="true"] .calendar-events {
+  grid-template-columns: minmax(0, 1fr);
+  overflow-x: visible;
+  scroll-snap-type: none;
+  padding-bottom: 0;
+}
+
+body[data-wall-dashboard="true"] .calendar-events.calendar-days-1,
+body[data-wall-dashboard="true"] .calendar-events.calendar-days-3,
+body[data-wall-dashboard="true"] .calendar-events.calendar-days-5,
+body[data-wall-dashboard="true"] .calendar-events.calendar-days-7 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body[data-wall-dashboard="true"] .calendar-day-group {
+  min-height: 0;
+  scroll-snap-align: none;
+}
+
+body[data-wall-dashboard="true"] .calendar-day-events .calendar-event {
+  min-height: 92px;
 }
 
 body[data-wall-dashboard="true"] .weather-symbol {
@@ -230,29 +223,17 @@ body[data-wall-dashboard="true"] .family-task-description {
     grid-template-columns: repeat(8, minmax(0, 1fr));
   }
 
-  body[data-wall-dashboard="true"] .routine-card {
+  body[data-wall-dashboard="true"] .routine-card,
+  body[data-wall-dashboard="true"] .calendar-card,
+  body[data-wall-dashboard="true"] .weather-card,
+  body[data-wall-dashboard="true"] .meal-card,
+  body[data-wall-dashboard="true"] .family-tasks-card {
     grid-column: span 4;
-  }
-
-  body[data-wall-dashboard="true"][data-calendar-days="1"] .calendar-card {
-    grid-column: span 4;
-  }
-
-  body[data-wall-dashboard="true"] .weather-card {
-    grid-column: span 6;
   }
 
   body[data-wall-dashboard="true"] .home-card,
   body[data-wall-dashboard="true"] .system-card {
     grid-column: span 2;
-  }
-
-  body[data-wall-dashboard="true"] .meal-card {
-    grid-column: span 3;
-  }
-
-  body[data-wall-dashboard="true"] .family-tasks-card {
-    grid-column: span 5;
   }
 }
 
@@ -261,23 +242,17 @@ body[data-wall-dashboard="true"] .family-task-description {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-card,
-  body[data-wall-dashboard="true"][data-calendar-days="1"] .calendar-card {
+  body[data-wall-dashboard="true"] .routine-card,
+  body[data-wall-dashboard="true"] .calendar-card,
+  body[data-wall-dashboard="true"] .weather-card,
+  body[data-wall-dashboard="true"] .meal-card,
+  body[data-wall-dashboard="true"] .family-tasks-card {
     grid-column: span 2;
-  }
-
-  body[data-wall-dashboard="true"] .weather-card {
-    grid-column: span 3;
   }
 
   body[data-wall-dashboard="true"] .home-card,
   body[data-wall-dashboard="true"] .system-card {
     grid-column: span 1;
-  }
-
-  body[data-wall-dashboard="true"] .meal-card,
-  body[data-wall-dashboard="true"] .family-tasks-card {
-    grid-column: span 2;
   }
 }
 
