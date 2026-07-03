@@ -15,6 +15,7 @@ const weekdayFormatter = new Intl.DateTimeFormat("da-DK", {
 const longWeekdayFormatter = new Intl.DateTimeFormat("da-DK", {
   weekday: "long",
 });
+let renderAuthenticatedCalendar = null;
 
 const supportedRoles = new Set(["anonymous", "owner", "adult", "child", "wall_display"]);
 const pageRole = supportedRoles.has(document.body.dataset.familyRole)
@@ -336,6 +337,10 @@ function createCalendarEntry(event) {
   return entry;
 }
 
+function createCalendarEvent(event) {
+  return createCalendarEntry(event);
+}
+
 function groupEventsByDay(events) {
   const groups = [];
   const lookup = new Map();
@@ -365,7 +370,7 @@ function createDayGroup(group) {
 
   const list = document.createElement("ol");
   list.className = "calendar-day-events";
-  group.events.forEach((event) => list.append(createCalendarEntry(event)));
+  group.events.forEach((event) => list.append(createCalendarEvent(event)));
   item.append(heading, list);
   return item;
 }
@@ -394,6 +399,11 @@ function renderCalendar(calendar) {
   const data = document.getElementById("calendarData");
   if (state) state.hidden = true;
   if (data) data.hidden = false;
+
+  if (typeof renderAuthenticatedCalendar === "function" && pageRole !== "anonymous") {
+    renderAuthenticatedCalendar(calendar);
+    return;
+  }
 
   const events = Array.isArray(calendar.events) ? calendar.events : [];
   const eventsContainer = document.getElementById("calendarEvents");
