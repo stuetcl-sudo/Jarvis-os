@@ -147,6 +147,31 @@ body[data-wall-dashboard="true"] .family-footer {
   }
 }
 
+@media (min-width: 921px) and (max-width: 1180px) {
+  body[data-wall-dashboard="true"] .family-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-card,
+  body[data-wall-dashboard="true"][data-calendar-days="1"] .calendar-card {
+    grid-column: span 2;
+  }
+
+  body[data-wall-dashboard="true"] .weather-card {
+    grid-column: span 3;
+  }
+
+  body[data-wall-dashboard="true"] .home-card,
+  body[data-wall-dashboard="true"] .system-card {
+    grid-column: span 1;
+  }
+
+  body[data-wall-dashboard="true"] .meal-card,
+  body[data-wall-dashboard="true"] .family-tasks-card {
+    grid-column: span 2;
+  }
+}
+
 @media (max-width: 920px) {
   body[data-wall-dashboard="true"] .family-header {
     align-items: flex-start;
