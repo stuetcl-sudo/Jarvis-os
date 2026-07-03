@@ -75,9 +75,19 @@ def env_relationships(name):
 
 
 def home_assistant_configuration():
+    env_base_url = os.getenv("HOME_ASSISTANT_URL", "").strip()
+    env_access_value = os.getenv("HOME_ASSISTANT_" + "TOKEN", "").strip()
+    try:
+        from app import settings_store
+
+        base_url = settings_store.get_setting("home_assistant.base_url", env_base_url, db_path=DB_PATH).strip()
+        access_value = settings_store.get_secret("home_assistant.token", env_access_value, db_path=DB_PATH)
+    except (OSError, RuntimeError):
+        base_url = env_base_url
+        access_value = env_access_value
     return {
-        "base_url": os.getenv("HOME_ASSISTANT_URL", "").strip(),
-        "access_value": os.getenv("HOME_ASSISTANT_" + "TOKEN", "").strip(),
+        "base_url": base_url,
+        "access_value": access_value,
         "timeout_seconds": env_positive_int("HOME_ASSISTANT_TIMEOUT_SECONDS", 5),
     }
 

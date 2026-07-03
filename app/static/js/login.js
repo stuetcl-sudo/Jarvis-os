@@ -1,12 +1,28 @@
-function safeNextPath(value) {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/admin";
+function safeNextPath(value, fallback = "/admin") {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return fallback;
   try {
     const parsed = new URL(value, window.location.origin);
-    if (parsed.origin !== window.location.origin) return "/admin";
+    if (parsed.origin !== window.location.origin) return fallback;
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch (error) {
-    return "/admin";
+    return fallback;
   }
+}
+
+async function ownerLandingPath(requestedPath) {
+  try {
+    const response = await fetch("/api/admin/setup/summary", {
+      method: "GET",
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" },
+    });
+    if (!response.ok) return requestedPath;
+    const summary = await response.json();
+    if (!summary.completed) return "/setup";
+  } catch (error) {
+    return requestedPath;
+  }
+  return requestedPath === "/setup" ? "/admin" : requestedPath;
 }
 
 const form = document.getElementById("loginForm");
@@ -27,9 +43,13 @@ form.addEventListener("submit", async (event) => {
       body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error("login failed");
+    const result = await response.json();
     form.elements.password.value = "";
+    const fallback = result.user?.role === "owner" ? "/admin" : "/";
     const next = new URLSearchParams(window.location.search).get("next");
-    window.location.assign(safeNextPath(next));
+    let destination = safeNextPath(next, fallback);
+    if (result.user?.role === "owner") destination = await ownerLandingPath(destination);
+    window.location.assign(destination);
   } catch (error) {
     form.elements.password.value = "";
     errorBox.hidden = false;
