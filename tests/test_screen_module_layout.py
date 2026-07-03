@@ -18,16 +18,16 @@ def screen_environment():
             config.DB_PATH = previous
 
 
-def test_default_wall_layout_uses_sensible_module_sizes():
+def test_default_wall_layout_uses_equal_module_sizes():
     with screen_environment():
         wall = get_screen("wall")
         assert wall["module_layout"] == {
             "routine": "large",
-            "calendar": "full",
-            "weather": "wide",
-            "meal": "medium",
-            "tasks": "wide",
-            "home": "medium",
+            "calendar": "large",
+            "weather": "large",
+            "meal": "large",
+            "tasks": "large",
+            "home": "small",
         }
 
 
@@ -57,7 +57,7 @@ def test_screen_registry_rejects_invalid_module_size():
             raise AssertionError("invalid module size accepted")
 
 
-def test_wall_page_applies_configured_module_size_css():
+def test_wall_page_applies_configured_module_size_css_and_status_badge():
     with screen_environment():
         upsert_screen(
             "Stuen",
@@ -68,6 +68,10 @@ def test_wall_page_applies_configured_module_size_css():
         )
         page = render_wall_page({"role": "adult"}, "stuen")
         assert 'data-wall-screen-slug="stuen"' in page
+        assert 'id="wallHomeStatusBadge"' in page
+        assert 'id="wallHomeStatusText"' in page
+        assert 'body[data-wall-dashboard="true"] .family-grid{align-items:stretch}' in page
+        assert 'body[data-wall-dashboard="true"] [data-family-card="home"]{display:none!important}' in page
         assert '[data-family-card="meal"]{display:none!important}' in page
         assert 'body[data-wall-dashboard="true"] .calendar-card{grid-column:1 / -1;min-height:340px}' in page
         assert 'body[data-wall-dashboard="true"] .weather-card{grid-column:span 3;min-height:190px}' in page
@@ -79,10 +83,10 @@ def test_wall_page_applies_configured_module_size_css():
 
 if __name__ == "__main__":
     for test in [
-        test_default_wall_layout_uses_sensible_module_sizes,
+        test_default_wall_layout_uses_equal_module_sizes,
         test_screen_registry_persists_module_size_layout,
         test_screen_registry_rejects_invalid_module_size,
-        test_wall_page_applies_configured_module_size_css,
+        test_wall_page_applies_configured_module_size_css_and_status_badge,
     ]:
         test()
     print("Screen module layout tests OK")
