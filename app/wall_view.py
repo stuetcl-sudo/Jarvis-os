@@ -13,14 +13,30 @@ MODULE_CARD_SELECTORS = {
     "home": ".home-card",
     "system": ".system-card",
 }
-# The wall grid uses 12 columns on wide screens. A user-facing module size
-# must therefore map to useful spans, not raw CSS span 1/2 values.
+# The wall grid uses 12 columns on wide screens. Smaller breakpoints use
+# 8, 4, 2 and finally 1 column, so generated layout rules must scale down.
 MODULE_SIZE_STYLES = {
-    "small": "grid-column:span 3;min-height:190px",
-    "medium": "grid-column:span 4",
-    "large": "grid-column:span 6;min-height:320px",
-    "wide": "grid-column:span 8",
-    "full": "grid-column:1 / -1;min-height:340px",
+    "wide": {
+        "small": "grid-column:span 3;min-height:190px",
+        "medium": "grid-column:span 4",
+        "large": "grid-column:span 6;min-height:320px",
+        "wide": "grid-column:span 8",
+        "full": "grid-column:1 / -1;min-height:340px",
+    },
+    "desktop": {
+        "small": "grid-column:span 2;min-height:190px",
+        "medium": "grid-column:span 3",
+        "large": "grid-column:span 4;min-height:300px",
+        "wide": "grid-column:span 6",
+        "full": "grid-column:1 / -1;min-height:320px",
+    },
+    "tablet": {
+        "small": "grid-column:span 1;min-height:180px",
+        "medium": "grid-column:span 2",
+        "large": "grid-column:span 2;min-height:280px",
+        "wide": "grid-column:1 / -1",
+        "full": "grid-column:1 / -1;min-height:300px",
+    },
 }
 
 
@@ -43,18 +59,34 @@ def module_visibility_style(screen):
     return "".join(hidden)
 
 
-def module_layout_style(screen):
+def module_layout_rules(screen, breakpoint):
     rules = []
     modules = set(screen.get("modules") or [])
     layout = screen.get("module_layout") or {}
+    styles = MODULE_SIZE_STYLES[breakpoint]
     for module in ["routine", "calendar", "weather", "meal", "tasks", "home", "system"]:
         if module not in modules:
             continue
         selector = MODULE_CARD_SELECTORS.get(module)
-        css = MODULE_SIZE_STYLES.get(layout.get(module))
+        css = styles.get(layout.get(module))
         if selector and css:
             rules.append(f'body[data-wall-dashboard="true"] {selector}{{{css}}}')
     return "".join(rules)
+
+
+def module_layout_style(screen):
+    wide = module_layout_rules(screen, "wide")
+    desktop = module_layout_rules(screen, "desktop")
+    tablet = module_layout_rules(screen, "tablet")
+    return (
+        wide
+        + "@media(max-width:1279px){"
+        + desktop
+        + "}"
+        + "@media(min-width:921px) and (max-width:1180px){"
+        + tablet
+        + "}"
+    )
 
 
 def screen_style(screen):
