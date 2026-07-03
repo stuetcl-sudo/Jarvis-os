@@ -117,11 +117,11 @@ def family_tasks_configuration():
         **home_assistant_configuration(),
         "sources": os.getenv(
             "HOME_ASSISTANT_TASK_LISTS",
-            "todo.familieopgaver|Familieopgaver,todo.lektier|Lektier",
+            "todo.familieopgaver|Familieopgaver,todo.lektier|Lektier,todo.shopping_list|Indkøbsliste",
         ).strip(),
         "cache_seconds": env_positive_int("FAMILY_TASKS_CACHE_SECONDS", 60),
         "stale_seconds": env_positive_int("FAMILY_TASKS_STALE_SECONDS", 900),
-        "max_items": env_positive_int("FAMILY_TASKS_MAX_ITEMS", 20),
+        "max_items": env_positive_int("FAMILY_TASKS_MAX_ITEMS", 30),
     }
 
 
