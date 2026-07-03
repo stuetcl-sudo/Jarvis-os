@@ -71,8 +71,10 @@ def test_wall_page_applies_configured_module_size_css():
         assert '[data-family-card="meal"]{display:none!important}' in page
         assert 'body[data-wall-dashboard="true"] .calendar-card{grid-column:1 / -1;min-height:340px}' in page
         assert 'body[data-wall-dashboard="true"] .weather-card{grid-column:span 3;min-height:190px}' in page
-        assert '@media(max-width:1279px)' in page
+        assert '@media(min-width:1280px)' in page
+        assert '@media(min-width:1181px) and (max-width:1279px)' in page
         assert '@media(min-width:921px) and (max-width:1180px)' in page
+        assert '@media(max-width:920px)' not in page
 
 
 if __name__ == "__main__":
