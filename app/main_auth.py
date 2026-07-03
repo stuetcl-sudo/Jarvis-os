@@ -41,6 +41,8 @@ async def enforce_local_authentication(request: Request, call_next):
     request.state.current_user = current_user
     actor_context = set_current_actor(current_user["username"] if current_user else None)
     path = request.url.path
+    owner_page = path in {"/admin", "/setup"}
+    owner_api = path.startswith("/api/admin/")
     routine_progress_write = (
         request.method == "POST"
         and path.startswith("/api/family/routines/")
@@ -84,9 +86,15 @@ async def enforce_local_authentication(request: Request, call_next):
                 return JSONResponse({"detail": "Family role required"}, status_code=403)
             return HTMLResponse(render_wall_page(current_user))
 
-        if path == "/admin":
+        if owner_page:
             if not current_user:
-                return RedirectResponse("/login?next=/admin", status_code=303)
+                return RedirectResponse(f"/login?next={path}", status_code=303)
+            if current_user["role"] != "owner":
+                return JSONResponse({"detail": "Owner role required"}, status_code=403)
+
+        if owner_api:
+            if not current_user:
+                return JSONResponse({"detail": "Authentication required"}, status_code=401)
             if current_user["role"] != "owner":
                 return JSONResponse({"detail": "Owner role required"}, status_code=403)
 
