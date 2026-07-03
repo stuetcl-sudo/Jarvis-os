@@ -86,6 +86,27 @@ function calmStatus(status) {
   return labels[status] || "Status er ukendt";
 }
 
+function wallStatusLabel(status) {
+  const labels = {
+    ok: "OK",
+    warning: "OBS",
+    critical: "ALARM",
+  };
+  return labels[status] || "UKENDT";
+}
+
+function updateWallHomeStatus(status) {
+  const badge = document.getElementById("wallHomeStatusBadge");
+  const dot = document.getElementById("wallHomeStatusDot");
+  if (!badge) return;
+  const safeStatus = ["ok", "warning", "critical"].includes(status) ? status : "unknown";
+  badge.className = `wall-home-status ${safeStatus}`;
+  if (dot) dot.className = `wall-home-status-dot ${safeStatus}`;
+  setText("wallHomeStatusText", wallStatusLabel(safeStatus));
+  badge.setAttribute("aria-label", calmStatus(safeStatus));
+  badge.title = calmStatus(safeStatus);
+}
+
 function renderMission(mission) {
   const status = mission.overall_status || "unknown";
   const dot = document.getElementById("jarvisStatusDot");
@@ -93,6 +114,7 @@ function renderMission(mission) {
   setText("lastUpdated", timeFormatter.format(new Date()));
   setText("jarvisStatus", calmStatus(status));
   if (dot) dot.className = `status-dot ${status}`;
+  updateWallHomeStatus(status);
   setText("safeMode", mission.safe_mode ? "Til" : "Fra");
   setText("systemsOnline", `${mission.docker?.running ?? 0} af ${mission.docker?.total ?? 0}`);
   setText("incidentCount", String(mission.active_incidents?.length ?? 0));
@@ -110,6 +132,7 @@ function renderUnavailable() {
   setText("jarvisStatus", "Kan ikke hente status");
   const dot = document.getElementById("jarvisStatusDot");
   if (dot) dot.className = "status-dot critical";
+  updateWallHomeStatus("critical");
   setText("safeMode", "Ukendt");
   setText("systemsOnline", "Ukendt");
   setText("incidentCount", "Ukendt");
@@ -264,82 +287,78 @@ function relativeDayLabel(value, allDay = false) {
   const tomorrow = localDateKey(tomorrowDate.toISOString());
   if (key === today) return "I dag";
   if (key === tomorrow) return "I morgen";
-  const parsed = allDay ? new Date(`${key}T12:00:00`) : new Date(value);
-  return Number.isNaN(parsed.getTime()) ? "Kommende" : longWeekdayFormatter.format(parsed);
+  return longWeekdayFormatter.format(new Date(`${key}T12:00:00`));
 }
 
-function eventTimeText(event) {
+function formatEventTime(event) {
   if (event.all_day) return "Hele dagen";
   const start = new Date(event.start || "");
   const end = new Date(event.end || "");
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "Tidspunkt ukendt";
-  return `${timeFormatter.format(start)}–${timeFormatter.format(end)}`;
+  if (Number.isNaN(start.getTime())) return "Tidspunkt ukendt";
+  const startText = timeFormatter.format(start);
+  if (Number.isNaN(end.getTime())) return startText;
+  return `${startText}–${timeFormatter.format(end)}`;
 }
 
-function calendarMarker(color, label) {
-  const marker = document.createElement("span");
-  marker.className = `calendar-color-marker calendar-color-${calendarColors.has(color) ? color : "blue"}`;
-  marker.setAttribute("aria-label", `${label}, farvemarkering`);
-  marker.setAttribute("role", "img");
-  return marker;
-}
+function createCalendarEntry(event) {
+  const entry = document.createElement("li");
+  entry.className = "calendar-event";
 
-function createCalendarLegendItem(calendar) {
-  const item = document.createElement("li");
-  item.className = "calendar-legend-item";
-  item.append(calendarMarker(calendar.color, calendar.label));
-  const label = document.createElement("span");
-  label.textContent = calendar.label;
-  item.append(label);
-  return item;
-}
-
-function createCalendarEvent(event) {
-  const item = document.createElement("li");
-  item.className = "calendar-event";
-
-  const when = document.createElement("div");
-  when.className = "calendar-event-when";
-  const day = document.createElement("span");
-  day.className = "calendar-event-day";
-  day.textContent = relativeDayLabel(event.start, event.all_day);
   const time = document.createElement("span");
   time.className = "calendar-event-time";
-  time.textContent = eventTimeText(event);
-  when.append(day, time);
+  time.textContent = formatEventTime(event);
 
-  const details = document.createElement("div");
-  const title = document.createElement("p");
+  const content = document.createElement("div");
+  const title = document.createElement("strong");
   title.className = "calendar-event-title";
   title.textContent = event.title || "Aftale";
-  details.append(title);
-  if (event.ongoing) {
-    const status = document.createElement("p");
-    status.className = "calendar-event-status";
-    status.textContent = "I gang nu";
-    details.append(status);
+
+  const calendar = document.createElement("span");
+  calendar.className = "calendar-event-calendar";
+  calendar.textContent = event.calendar || "Kalender";
+
+  content.append(title, calendar);
+  entry.append(time, content);
+
+  if (event.color && calendarColors.has(event.color)) {
+    entry.dataset.calendarColor = event.color;
   }
 
-  const attribution = document.createElement("span");
-  attribution.className = "calendar-event-calendar";
-  attribution.append(calendarMarker(event.calendar?.color, event.calendar?.label || "Kalender"));
-  const attributionLabel = document.createElement("span");
-  attributionLabel.textContent = event.calendar?.label || "Kalender";
-  attribution.append(attributionLabel);
-
-  item.append(when, details, attribution);
-  return item;
+  return entry;
 }
 
-function anonymousNextText(value) {
-  if (!value) return "";
-  const allDay = !String(value).includes("T");
-  const day = relativeDayLabel(value, allDay).toLowerCase();
-  if (allDay) return `Næste aftale ${day}, hele dagen`;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "";
-  const time = timeFormatter.format(parsed);
-  return day === "i dag" ? `Næste aftale kl. ${time}` : `Næste aftale ${day} kl. ${time}`;
+function groupEventsByDay(events) {
+  const groups = [];
+  const lookup = new Map();
+  events.forEach((event) => {
+    const key = localDateKey(event.start, event.all_day);
+    if (!key) return;
+    if (!lookup.has(key)) {
+      lookup.set(key, []);
+      groups.push({ key, events: lookup.get(key) });
+    }
+    lookup.get(key).push(event);
+  });
+  return groups;
+}
+
+function createDayGroup(group) {
+  const item = document.createElement("li");
+  item.className = "calendar-day-group";
+
+  const heading = document.createElement("div");
+  heading.className = "calendar-day-heading";
+  const label = document.createElement("strong");
+  label.textContent = relativeDayLabel(`${group.key}T12:00:00`);
+  const date = document.createElement("span");
+  date.textContent = new Intl.DateTimeFormat("da-DK", { day: "numeric", month: "short" }).format(new Date(`${group.key}T12:00:00`));
+  heading.append(label, date);
+
+  const list = document.createElement("ol");
+  list.className = "calendar-day-events";
+  group.events.forEach((event) => list.append(createCalendarEntry(event)));
+  item.append(heading, list);
+  return item;
 }
 
 function renderCalendarState(message) {
@@ -350,46 +369,6 @@ function renderCalendarState(message) {
     state.hidden = false;
   }
   if (data) data.hidden = true;
-}
-
-function renderAnonymousCalendar(calendar) {
-  const summary = document.getElementById("calendarAnonymousSummary");
-  const legend = document.getElementById("calendarLegend");
-  const events = document.getElementById("calendarEvents");
-  const empty = document.getElementById("calendarEmpty");
-  if (summary) summary.hidden = false;
-  if (legend) legend.hidden = true;
-  if (events) events.hidden = true;
-  if (empty) empty.hidden = true;
-
-  const todayCount = Number(calendar.today_count) || 0;
-  setText("calendarTodaySummary", todayCount === 0
-    ? "Ingen aftaler i dag"
-    : `${todayCount} ${todayCount === 1 ? "aftale" : "aftaler"} i dag`);
-  setText("calendarNextSummary", anonymousNextText(calendar.next_event_start));
-  const upcomingCount = Number(calendar.upcoming_count) || 0;
-  setText("calendarUpcomingSummary", upcomingCount === 0
-    ? "Ingen aftaler i perioden"
-    : `${upcomingCount} ${upcomingCount === 1 ? "aftale" : "aftaler"} i den næste uge`);
-}
-
-function renderAuthenticatedCalendar(calendar) {
-  const summary = document.getElementById("calendarAnonymousSummary");
-  const legend = document.getElementById("calendarLegend");
-  const events = document.getElementById("calendarEvents");
-  const empty = document.getElementById("calendarEmpty");
-  if (summary) summary.hidden = true;
-  if (legend) {
-    legend.hidden = false;
-    legend.replaceChildren();
-    (calendar.calendars || []).forEach((item) => legend.append(createCalendarLegendItem(item)));
-  }
-  if (events) {
-    events.hidden = false;
-    events.replaceChildren();
-    (calendar.events || []).forEach((event) => events.append(createCalendarEvent(event)));
-  }
-  if (empty) empty.hidden = (calendar.events || []).length !== 0;
 }
 
 function renderCalendar(calendar) {
@@ -407,71 +386,79 @@ function renderCalendar(calendar) {
   if (state) state.hidden = true;
   if (data) data.hidden = false;
 
-  if (pageRole === "anonymous") renderAnonymousCalendar(calendar);
-  else renderAuthenticatedCalendar(calendar);
+  const events = Array.isArray(calendar.events) ? calendar.events : [];
+  const eventsContainer = document.getElementById("calendarEvents");
+  const empty = document.getElementById("calendarEmpty");
+  if (eventsContainer) {
+    eventsContainer.replaceChildren();
+    const groups = groupEventsByDay(events.slice(0, 8));
+    groups.forEach((group) => eventsContainer.append(createDayGroup(group)));
+    eventsContainer.hidden = groups.length === 0;
+  }
+  if (empty) empty.hidden = events.length > 0;
+
+  const todaySummary = document.getElementById("calendarTodaySummary");
+  const nextSummary = document.getElementById("calendarNextSummary");
+  const upcomingSummary = document.getElementById("calendarUpcomingSummary");
+  const anonymousSummary = document.getElementById("calendarAnonymousSummary");
+  if (anonymousSummary) {
+    const todayKey = localDateKey(new Date().toISOString());
+    const todayEvents = events.filter((event) => localDateKey(event.start, event.all_day) === todayKey);
+    const nextEvent = events[0];
+    todaySummary.textContent = todayEvents.length ? `${todayEvents.length} aftale${todayEvents.length === 1 ? "" : "r"} i dag` : "Ingen aftaler i dag";
+    nextSummary.textContent = nextEvent ? `Næste: ${nextEvent.title || "Aftale"}` : "Ingen kommende aftaler";
+    upcomingSummary.textContent = events.length ? `${events.length} aftale${events.length === 1 ? "" : "r"} i kalenderen` : "";
+    anonymousSummary.hidden = pageRole !== "anonymous";
+  }
+
+  const legend = document.getElementById("calendarLegend");
+  if (legend) {
+    legend.replaceChildren();
+    (calendar.calendars || []).forEach((item) => {
+      const entry = document.createElement("li");
+      entry.dataset.calendarColor = calendarColors.has(item.color) ? item.color : "green";
+      const dot = document.createElement("span");
+      dot.setAttribute("aria-hidden", "true");
+      const label = document.createElement("span");
+      label.textContent = item.label || "Kalender";
+      entry.append(dot, label);
+      legend.append(entry);
+    });
+  }
 
   const notice = document.getElementById("calendarNotice");
   if (notice) {
-    const messages = {
-      partial: "Nogle kalendere kunne ikke hentes",
-      stale: "Viser senest hentede kalenderdata",
-    };
-    notice.textContent = messages[calendar.status] || "";
-    notice.hidden = !messages[calendar.status];
+    notice.hidden = calendar.status !== "stale";
+    notice.textContent = calendar.status === "stale" ? "Viser senest hentede kalenderdata" : "";
   }
 }
 
-async function refreshMission() {
+async function fetchJson(endpoint) {
+  const response = await fetch(endpoint, { credentials: "same-origin" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+async function refresh() {
   try {
-    const response = await fetch("/api/mission", { credentials: "same-origin" });
-    if (!response.ok) throw new Error("Status kunne ikke hentes");
-    renderMission(await response.json());
+    const [mission, weather, calendar, health] = await Promise.all([
+      fetchJson("/api/mission"),
+      fetchJson("/api/family/weather"),
+      fetchJson("/api/family/calendar"),
+      fetchJson("/api/health"),
+    ]);
+    renderMission(mission);
+    renderWeather(weather);
+    renderCalendar(calendar);
+    renderHealth(health);
   } catch (error) {
     renderUnavailable();
+    renderWeatherState("Kunne ikke hente vejr");
+    renderCalendarState("Kunne ikke hente kalender");
   }
-}
-
-async function refreshWeather() {
-  try {
-    const response = await fetch("/api/family/weather", { credentials: "same-origin" });
-    if (!response.ok) throw new Error("Vejret kunne ikke hentes");
-    renderWeather(await response.json());
-  } catch (error) {
-    renderWeatherState("Vejret kan ikke hentes lige nu");
-  }
-}
-
-async function refreshCalendar() {
-  try {
-    const response = await fetch("/api/family/calendar", { credentials: "same-origin" });
-    if (!response.ok) throw new Error("Kalenderen kunne ikke hentes");
-    renderCalendar(await response.json());
-  } catch (error) {
-    renderCalendarState("Kalenderen kan ikke hentes lige nu");
-  }
-}
-
-async function refreshOwnerHealth() {
-  if (pageRole !== "owner") return;
-  try {
-    const response = await fetch("/api/health", { credentials: "same-origin" });
-    if (!response.ok) throw new Error("Systemstatus kunne ikke hentes");
-    renderHealth(await response.json());
-  } catch (error) {
-    setText("cpuMetric", "–");
-    setText("memoryMetric", "–");
-    setText("diskMetric", "–");
-  }
-}
-
-function refreshFamilyDashboard() {
-  refreshMission();
-  refreshWeather();
-  refreshCalendar();
-  refreshOwnerHealth();
 }
 
 updateClock();
-refreshFamilyDashboard();
+refresh();
 setInterval(updateClock, 1000);
-setInterval(refreshFamilyDashboard, 30000);
+setInterval(refresh, 120000);
