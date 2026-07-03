@@ -41,6 +41,7 @@ SUPPORTED_CONDITIONS = {
 WEATHER_ENTITY_RE = re.compile(r"^weather\.[a-z0-9_]+$")
 UV_ENTITY_RE = re.compile(r"^sensor\.[a-z0-9_]+$")
 DEFAULT_UV_ENTITY = "sensor.openuv_current_uv_index"
+DEFAULT_UV_MAX_ENTITY = "sensor.openuv_max_uv_index"
 PUBLIC_FIELDS = {
     "status",
     "condition",
@@ -48,6 +49,7 @@ PUBLIC_FIELDS = {
     "temperature_unit",
     "apparent_temperature",
     "uv_index",
+    "uv_max_index",
     "humidity",
     "wind_speed",
     "wind_speed_unit",
@@ -81,6 +83,7 @@ class WeatherSettings:
     cache_seconds: int
     stale_seconds: int
     uv_entity_id: str | None = None
+    uv_max_entity_id: str | None = None
 
     def connection(self):
         return HomeAssistantConnection(
@@ -99,14 +102,16 @@ def load_weather_settings():
 
     entity_id = values["entity_id"]
     uv_entity_id = os.getenv("HOME_ASSISTANT_UV_ENTITY", DEFAULT_UV_ENTITY).strip()
+    uv_max_entity_id = os.getenv("HOME_ASSISTANT_UV_MAX_ENTITY", DEFAULT_UV_MAX_ENTITY).strip()
     if connection is None and not entity_id:
         return None
     if connection is None or not entity_id:
         raise WeatherConfigurationError("Home Assistant weather configuration is incomplete")
     if not WEATHER_ENTITY_RE.fullmatch(entity_id):
         raise WeatherConfigurationError("Configured entity must be a weather entity")
-    if uv_entity_id and not UV_ENTITY_RE.fullmatch(uv_entity_id):
-        raise WeatherConfigurationError("Configured UV entity must be a sensor entity")
+    for configured_uv_entity in (uv_entity_id, uv_max_entity_id):
+        if configured_uv_entity and not UV_ENTITY_RE.fullmatch(configured_uv_entity):
+            raise WeatherConfigurationError("Configured UV entity must be a sensor entity")
     if values["stale_seconds"] < values["cache_seconds"]:
         raise WeatherConfigurationError("WEATHER_STALE_SECONDS must be at least WEATHER_CACHE_SECONDS")
     return WeatherSettings(
@@ -117,6 +122,7 @@ def load_weather_settings():
         values["cache_seconds"],
         values["stale_seconds"],
         uv_entity_id or None,
+        uv_max_entity_id or None,
     )
 
 
@@ -182,7 +188,7 @@ def _forecast_container(payload, entity_id):
     return None
 
 
-def normalize_weather(current_payload, forecast_payload, entity_id, uv_payload=None):
+def normalize_weather(current_payload, forecast_payload, entity_id, uv_payload=None, uv_max_payload=None):
     if not isinstance(current_payload, dict):
         raise WeatherUnavailable("Weather data is unavailable")
     attributes = current_payload.get("attributes")
@@ -212,6 +218,10 @@ def normalize_weather(current_payload, forecast_payload, entity_id, uv_payload=N
     if isinstance(uv_payload, dict):
         uv_index = _safe_uv_index(uv_payload.get("state"))
 
+    uv_max_index = None
+    if isinstance(uv_max_payload, dict):
+        uv_max_index = _safe_uv_index(uv_max_payload.get("state"))
+
     return {
         "status": "ok",
         "condition": _condition(current_payload.get("state")),
@@ -219,6 +229,7 @@ def normalize_weather(current_payload, forecast_payload, entity_id, uv_payload=N
         "temperature_unit": str(attributes.get("temperature_unit") or "").strip() or None,
         "apparent_temperature": _safe_number(attributes.get("apparent_temperature")),
         "uv_index": uv_index,
+        "uv_max_index": uv_max_index,
         "humidity": _safe_number(attributes.get("humidity")),
         "wind_speed": _safe_number(attributes.get("wind_speed")),
         "wind_speed_unit": str(attributes.get("wind_speed_unit") or "").strip() or None,
@@ -233,6 +244,14 @@ class HomeAssistantWeatherClient:
         self.settings = settings
         self.client_factory = client_factory
 
+    def fetch_optional_state(self, client, entity_id):
+        if not entity_id:
+            return None
+        try:
+            return client.get_json(f"/api/states/{quote(entity_id, safe='')}")
+        except HomeAssistantUnavailable:
+            return None
+
     def fetch(self):
         client = HomeAssistantClient(self.settings.connection(), self.client_factory)
         try:
@@ -246,19 +265,14 @@ class HomeAssistantWeatherClient:
         except HomeAssistantUnavailable as exc:
             raise WeatherUnavailable("Home Assistant weather is unavailable") from exc
 
-        uv_payload = None
-        if self.settings.uv_entity_id:
-            try:
-                uv_payload = client.get_json(
-                    f"/api/states/{quote(self.settings.uv_entity_id, safe='')}"
-                )
-            except HomeAssistantUnavailable:
-                uv_payload = None
+        uv_payload = self.fetch_optional_state(client, self.settings.uv_entity_id)
+        uv_max_payload = self.fetch_optional_state(client, self.settings.uv_max_entity_id)
         return normalize_weather(
             current_payload,
             forecast_payload,
             self.settings.entity_id,
             uv_payload,
+            uv_max_payload,
         )
 
 
@@ -319,6 +333,7 @@ def _status(status):
         "temperature_unit": None,
         "apparent_temperature": None,
         "uv_index": None,
+        "uv_max_index": None,
         "humidity": None,
         "wind_speed": None,
         "wind_speed_unit": None,
