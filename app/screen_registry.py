@@ -12,21 +12,31 @@ SCREEN_MODULE_SIZES = {"small", "medium", "large", "wide", "full"}
 DEFAULT_MODULES = ["routine", "calendar", "weather", "meal", "tasks", "home"]
 DEFAULT_MODULE_LAYOUT = {
     "routine": "large",
-    "calendar": "full",
-    "weather": "wide",
-    "meal": "medium",
-    "tasks": "wide",
-    "home": "medium",
-    "system": "medium",
+    "calendar": "large",
+    "weather": "large",
+    "meal": "large",
+    "tasks": "large",
+    "home": "small",
+    "system": "small",
 }
-LEGACY_DEFAULT_MODULE_LAYOUT = {
-    "routine": "medium",
-    "calendar": "wide",
-    "weather": "medium",
-    "meal": "medium",
-    "tasks": "wide",
-    "home": "medium",
-}
+LEGACY_DEFAULT_MODULE_LAYOUTS = [
+    {
+        "routine": "medium",
+        "calendar": "wide",
+        "weather": "medium",
+        "meal": "medium",
+        "tasks": "wide",
+        "home": "medium",
+    },
+    {
+        "routine": "large",
+        "calendar": "full",
+        "weather": "wide",
+        "meal": "medium",
+        "tasks": "wide",
+        "home": "medium",
+    },
+]
 DEFAULT_SCREEN = {
     "name": "Vægskærm",
     "slug": "wall",
@@ -140,7 +150,7 @@ def row_to_screen(row):
     item = dict(row)
     item["modules"] = parse_modules(item.get("modules"))
     parsed_layout = parse_module_layout(item.get("module_layout"))
-    if item.get("slug") == "wall" and item["modules"] == DEFAULT_MODULES and parsed_layout == LEGACY_DEFAULT_MODULE_LAYOUT:
+    if item.get("slug") == "wall" and item["modules"] == DEFAULT_MODULES and parsed_layout in LEGACY_DEFAULT_MODULE_LAYOUTS:
         parsed_layout = DEFAULT_MODULE_LAYOUT
     item["module_layout"] = normalize_module_layout(parsed_layout, item["modules"])
     item["is_active"] = bool(item.get("is_active"))
