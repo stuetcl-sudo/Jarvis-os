@@ -1,0 +1,52 @@
+/* Shared Jarvis OS design tokens.
+   Keep page-specific CSS focused on layout and exceptions, not repeated values. */
+:root {
+  color-scheme: light dark;
+
+  --jarvis-font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  --jarvis-font-size-xs: 0.75rem;
+  --jarvis-font-size-sm: 0.875rem;
+  --jarvis-font-size-md: 1rem;
+  --jarvis-font-size-lg: 1.125rem;
+  --jarvis-font-size-xl: 1.5rem;
+  --jarvis-font-size-2xl: clamp(2rem, 4vw, 3.75rem);
+
+  --jarvis-space-2xs: 0.25rem;
+  --jarvis-space-xs: 0.5rem;
+  --jarvis-space-sm: 0.75rem;
+  --jarvis-space-md: 1rem;
+  --jarvis-space-lg: 1.5rem;
+  --jarvis-space-xl: 2rem;
+  --jarvis-space-2xl: 3rem;
+
+  --jarvis-radius-sm: 0.5rem;
+  --jarvis-radius-md: 0.75rem;
+  --jarvis-radius-lg: 1rem;
+  --jarvis-radius-xl: 1.25rem;
+  --jarvis-radius-pill: 999px;
+
+  --jarvis-shadow-card: 0 18px 52px rgba(0, 0, 0, 0.22);
+  --jarvis-shadow-soft: 0 12px 32px rgba(15, 23, 42, 0.16);
+
+  --jarvis-color-bg: #07111f;
+  --jarvis-color-surface: rgba(15, 23, 42, 0.88);
+  --jarvis-color-surface-soft: rgba(148, 163, 184, 0.08);
+  --jarvis-color-border: rgba(148, 163, 184, 0.24);
+  --jarvis-color-text: #eef4fb;
+  --jarvis-color-muted: #aab8c9;
+  --jarvis-color-accent: #7dd3fc;
+  --jarvis-color-accent-strong: #38bdf8;
+
+  --jarvis-status-ok: #86efac;
+  --jarvis-status-warning: #fde68a;
+  --jarvis-status-critical: #fecaca;
+  --jarvis-status-info: #bfdbfe;
+
+  --jarvis-status-ok-bg: rgba(34, 197, 94, 0.18);
+  --jarvis-status-warning-bg: rgba(251, 191, 36, 0.18);
+  --jarvis-status-critical-bg: rgba(248, 113, 113, 0.18);
+  --jarvis-status-info-bg: rgba(56, 189, 248, 0.14);
+
+  --jarvis-touch-target: 44px;
+  --jarvis-content-max-width: 1500px;
+}
