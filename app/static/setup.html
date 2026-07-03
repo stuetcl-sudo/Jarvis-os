@@ -52,13 +52,13 @@
     <section class="setup-card" data-step="1" hidden>
       <p class="section-kicker">Trin 2</p>
       <h2>Forbind Home Assistant</h2>
-      <p class="setup-help">Forbindelsen testes, før tokenet gemmes krypteret.</p>
+      <p class="setup-help">Forbindelsen testes, før adgangsnøglen gemmes krypteret.</p>
       <div class="setup-form">
         <label>Home Assistant-adresse
           <input id="setupHaUrl" type="url" placeholder="Indtast Home Assistant-adressen" required />
         </label>
-        <label>Langtidstoken
-          <input id="setupHaToken" type="password" autocomplete="new-password" placeholder="Lad stå tomt for at beholde gemt token" />
+        <label>Langtidsadgang
+          <input id="setupHaToken" type="password" autocomplete="new-password" placeholder="Lad stå tomt for at beholde gemt adgang" />
         </label>
         <div class="setup-actions left">
           <button id="setupTestHaButton" type="button" class="secondary">Test forbindelse</button>
@@ -71,11 +71,8 @@
     <section class="setup-card" data-step="2" hidden>
       <p class="section-kicker">Trin 3</p>
       <h2>Vælg indhold</h2>
-      <p class="setup-help">Entiteter vælges under Administration i den nye søgbare vælger. Guiden viser status og fører dig direkte videre.</p>
+      <p class="setup-help">Entiteter vælges direkte i guiden. Tekniske sensorer er skjult som standard.</p>
       <div id="setupContentSummary" class="summary-grid"></div>
-      <div class="setup-actions left">
-        <a class="button-link" href="/admin#connections">Åbn Home Assistant-vælgeren</a>
-      </div>
     </section>
 
     <section class="setup-card" data-step="3" hidden>
@@ -94,5 +91,6 @@
     </footer>
   </main>
   <script src="/static/js/setup.js" defer></script>
+  <script src="/static/js/setup-completion.js" defer></script>
 </body>
 </html>
