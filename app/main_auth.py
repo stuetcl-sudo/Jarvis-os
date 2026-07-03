@@ -3,7 +3,6 @@ import hmac
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from app import config, home_setup
 from app.auth.context import reset_current_actor, set_current_actor
 from app.auth.routes import router as auth_router
 from app.auth.service import SESSION_COOKIE_NAME, auth_service
@@ -33,10 +32,6 @@ ROUTINE_WRITE_ACTIONS = {"complete", "back", "reset"}
 @app.on_event("startup")
 async def initialize_local_authentication():
     auth_service.initialize()
-
-
-def setup_is_complete():
-    return home_setup.load_home_settings(db_path=config.DB_PATH)["completed"]
 
 
 @app.middleware("http")
@@ -96,10 +91,6 @@ async def enforce_local_authentication(request: Request, call_next):
                 return RedirectResponse(f"/login?next={path}", status_code=303)
             if current_user["role"] != "owner":
                 return JSONResponse({"detail": "Owner role required"}, status_code=403)
-            if request.method == "GET" and path == "/admin" and not setup_is_complete():
-                return RedirectResponse("/setup", status_code=303)
-            if request.method == "GET" and path == "/setup" and setup_is_complete():
-                return RedirectResponse("/admin", status_code=303)
 
         if owner_api:
             if not current_user:
