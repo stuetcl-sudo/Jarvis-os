@@ -9,6 +9,7 @@ from app import config
 from app.auth.service import auth_service, initialize_auth_tables
 from app.db import init_db
 from app.main_auth import app
+from app.screen_registry import list_screens, upsert_screen
 from app.wall_view import WALL_ROLES, render_wall_page
 from app.weather import PUBLIC_FIELDS, _safe_uv_index, normalize_weather
 
@@ -42,6 +43,7 @@ def login(client, role, display_name=None):
         json={"username": username, "password": credential()},
     )
     assert response.status_code == 200, response.text
+    return response.json()["csrf_token"]
 
 
 def weather_payload():
@@ -81,6 +83,8 @@ def test_wall_reuses_family_dashboard_as_shared_display():
             assert 'data-family-view="shared-display"' in page
             assert 'data-family-kiosk="true"' in page
             assert 'data-family-display-name=""' in page
+            assert 'data-wall-screen-slug="wall"' in page
+            assert 'data-wall-screen-name="Vægskærm"' in page
             assert "Private display name" not in page
             assert 'id="calendarRangeControls"' in page
             assert 'id="calendarEvents"' in page
@@ -93,10 +97,60 @@ def test_wall_reuses_family_dashboard_as_shared_display():
             assert '/static/js/routines.js' in page
             assert '/static/js/wall-mode.js' in page
             assert '/static/css/wall-mode.css' in page
+            assert '/static/css/wall-profiles.css' in page
             assert '/static/js/wall.js' not in page
             assert 'class="wall-shell"' not in page
             assert "WALL_DISPLAY_ACTIONS" not in page
             assert ('href="/admin">Administration</a>' in page) is (role == "owner")
+
+
+def test_named_wall_screens_are_stored_and_rendered():
+    with wall_environment() as client:
+        csrf = login(client, "owner")
+        response = client.post(
+            "/api/admin/screens",
+            headers={"X-CSRF-Token": csrf},
+            json={
+                "name": "Wall Stuen",
+                "slug": "wall-stuen",
+                "screen_type": "wall-tablet",
+                "modules": ["routine", "calendar", "weather"],
+                "is_active": True,
+            },
+        )
+        assert response.status_code == 200, response.text
+        created = response.json()["screen"]
+        assert created["url"] == "/wall/wall-stuen"
+        assert created["modules"] == ["routine", "calendar", "weather"]
+
+        listing = client.get("/api/admin/screens")
+        assert listing.status_code == 200
+        assert any(item["slug"] == "wall" for item in listing.json()["screens"])
+        assert any(item["slug"] == "wall-stuen" for item in listing.json()["screens"])
+
+        page = client.get("/wall/wall-stuen")
+        assert page.status_code == 200
+        assert '<title>Jarvis – Wall Stuen</title>' in page.text
+        assert 'data-wall-screen-slug="wall-stuen"' in page.text
+        assert 'data-wall-screen-name="Wall Stuen"' in page.text
+        assert 'data-wall-preferred-profile="wall-tablet"' in page.text
+        assert '[data-family-card="meal"]{display:none!important}' in page.text
+        assert '[data-family-card="tasks"]{display:none!important}' in page.text
+
+
+def test_named_wall_screen_access_policy_and_missing_screen():
+    with wall_environment() as client:
+        anonymous = client.get("/wall/stuen")
+        assert anonymous.status_code == 303
+        assert anonymous.headers["location"] == "/login?next=/wall/stuen"
+
+    with wall_environment() as client:
+        login(client, "adult")
+        assert client.get("/wall/unknown").status_code == 404
+
+    with wall_environment() as client:
+        login(client, "adult")
+        assert client.get("/api/admin/screens").status_code == 403
 
 
 def test_wall_shared_display_hides_owner_technical_details():
@@ -125,6 +179,7 @@ def test_wall_family_assets_are_available():
             ("/static/css/family.css", ".family-shell"),
             ("/static/css/calendar-range.css", ".calendar-range-controls"),
             ("/static/css/wall-mode.css", 'body[data-wall-dashboard="true"]'),
+            ("/static/css/wall-profiles.css", 'data-wall-screen-profile="tablet"'),
             ("/static/pictograms/routines.svg", 'symbol id="complete"'),
         ]:
             response = client.get(asset)
@@ -205,10 +260,28 @@ def test_render_wall_page_rejects_invalid_roles():
             raise AssertionError("invalid wall role accepted")
 
 
+def test_screen_registry_validation():
+    with wall_environment():
+        screens = list_screens()
+        assert screens[0]["slug"] == "wall"
+        assert screens[0]["url"] == "/wall"
+        created = upsert_screen("Køkken", "køkken", "wall-tablet", ["weather", "meal"])
+        assert created["slug"] == "k-kken"
+        assert created["url"] == "/wall/k-kken"
+        try:
+            upsert_screen("Broken", "broken", "unknown", ["weather"])
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid screen type accepted")
+
+
 if __name__ == "__main__":
     for test in [
         test_wall_route_roles_and_admin_policy,
         test_wall_reuses_family_dashboard_as_shared_display,
+        test_named_wall_screens_are_stored_and_rendered,
+        test_named_wall_screen_access_policy_and_missing_screen,
         test_wall_shared_display_hides_owner_technical_details,
         test_wall_family_assets_are_available,
         test_wall_mode_frontend_is_read_only_and_role_safe,
@@ -216,6 +289,7 @@ if __name__ == "__main__":
         test_wall_defaults_to_three_calendar_days_and_remains_responsive,
         test_one_day_wall_layout_pairs_calendar_and_routine_at_half_width,
         test_render_wall_page_rejects_invalid_roles,
+        test_screen_registry_validation,
     ]:
         test()
     print("Wall dashboard tests OK")
