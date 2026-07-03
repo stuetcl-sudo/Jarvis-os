@@ -20,6 +20,7 @@ from app.home_assistant import (
 
 TODO_ENTITY_RE = re.compile(r"^todo\.[a-z0-9_]+$")
 AUTHENTICATED_ROLES = {"owner", "adult", "child", "wall_display"}
+EDITOR_ROLES = {"owner", "adult"}
 MAX_LABEL_LENGTH = 32
 MAX_SUMMARY_LENGTH = 160
 MAX_DESCRIPTION_LENGTH = 320
@@ -31,6 +32,21 @@ class FamilyTasksConfigurationError(ValueError):
 
 
 class CompleteTaskRequest(BaseModel):
+    item: str = Field(min_length=1, max_length=MAX_ITEM_ID_LENGTH)
+
+
+class CreateTaskRequest(BaseModel):
+    summary: str = Field(min_length=1, max_length=MAX_SUMMARY_LENGTH)
+    description: str | None = Field(default=None, max_length=MAX_DESCRIPTION_LENGTH)
+
+
+class UpdateTaskRequest(BaseModel):
+    item: str = Field(min_length=1, max_length=MAX_ITEM_ID_LENGTH)
+    summary: str = Field(min_length=1, max_length=MAX_SUMMARY_LENGTH)
+    description: str | None = Field(default=None, max_length=MAX_DESCRIPTION_LENGTH)
+
+
+class RemoveTaskRequest(BaseModel):
     item: str = Field(min_length=1, max_length=MAX_ITEM_ID_LENGTH)
 
 
@@ -120,6 +136,17 @@ def _clean_text(value, maximum):
     return " ".join(str(value or "").split())[:maximum]
 
 
+def _required_text(value, maximum, message):
+    cleaned = _clean_text(value, maximum)
+    if not cleaned:
+        raise ValueError(message)
+    return cleaned
+
+
+def _optional_text(value, maximum):
+    return _clean_text(value, maximum) or None
+
+
 def _normalize_item(raw_item, source):
     if not isinstance(raw_item, dict):
         return None
@@ -187,13 +214,36 @@ class HomeAssistantTasksClient:
         return limited_lists, failures
 
     def complete(self, source, item_uid):
-        HomeAssistantClient(self.settings.connection, self.client_factory).post_json(
+        self._call(
             "/api/services/todo/update_item",
-            json_body={
-                "entity_id": source.entity_id,
-                "item": item_uid,
-                "status": "completed",
-            },
+            {"entity_id": source.entity_id, "item": item_uid, "status": "completed"},
+        )
+
+    def add(self, source, summary, description=None):
+        payload = {"entity_id": source.entity_id, "item": summary}
+        if description:
+            payload["description"] = description
+        self._call("/api/services/todo/add_item", payload)
+
+    def update(self, source, item_uid, summary, description=None):
+        payload = {
+            "entity_id": source.entity_id,
+            "item": item_uid,
+            "rename": summary,
+            "description": description or "",
+        }
+        self._call("/api/services/todo/update_item", payload)
+
+    def remove(self, source, item_uid):
+        self._call(
+            "/api/services/todo/remove_item",
+            {"entity_id": source.entity_id, "item": item_uid},
+        )
+
+    def _call(self, path, payload):
+        HomeAssistantClient(self.settings.connection, self.client_factory).post_json(
+            path,
+            json_body=payload,
         )
 
 
@@ -207,7 +257,7 @@ def _empty_snapshot(status, sources=(), unavailable_lists=0):
     }
 
 
-def _snapshot(status, settings, lists, failures):
+def _snapshot(status, lists, failures):
     return {
         "status": status,
         "lists": copy.deepcopy(lists),
@@ -220,18 +270,25 @@ def _snapshot(status, settings, lists, failures):
 def _public_snapshot(snapshot, current_user):
     authenticated = isinstance(current_user, dict) and current_user.get("role") in AUTHENTICATED_ROLES
     if authenticated:
-        return copy.deepcopy(snapshot)
+        result = copy.deepcopy(snapshot)
+        result["can_edit"] = current_user.get("role") in EDITOR_ROLES
+        return result
     return {
         "status": "authentication_required",
         "lists": [],
         "total": 0,
         "unavailable_lists": 0,
         "stale": False,
+        "can_edit": False,
     }
 
 
 def _authenticated(current_user):
     return isinstance(current_user, dict) and current_user.get("role") in AUTHENTICATED_ROLES
+
+
+def _can_edit(current_user):
+    return isinstance(current_user, dict) and current_user.get("role") in EDITOR_ROLES
 
 
 class FamilyTasksService:
@@ -278,7 +335,7 @@ class FamilyTasksService:
             lists, failures = HomeAssistantTasksClient(settings, self.client_factory).fetch()
             if failures < len(settings.sources):
                 status = "partial" if failures else "ok"
-                snapshot = _snapshot(status, settings, lists, failures)
+                snapshot = _snapshot(status, lists, failures)
                 self._cached = copy.deepcopy(snapshot)
                 self._cached_at = now
                 return _public_snapshot(snapshot, current_user)
@@ -297,25 +354,80 @@ class FamilyTasksService:
                 current_user,
             )
 
-    def complete_task(self, list_key, item_uid, current_user=None):
-        if not _authenticated(current_user):
-            raise PermissionError("Family role required")
+    def _settings_and_source(self, list_key):
         settings = self.settings_loader()
         if settings is None:
             raise FamilyTasksConfigurationError("Task lists are not configured")
         source = next((candidate for candidate in settings.sources if candidate.key == list_key), None)
         if source is None:
             raise KeyError("Task list was not found")
-        cleaned_uid = " ".join(str(item_uid or "").split())
-        if not cleaned_uid or len(cleaned_uid) > MAX_ITEM_ID_LENGTH:
-            raise ValueError("Task item is invalid")
+        return settings, source
+
+    def complete_task(self, list_key, item_uid, current_user=None):
+        if not _authenticated(current_user):
+            raise PermissionError("Family role required")
+        settings, source = self._settings_and_source(list_key)
+        cleaned_uid = _required_text(item_uid, MAX_ITEM_ID_LENGTH, "Task item is invalid")
         HomeAssistantTasksClient(settings, self.client_factory).complete(source, cleaned_uid)
+        self.clear_cache()
+        return self.get_tasks(current_user)
+
+    def add_task(self, list_key, summary, description, current_user=None):
+        if not _can_edit(current_user):
+            raise PermissionError("Adult role required")
+        settings, source = self._settings_and_source(list_key)
+        cleaned_summary = _required_text(summary, MAX_SUMMARY_LENGTH, "Task summary is invalid")
+        cleaned_description = _optional_text(description, MAX_DESCRIPTION_LENGTH)
+        HomeAssistantTasksClient(settings, self.client_factory).add(
+            source,
+            cleaned_summary,
+            cleaned_description,
+        )
+        self.clear_cache()
+        return self.get_tasks(current_user)
+
+    def update_task(self, list_key, item_uid, summary, description, current_user=None):
+        if not _can_edit(current_user):
+            raise PermissionError("Adult role required")
+        settings, source = self._settings_and_source(list_key)
+        cleaned_uid = _required_text(item_uid, MAX_ITEM_ID_LENGTH, "Task item is invalid")
+        cleaned_summary = _required_text(summary, MAX_SUMMARY_LENGTH, "Task summary is invalid")
+        cleaned_description = _optional_text(description, MAX_DESCRIPTION_LENGTH)
+        HomeAssistantTasksClient(settings, self.client_factory).update(
+            source,
+            cleaned_uid,
+            cleaned_summary,
+            cleaned_description,
+        )
+        self.clear_cache()
+        return self.get_tasks(current_user)
+
+    def remove_task(self, list_key, item_uid, current_user=None):
+        if not _can_edit(current_user):
+            raise PermissionError("Adult role required")
+        settings, source = self._settings_and_source(list_key)
+        cleaned_uid = _required_text(item_uid, MAX_ITEM_ID_LENGTH, "Task item is invalid")
+        HomeAssistantTasksClient(settings, self.client_factory).remove(source, cleaned_uid)
         self.clear_cache()
         return self.get_tasks(current_user)
 
 
 family_tasks_service = FamilyTasksService()
 router = APIRouter()
+
+
+def _handle_task_error(exc):
+    if isinstance(exc, PermissionError):
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    if isinstance(exc, KeyError):
+        raise HTTPException(status_code=404, detail="Task list not found") from exc
+    if isinstance(exc, FamilyTasksConfigurationError):
+        raise HTTPException(status_code=503, detail="Tasks are unavailable") from exc
+    if isinstance(exc, ValueError):
+        raise HTTPException(status_code=422, detail="Task data is invalid") from exc
+    if isinstance(exc, HomeAssistantUnavailable):
+        raise HTTPException(status_code=503, detail="Tasks are unavailable") from exc
+    raise exc
 
 
 @router.get("/api/family/tasks")
@@ -329,13 +441,43 @@ def complete_family_task(list_key: str, payload: CompleteTaskRequest, request: R
     current_user = getattr(request.state, "current_user", None)
     try:
         return family_tasks_service.complete_task(list_key, payload.item, current_user)
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail="Family role required") from exc
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail="Task list not found") from exc
-    except FamilyTasksConfigurationError as exc:
-        raise HTTPException(status_code=503, detail="Tasks are unavailable") from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail="Task item is invalid") from exc
-    except HomeAssistantUnavailable as exc:
-        raise HTTPException(status_code=503, detail="Tasks are unavailable") from exc
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.post("/api/family/tasks/{list_key}/items")
+def add_family_task(list_key: str, payload: CreateTaskRequest, request: Request):
+    current_user = getattr(request.state, "current_user", None)
+    try:
+        return family_tasks_service.add_task(
+            list_key,
+            payload.summary,
+            payload.description,
+            current_user,
+        )
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.put("/api/family/tasks/{list_key}/items")
+def update_family_task(list_key: str, payload: UpdateTaskRequest, request: Request):
+    current_user = getattr(request.state, "current_user", None)
+    try:
+        return family_tasks_service.update_task(
+            list_key,
+            payload.item,
+            payload.summary,
+            payload.description,
+            current_user,
+        )
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.delete("/api/family/tasks/{list_key}/items")
+def remove_family_task(list_key: str, payload: RemoveTaskRequest, request: Request):
+    current_user = getattr(request.state, "current_user", None)
+    try:
+        return family_tasks_service.remove_task(list_key, payload.item, current_user)
+    except Exception as exc:
+        _handle_task_error(exc)
