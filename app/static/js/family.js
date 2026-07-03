@@ -291,6 +291,14 @@ function relativeDayLabel(value, allDay = false) {
   return longWeekdayFormatter.format(new Date(`${key}T12:00:00`));
 }
 
+function calendarEventIsOngoing(event, now = new Date()) {
+  if (!event || event.all_day) return false;
+  const start = new Date(event.start || "");
+  const end = new Date(event.end || "");
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+  return start <= now && end > now;
+}
+
 function formatEventTime(event) {
   if (event.all_day) return "Hele dagen";
   const start = new Date(event.start || "");
@@ -323,11 +331,16 @@ function createCalendarEntry(event) {
   title.className = "calendar-event-title";
   title.textContent = event.title || "Aftale";
 
+  const status = document.createElement("p");
+  status.className = "calendar-event-status";
+  status.textContent = calendarEventIsOngoing(event) ? "I gang nu" : "";
+  status.hidden = !status.textContent;
+
   const calendar = document.createElement("span");
   calendar.className = "calendar-event-calendar";
   calendar.textContent = calendarDisplayName(event.calendar);
 
-  content.append(title, calendar);
+  content.append(title, status, calendar);
   entry.append(time, content);
 
   if (event.color && calendarColors.has(event.color)) {
@@ -385,6 +398,51 @@ function renderCalendarState(message) {
   if (data) data.hidden = true;
 }
 
+function renderAnonymousCalendar(calendar) {
+  const eventsCandidate = calendar.events || [];
+  const events = Array.isArray(eventsCandidate) ? eventsCandidate : [];
+  const todaySummary = document.getElementById("calendarTodaySummary");
+  const nextSummary = document.getElementById("calendarNextSummary");
+  const upcomingSummary = document.getElementById("calendarUpcomingSummary");
+  const anonymousSummary = document.getElementById("calendarAnonymousSummary");
+  const legend = document.getElementById("calendarLegend");
+  const eventsContainer = document.getElementById("calendarEvents");
+  const empty = document.getElementById("calendarEmpty");
+
+  if (legend) {
+    legend.hidden = true;
+    legend.replaceChildren();
+  }
+  if (eventsContainer) {
+    eventsContainer.hidden = true;
+    eventsContainer.replaceChildren();
+  }
+  if (empty) empty.hidden = true;
+  if (!anonymousSummary) return;
+
+  const todayKey = localDateKey(new Date().toISOString());
+  const todayEvents = events.filter((event) => localDateKey(event.start, event.all_day) === todayKey);
+  const nextEvent = events[0];
+  if (todaySummary) todaySummary.textContent = todayEvents.length ? `${todayEvents.length} aftale${todayEvents.length === 1 ? "" : "r"} i dag` : "Ingen aftaler i dag";
+  if (nextSummary) nextSummary.textContent = nextEvent ? `Næste: ${nextEvent.title || "Aftale"}` : "Ingen kommende aftaler";
+  if (upcomingSummary) upcomingSummary.textContent = events.length ? `${events.length} aftale${events.length === 1 ? "" : "r"} i kalenderen` : "";
+  anonymousSummary.hidden = false;
+}
+
+function renderLegacyCalendar(calendar) {
+  const eventsCandidate = calendar.events || [];
+  const events = Array.isArray(eventsCandidate) ? eventsCandidate : [];
+  const eventsContainer = document.getElementById("calendarEvents");
+  const empty = document.getElementById("calendarEmpty");
+  if (eventsContainer) {
+    eventsContainer.replaceChildren();
+    const groups = groupEventsByDay(events.slice(0, 8));
+    groups.forEach((group) => eventsContainer.append(createDayGroup(group)));
+    eventsContainer.hidden = groups.length === 0;
+  }
+  if (empty) empty.hidden = events.length > 0;
+}
+
 function renderCalendar(calendar) {
   if (calendar.status === "not_configured") {
     renderCalendarState("Ikke tilsluttet endnu");
@@ -400,49 +458,12 @@ function renderCalendar(calendar) {
   if (state) state.hidden = true;
   if (data) data.hidden = false;
 
-  if (typeof renderAuthenticatedCalendar === "function" && pageRole !== "anonymous") {
+  if (pageRole === "anonymous") {
+    renderAnonymousCalendar(calendar);
+  } else if (typeof renderAuthenticatedCalendar === "function") {
     renderAuthenticatedCalendar(calendar);
-    return;
-  }
-
-  const events = Array.isArray(calendar.events) ? calendar.events : [];
-  const eventsContainer = document.getElementById("calendarEvents");
-  const empty = document.getElementById("calendarEmpty");
-  if (eventsContainer) {
-    eventsContainer.replaceChildren();
-    const groups = groupEventsByDay(events.slice(0, 8));
-    groups.forEach((group) => eventsContainer.append(createDayGroup(group)));
-    eventsContainer.hidden = groups.length === 0;
-  }
-  if (empty) empty.hidden = events.length > 0;
-
-  const todaySummary = document.getElementById("calendarTodaySummary");
-  const nextSummary = document.getElementById("calendarNextSummary");
-  const upcomingSummary = document.getElementById("calendarUpcomingSummary");
-  const anonymousSummary = document.getElementById("calendarAnonymousSummary");
-  if (anonymousSummary) {
-    const todayKey = localDateKey(new Date().toISOString());
-    const todayEvents = events.filter((event) => localDateKey(event.start, event.all_day) === todayKey);
-    const nextEvent = events[0];
-    todaySummary.textContent = todayEvents.length ? `${todayEvents.length} aftale${todayEvents.length === 1 ? "" : "r"} i dag` : "Ingen aftaler i dag";
-    nextSummary.textContent = nextEvent ? `Næste: ${nextEvent.title || "Aftale"}` : "Ingen kommende aftaler";
-    upcomingSummary.textContent = events.length ? `${events.length} aftale${events.length === 1 ? "" : "r"} i kalenderen` : "";
-    anonymousSummary.hidden = pageRole !== "anonymous";
-  }
-
-  const legend = document.getElementById("calendarLegend");
-  if (legend) {
-    legend.replaceChildren();
-    (calendar.calendars || []).forEach((item) => {
-      const entry = document.createElement("li");
-      entry.dataset.calendarColor = calendarColors.has(item.color) ? item.color : "green";
-      const dot = document.createElement("span");
-      dot.setAttribute("aria-hidden", "true");
-      const label = document.createElement("span");
-      label.textContent = item.label || "Kalender";
-      entry.append(dot, label);
-      legend.append(entry);
-    });
+  } else {
+    renderLegacyCalendar(calendar);
   }
 
   const notice = document.getElementById("calendarNotice");
