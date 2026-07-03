@@ -28,11 +28,13 @@ from app.events.bus import event_bus
 from app.events.dispatcher import publish
 from app.events.types import EventTypes
 from app.health import get_health
+from app.setup_routes import router as setup_router
 from app.policies.engine import policy_engine
 from app.worker import run_check_once, worker_loop, worker_status
 
 app = FastAPI(title=config.APP_NAME, version=config.VERSION)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.include_router(setup_router)
 
 
 class ServiceClassificationPayload(BaseModel):
