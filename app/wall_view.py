@@ -79,8 +79,10 @@ def module_layout_style(screen):
     desktop = module_layout_rules(screen, "desktop")
     tablet = module_layout_rules(screen, "tablet")
     return (
-        wide
-        + "@media(max-width:1279px){"
+        "@media(min-width:1280px){"
+        + wide
+        + "}"
+        + "@media(min-width:1181px) and (max-width:1279px){"
         + desktop
         + "}"
         + "@media(min-width:921px) and (max-width:1180px){"
