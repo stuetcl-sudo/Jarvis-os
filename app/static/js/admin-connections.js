@@ -24,7 +24,7 @@ function ensureHomeAssistantPanel() {
   urlInput.id = "homeAssistantBaseUrl";
   urlInput.name = "base_url";
   urlInput.type = "url";
-  urlInput.placeholder = "http://homeassistant.local:8123";
+  urlInput.placeholder = "Indtast Home Assistant-adressen";
   urlInput.autocomplete = "url";
   urlInput.required = true;
   urlLabel.append(urlInput);

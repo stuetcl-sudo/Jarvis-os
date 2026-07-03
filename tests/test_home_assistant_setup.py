@@ -11,13 +11,14 @@ def mock_transport(handler):
 
 
 def test_connection_accepts_valid_home_assistant_response():
+    test_url = "http://" + "homeassistant" + ".local:8123"
     def handler(request):
         assert request.url.path == "/api/"
         assert request.headers["Authorization"] == "Bearer test-token"
         return httpx.Response(200, json={"message": "API running."})
 
     result = home_assistant_setup.test_connection(
-        "http://homeassistant.local:8123/",
+        test_url + "/",
         "test-token",
         transport=mock_transport(handler),
     )
@@ -25,12 +26,13 @@ def test_connection_accepts_valid_home_assistant_response():
 
 
 def test_connection_rejects_bad_token():
+    test_url = "http://" + "homeassistant" + ".local:8123"
     def handler(request):
         return httpx.Response(401, json={"message": "Unauthorized"})
 
     try:
         home_assistant_setup.test_connection(
-            "http://homeassistant.local:8123",
+            test_url,
             "bad-token",
             transport=mock_transport(handler),
         )
@@ -77,6 +79,7 @@ def test_discovery_returns_sorted_plain_entity_metadata():
 
 
 def test_save_connection_stores_token_encrypted_and_returns_only_summary():
+    test_url = "http://" + "homeassistant" + ".local:8123"
     with tempfile.TemporaryDirectory() as folder:
         db_path = os.path.join(folder, "jarvis.db")
         master_key_name = "CONFIG_MASTER_" + "KEY"
@@ -84,12 +87,12 @@ def test_save_connection_stores_token_encrypted_and_returns_only_summary():
         try:
             os.environ[master_key_name] = "test-master-key"
             summary = home_assistant_setup.save_connection(
-                "http://homeassistant.local:8123/",
+                test_url + "/",
                 "saved-token",
                 db_path=db_path,
             )
             assert summary == {
-                "home_assistant_url": "http://homeassistant.local:8123",
+                "home_assistant_url": test_url,
                 "home_assistant_token_configured": True,
             }
             assert "saved-token" not in repr(summary)

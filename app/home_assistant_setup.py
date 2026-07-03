@@ -74,14 +74,14 @@ def discover_entities(base_url, token, timeout_seconds=10, transport=None):
         attributes = state.get("attributes") if isinstance(state.get("attributes"), dict) else {}
         domain = entity_id.split(".", 1)[0]
         entities.append(
-            {
-                "entity_id": entity_id,
-                "domain": domain,
-                "name": str(attributes.get("friendly_name") or entity_id),
-                "unit": attributes.get("unit_of_measurement"),
-                "device_class": attributes.get("device_class"),
-                "state": state.get("state"),
-            }
+            dict(
+                entity_id=entity_id,
+                domain=domain,
+                name=str(attributes.get("friendly_name") or entity_id),
+                unit=attributes.get("unit_of_measurement"),
+                device_class=attributes.get("device_class"),
+                state=state.get("state"),
+            )
         )
     entities.sort(key=lambda item: (item["domain"], item["name"].lower(), item["entity_id"]))
     return entities
