@@ -1,0 +1,97 @@
+/* Shared component primitives.
+   Existing pages can opt into these classes gradually without changing behavior. */
+.jarvis-card,
+.jarvis-panel {
+  border: 1px solid var(--jarvis-color-border);
+  border-radius: var(--jarvis-radius-xl);
+  background: var(--jarvis-color-surface);
+  box-shadow: var(--jarvis-shadow-card);
+}
+
+.jarvis-panel {
+  padding: var(--jarvis-space-lg);
+}
+
+.jarvis-button,
+.jarvis-link-button {
+  min-height: var(--jarvis-touch-target);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--jarvis-space-xs);
+  border: 0;
+  border-radius: var(--jarvis-radius-md);
+  padding: 0.625rem 1rem;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.jarvis-button {
+  background: var(--jarvis-color-accent-strong);
+  color: #082f49;
+}
+
+.jarvis-button.secondary,
+.jarvis-link-button.secondary {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--jarvis-color-text);
+  border: 1px solid var(--jarvis-color-border);
+}
+
+.jarvis-button.danger,
+.jarvis-link-button.danger {
+  background: rgba(248, 113, 113, 0.16);
+  color: var(--jarvis-status-critical);
+  border: 1px solid rgba(248, 113, 113, 0.38);
+}
+
+.jarvis-badge,
+.jarvis-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: var(--jarvis-radius-pill);
+  padding: 0.375rem 0.625rem;
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--jarvis-color-text);
+  font-size: var(--jarvis-font-size-sm);
+  font-weight: 800;
+}
+
+.jarvis-badge.ok,
+.jarvis-pill.ok {
+  background: var(--jarvis-status-ok-bg);
+  color: var(--jarvis-status-ok);
+}
+
+.jarvis-badge.warning,
+.jarvis-pill.warning {
+  background: var(--jarvis-status-warning-bg);
+  color: var(--jarvis-status-warning);
+}
+
+.jarvis-badge.critical,
+.jarvis-pill.critical,
+.jarvis-badge.error,
+.jarvis-pill.error {
+  background: var(--jarvis-status-critical-bg);
+  color: var(--jarvis-status-critical);
+}
+
+.jarvis-kicker {
+  margin: 0 0 var(--jarvis-space-xs);
+  color: var(--jarvis-color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: var(--jarvis-font-size-xs);
+  font-weight: 900;
+}
+
+.jarvis-muted {
+  color: var(--jarvis-color-muted);
+}
+
+.jarvis-inline-status[hidden] {
+  display: none;
+}
