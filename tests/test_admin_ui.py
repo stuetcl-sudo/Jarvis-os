@@ -107,6 +107,9 @@ def test_admin_screen_management_ui_is_plain_and_safe():
     assert "wall-square" in SCREEN_JAVASCRIPT
     assert "Vejr / UV" in SCREEN_JAVASCRIPT
     assert "data-screen-module" in SCREEN_JAVASCRIPT
+    assert "data-screen-module-size" in SCREEN_JAVASCRIPT
+    assert "module_layout" in SCREEN_JAVASCRIPT
+    assert "Fuld bredde" in SCREEN_JAVASCRIPT
     assert "deleteScreen" in SCREEN_JAVASCRIPT
     assert 'method: "DELETE"' in SCREEN_JAVASCRIPT
     assert "innerHTML" not in SCREEN_JAVASCRIPT
