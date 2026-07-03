@@ -57,7 +57,7 @@ def test_wall_page_applies_configured_module_size_css():
         assert 'data-wall-screen-slug="stuen"' in page
         assert '[data-family-card="meal"]{display:none!important}' in page
         assert 'body[data-wall-dashboard="true"] .calendar-card{grid-column:1 / -1;min-height:340px}' in page
-        assert 'body[data-wall-dashboard="true"] .weather-card{grid-column:span 1;min-height:190px}' in page
+        assert 'body[data-wall-dashboard="true"] .weather-card{grid-column:span 3;min-height:190px}' in page
 
 
 if __name__ == "__main__":
