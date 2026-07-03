@@ -9,6 +9,7 @@
     minute: "2-digit",
     hour12: false,
   });
+  const WALL_SHOPPING_PREVIEW_LIMIT = 5;
   const pendingTasks = new Set();
   let taskCsrfToken = null;
 
@@ -180,7 +181,7 @@
     input.type = "text";
     input.maxLength = 160;
     input.required = true;
-    input.placeholder = taskList.key === "shopping-list" ? "Tilføj en vare" : "Tilføj et punkt";
+    input.placeholder = isShoppingList(taskList) ? "Tilføj en vare" : "Tilføj et punkt";
     input.setAttribute("aria-label", `Tilføj til ${taskList.label || "listen"}`);
     const button = document.createElement("button");
     button.type = "submit";
@@ -204,17 +205,44 @@
     return form;
   }
 
+  function isShoppingList(taskList) {
+    const key = String(taskList?.key || "").toLowerCase();
+    const label = String(taskList?.label || "").toLowerCase();
+    return key.includes("shopping") || key.includes("indkob") || key.includes("indkøb") || label.includes("shopping") || label.includes("indkøb");
+  }
+
+  function isWallDisplay() {
+    return document.body.dataset.familyRole === "wall_display" || document.body.dataset.wallDashboard === "true";
+  }
+
+  function visibleTaskItems(taskList) {
+    const items = Array.isArray(taskList.items) ? taskList.items : [];
+    return isWallDisplay() && isShoppingList(taskList)
+      ? items.slice(0, WALL_SHOPPING_PREVIEW_LIMIT)
+      : items;
+  }
+
+  function taskCountText(taskList, visibleCount, total) {
+    if (isWallDisplay() && isShoppingList(taskList) && total > visibleCount) {
+      return `${visibleCount} af ${total} punkter`;
+    }
+    return `${total} ${total === 1 ? "punkt" : "punkter"}`;
+  }
+
   function createTaskList(taskList, canEdit) {
     const section = document.createElement("section");
     section.className = `family-task-list family-task-list-${taskList.key || "general"}`;
+    if (isShoppingList(taskList)) section.classList.add("family-task-list-shopping-list");
 
+    const allItems = Array.isArray(taskList.items) ? taskList.items : [];
+    const visibleItems = visibleTaskItems(taskList);
     const heading = document.createElement("div");
     heading.className = "family-task-list-heading";
     const title = document.createElement("h3");
     title.textContent = taskList.label || "Opgaver";
     const count = document.createElement("span");
-    const total = Array.isArray(taskList.items) ? taskList.items.length : 0;
-    count.textContent = `${total} ${total === 1 ? "punkt" : "punkter"}`;
+    const total = allItems.length;
+    count.textContent = taskCountText(taskList, visibleItems.length, total);
     heading.append(title, count);
 
     const items = document.createElement("ol");
@@ -225,7 +253,13 @@
       empty.textContent = "Ingen åbne punkter";
       items.append(empty);
     } else {
-      taskList.items.forEach((item) => items.append(createTaskItem(item, taskList.key, canEdit)));
+      visibleItems.forEach((item) => items.append(createTaskItem(item, taskList.key, canEdit)));
+      if (visibleItems.length < total) {
+        const more = document.createElement("li");
+        more.className = "family-task-more";
+        more.textContent = `${total - visibleItems.length} mere på listen`;
+        items.append(more);
+      }
     }
 
     section.append(heading);
