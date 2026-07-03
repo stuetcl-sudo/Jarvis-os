@@ -48,6 +48,21 @@ def save_home_settings(home_name, timezone, owner_name, db_path=None):
     return {**values, "completed": load_home_settings(db_path=db_path)["completed"]}
 
 
+def _entity_breakdown(entities):
+    return {
+        "calendars": len(entities.get("calendar_entities", [])) + bool(entities.get("meal_calendar")),
+        "task_lists": len(entities.get("task_entities", [])),
+        "weather": 1 if entities.get("weather_entity") else 0,
+        "energy_sources": sum(
+            1
+            for key in ("electricity_price_entity", "power_entity", "energy_entity")
+            if entities.get(key)
+        ),
+        "climate_sensors": len(entities.get("temperature_entities", []))
+        + len(entities.get("humidity_entities", [])),
+    }
+
+
 def setup_summary(db_path=None):
     home = load_home_settings(db_path=db_path)
     entities = home_entity_settings.load_entity_settings(db_path=db_path)
@@ -60,6 +75,7 @@ def setup_summary(db_path=None):
     return {
         **home,
         "selected_entity_count": selected_count,
+        "entity_breakdown": _entity_breakdown(entities),
         "ready_to_complete": bool(home["home_name"] and home["owner_name"] and home["timezone"]),
     }
 
