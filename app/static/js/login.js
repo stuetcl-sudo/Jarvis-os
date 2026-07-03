@@ -9,6 +9,22 @@ function safeNextPath(value, fallback = "/admin") {
   }
 }
 
+async function ownerLandingPath(requestedPath) {
+  try {
+    const response = await fetch("/api/admin/setup/summary", {
+      method: "GET",
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" },
+    });
+    if (!response.ok) return requestedPath;
+    const summary = await response.json();
+    if (!summary.completed) return "/setup";
+  } catch (error) {
+    return requestedPath;
+  }
+  return requestedPath === "/setup" ? "/admin" : requestedPath;
+}
+
 const form = document.getElementById("loginForm");
 const errorBox = document.getElementById("loginError");
 
@@ -31,7 +47,9 @@ form.addEventListener("submit", async (event) => {
     form.elements.password.value = "";
     const fallback = result.user?.role === "owner" ? "/admin" : "/";
     const next = new URLSearchParams(window.location.search).get("next");
-    window.location.assign(safeNextPath(next, fallback));
+    let destination = safeNextPath(next, fallback);
+    if (result.user?.role === "owner") destination = await ownerLandingPath(destination);
+    window.location.assign(destination);
   } catch (error) {
     form.elements.password.value = "";
     errorBox.hidden = false;
