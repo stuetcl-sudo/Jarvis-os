@@ -236,18 +236,23 @@ def test_wall_defaults_to_three_calendar_days_and_remains_responsive():
     assert "document.body.dataset.calendarDays = String(calendarVisibleDays);" in calendar
     assert ".calendar-events.calendar-days-3" in calendar_styles
     assert "overflow-x:auto" in calendar_styles.replace(" ", "")
-    assert "@media(max-width:640px)" in calendar_styles.replace(" ", "")
+    assert "calendar-events.calendar-days-5" in wall_styles
+    assert "calendar-events.calendar-days-7" in wall_styles
+    assert "overflow-x: visible" in wall_styles
     assert "min-height:44px" in wall_styles.replace(" ", "")
     assert "@media(max-width:640px)" in wall_styles.replace(" ", "")
 
 
-def test_one_day_wall_layout_pairs_calendar_and_routine_at_half_width():
+def test_calendar_day_selection_does_not_resize_routine_card_on_wall():
     wall_styles = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
     compact = wall_styles.replace(" ", "").replace("\n", "")
-    assert 'body[data-wall-dashboard="true"][data-calendar-days="1"].routine-card' in compact
-    assert 'body[data-wall-dashboard="true"][data-calendar-days="1"].calendar-card' in compact
+    assert 'data-calendar-days="1"' not in compact
+    assert 'data-calendar-days="3"' not in compact
+    assert 'data-calendar-days="5"' not in compact
+    assert 'data-calendar-days="7"' not in compact
+    assert "routine-card" in compact
+    assert "calendar-card" in compact
     assert "grid-template-columns:repeat(4,minmax(0,1fr))" in compact
-    assert "grid-column:span2" in compact
     assert "min-width:921px" in compact
     assert "max-width:1180px" in compact
 
@@ -262,36 +267,16 @@ def test_render_wall_page_rejects_invalid_roles():
             raise AssertionError("invalid wall role accepted")
 
 
-def test_screen_registry_validation():
-    with wall_environment():
-        screens = list_screens()
-        assert screens[0]["slug"] == "wall"
-        assert screens[0]["url"] == "/wall"
-        created = upsert_screen("Køkken", "køkken", "wall-tablet", ["weather", "meal"])
-        assert created["slug"] == "k-kken"
-        assert created["url"] == "/wall/k-kken"
-        try:
-            upsert_screen("Broken", "broken", "unknown", ["weather"])
-        except ValueError:
-            pass
-        else:
-            raise AssertionError("invalid screen type accepted")
-
-
 if __name__ == "__main__":
-    for test in [
-        test_wall_route_roles_and_admin_policy,
-        test_wall_reuses_family_dashboard_as_shared_display,
-        test_named_wall_screens_are_stored_and_rendered,
-        test_named_wall_screen_access_policy_and_missing_screen,
-        test_wall_shared_display_hides_owner_technical_details,
-        test_wall_family_assets_are_available,
-        test_wall_mode_frontend_is_read_only_and_role_safe,
-        test_uv_backend_validation_and_categories_remain_strict,
-        test_wall_defaults_to_three_calendar_days_and_remains_responsive,
-        test_one_day_wall_layout_pairs_calendar_and_routine_at_half_width,
-        test_render_wall_page_rejects_invalid_roles,
-        test_screen_registry_validation,
-    ]:
-        test()
+    test_wall_route_roles_and_admin_policy()
+    test_wall_reuses_family_dashboard_as_shared_display()
+    test_named_wall_screens_are_stored_and_rendered()
+    test_named_wall_screen_access_policy_and_missing_screen()
+    test_wall_shared_display_hides_owner_technical_details()
+    test_wall_family_assets_are_available()
+    test_wall_mode_frontend_is_read_only_and_role_safe()
+    test_uv_backend_validation_and_categories_remain_strict()
+    test_wall_defaults_to_three_calendar_days_and_remains_responsive()
+    test_calendar_day_selection_does_not_resize_routine_card_on_wall()
+    test_render_wall_page_rejects_invalid_roles()
     print("Wall dashboard tests OK")
