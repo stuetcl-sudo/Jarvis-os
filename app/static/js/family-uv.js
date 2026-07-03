@@ -2,6 +2,7 @@
   const badge = document.getElementById("weatherUv");
   const valueElement = document.getElementById("weatherUvValue");
   const labelElement = document.getElementById("weatherUvLabel");
+  const UV_REFRESH_INTERVAL_MS = 120000;
 
   function uvCategory(rawValue) {
     const value = Number(rawValue);
@@ -13,6 +14,10 @@
 
   function hideUv() {
     if (badge) badge.hidden = true;
+  }
+
+  function isWallDisplay() {
+    return document.body.dataset.familyRole === "wall_display" || document.body.dataset.wallDashboard === "true";
   }
 
   function renderUv(weather) {
@@ -28,10 +33,14 @@
     }
 
     const value = Number(weather.uv_index);
+    if (isWallDisplay() && value < 0.5) {
+      hideUv();
+      return;
+    }
     const formatted = Number.isInteger(value) ? String(value) : value.toFixed(1);
     badge.className = `weather-uv weather-uv-${category.key}`;
-    badge.setAttribute("aria-label", `UV-indeks ${formatted}, ${category.label.toLowerCase()}`);
-    if (valueElement) valueElement.textContent = `UV ${formatted}`;
+    badge.setAttribute("aria-label", `UV-indeks nu ${formatted}, ${category.label.toLowerCase()}`);
+    if (valueElement) valueElement.textContent = `UV nu ${formatted}`;
     if (labelElement) labelElement.textContent = category.label;
     badge.hidden = false;
   }
@@ -47,5 +56,5 @@
   }
 
   refreshUv();
-  setInterval(refreshUv, 30000);
+  setInterval(refreshUv, UV_REFRESH_INTERVAL_MS);
 })();
