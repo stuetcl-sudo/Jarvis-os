@@ -11,13 +11,21 @@ SCREEN_MODULES = {"routine", "calendar", "weather", "meal", "tasks", "home", "sy
 SCREEN_MODULE_SIZES = {"small", "medium", "large", "wide", "full"}
 DEFAULT_MODULES = ["routine", "calendar", "weather", "meal", "tasks", "home"]
 DEFAULT_MODULE_LAYOUT = {
+    "routine": "large",
+    "calendar": "full",
+    "weather": "wide",
+    "meal": "medium",
+    "tasks": "wide",
+    "home": "medium",
+    "system": "medium",
+}
+LEGACY_DEFAULT_MODULE_LAYOUT = {
     "routine": "medium",
     "calendar": "wide",
     "weather": "medium",
     "meal": "medium",
     "tasks": "wide",
     "home": "medium",
-    "system": "medium",
 }
 DEFAULT_SCREEN = {
     "name": "Vægskærm",
@@ -122,19 +130,22 @@ def parse_module_layout(value):
     return parsed if isinstance(parsed, dict) else {}
 
 
+def default_screen():
+    return {**DEFAULT_SCREEN, "modules": list(DEFAULT_MODULES), "module_layout": dict(DEFAULT_SCREEN["module_layout"]), "url": "/wall"}
+
+
 def row_to_screen(row):
     if not row:
         return None
     item = dict(row)
     item["modules"] = parse_modules(item.get("modules"))
-    item["module_layout"] = normalize_module_layout(parse_module_layout(item.get("module_layout")), item["modules"])
+    parsed_layout = parse_module_layout(item.get("module_layout"))
+    if item.get("slug") == "wall" and item["modules"] == DEFAULT_MODULES and parsed_layout == LEGACY_DEFAULT_MODULE_LAYOUT:
+        parsed_layout = DEFAULT_MODULE_LAYOUT
+    item["module_layout"] = normalize_module_layout(parsed_layout, item["modules"])
     item["is_active"] = bool(item.get("is_active"))
     item["url"] = "/wall" if item["slug"] == "wall" else f"/wall/{item['slug']}"
     return item
-
-
-def default_screen():
-    return {**DEFAULT_SCREEN, "modules": list(DEFAULT_MODULES), "module_layout": dict(DEFAULT_SCREEN["module_layout"]), "url": "/wall"}
 
 
 def get_screen(slug="wall"):
