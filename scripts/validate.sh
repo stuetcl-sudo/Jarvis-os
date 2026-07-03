@@ -91,13 +91,14 @@ bash scripts/privacy_check.sh || {
   exit 1
 }
 
-echo "[2/10] Running focused admin UI, frontend foundation, setup, wall dashboard, login payload, frontend safety, routine editor, routine, family status validation, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
+echo "[2/10] Running focused admin UI, frontend foundation, screen layout, setup, wall dashboard, login payload, frontend safety, routine editor, routine, family status validation, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
 if [ -z "$PYTHON_BIN" ]; then
   echo "ERROR: Python is required for focused tests."
   exit 1
 fi
 PYTHONPATH=. "$PYTHON_BIN" tests/test_admin_ui.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_frontend_foundation.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_screen_module_layout.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_wall_dashboard.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_login_payload.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_frontend_safety.py
