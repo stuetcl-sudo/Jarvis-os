@@ -40,6 +40,20 @@
     return Array.from(document.querySelectorAll("[data-screen-module]:checked")).map((input) => input.value);
   }
 
+  function labeledInput(labelText, input) {
+    const label = element("label", "screen-field", labelText);
+    label.append(input);
+    return label;
+  }
+
+  function textInput(id, placeholder, maxLength = 80) {
+    const input = document.createElement("input");
+    input.id = id;
+    input.maxLength = maxLength;
+    input.placeholder = placeholder;
+    return input;
+  }
+
   function fillForm(screen = null) {
     selectedScreen = screen;
     const name = document.getElementById("screenName");
@@ -135,6 +149,73 @@
     }
   }
 
+  function createTypeSelect() {
+    const select = document.createElement("select");
+    select.id = "screenType";
+    screenTypes.forEach(([value, label]) => {
+      const option = element("option", "", label);
+      option.value = value;
+      select.append(option);
+    });
+    return select;
+  }
+
+  function createActiveControl() {
+    const label = element("label", "checkbox-control", "");
+    const input = document.createElement("input");
+    input.id = "screenActive";
+    input.type = "checkbox";
+    input.checked = true;
+    label.append(input, document.createTextNode(" Aktiv"));
+    return label;
+  }
+
+  function createModulePicker() {
+    const fieldset = element("fieldset", "screen-module-picker");
+    fieldset.append(element("legend", "", "Moduler"));
+    modules.forEach(([value, labelText]) => {
+      const label = element("label", "checkbox-control", "");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = value;
+      input.dataset.screenModule = "true";
+      label.append(input, document.createTextNode(` ${labelText}`));
+      fieldset.append(label);
+    });
+    return fieldset;
+  }
+
+  function createScreenForm() {
+    const form = element("form", "screen-form");
+    form.id = "screenForm";
+    form.append(element("h4", "", "Opret ny skærm"));
+    form.firstChild.id = "screenFormTitle";
+
+    const grid = element("div", "content-grid two-columns");
+    const name = textInput("screenName", "Stuen");
+    name.required = true;
+    const slug = textInput("screenSlug", "stuen", 40);
+    grid.append(
+      labeledInput("Navn", name),
+      labeledInput("Slug / link", slug),
+      labeledInput("Type", createTypeSelect()),
+      createActiveControl(),
+    );
+
+    const actions = element("div", "quick-buttons");
+    const save = element("button", "", "Opret skærm");
+    save.id = "screenSaveButton";
+    save.type = "submit";
+    actions.append(save);
+
+    form.append(grid, createModulePicker(), actions);
+    form.addEventListener("submit", saveScreen);
+    name.addEventListener("input", (event) => {
+      if (!selectedScreen && !slug.value) slug.value = slugFromName(event.target.value);
+    });
+    return form;
+  }
+
   function createScreensPanel() {
     const target = document.getElementById("section-modules");
     if (!target || document.getElementById("screenAdminPanel")) return;
@@ -151,31 +232,9 @@
     reset.addEventListener("click", () => fillForm(null));
     heading.append(text, reset);
 
-    const form = element("form", "screen-form");
-    form.id = "screenForm";
-    form.innerHTML = `
-      <h4 id="screenFormTitle">Opret ny skærm</h4>
-      <div class="content-grid two-columns">
-        <label>Navn<input id="screenName" required maxlength="80" placeholder="Stuen" /></label>
-        <label>Slug / link<input id="screenSlug" maxlength="40" placeholder="stuen" /></label>
-        <label>Type<select id="screenType">${screenTypes.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label>
-        <label class="checkbox-control"><input id="screenActive" type="checkbox" checked /> Aktiv</label>
-      </div>
-      <fieldset class="screen-module-picker">
-        <legend>Moduler</legend>
-        ${modules.map(([value, label]) => `<label class="checkbox-control"><input data-screen-module type="checkbox" value="${value}" /> ${label}</label>`).join("")}
-      </fieldset>
-      <div class="quick-buttons"><button id="screenSaveButton" type="submit">Opret skærm</button></div>
-    `;
-    form.addEventListener("submit", saveScreen);
-    form.querySelector("#screenName")?.addEventListener("input", (event) => {
-      const slug = form.querySelector("#screenSlug");
-      if (slug && !selectedScreen && !slug.value) slug.value = slugFromName(event.target.value);
-    });
-
     const list = element("div", "module-grid screen-list");
     list.id = "screenList";
-    panel.append(heading, form, list);
+    panel.append(heading, createScreenForm(), list);
     target.append(panel);
     fillForm(null);
     loadScreens();
