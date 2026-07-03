@@ -1,14 +1,28 @@
-# Jarvis-os v0.12
+# Jarvis-os v0.13
 
 Jarvis-os is a local, private home dashboard with family views, local authentication, calendar, weather, routines, Home Assistant family content, Docker monitoring, system health and a safety-first Action Engine.
 
 The product direction for v1.0 is a flexible home dashboard that works without AI. Jarvis AI remains an optional future module rather than a requirement for the dashboard.
 
-Current release: `0.12.0`.
+Current release: `0.13.0`.
 
-## What is new in v0.12
+## What is new in v0.13
 
-v0.12 connects the family dashboard to standard Home Assistant entities for meal plans, family tasks and homework.
+v0.13 expands the family dashboard with practical list editing, clearer UV guidance and a more flexible shared wall layout.
+
+- Home Assistant `todo.shopping_list` is included as the standard shopping list.
+- Owner and adult roles can add, rename and remove family-list items.
+- Authenticated family roles can mark items completed.
+- List changes retain the existing session, role and CSRF protection.
+- The UV indicator uses clear green, yellow and red guidance.
+- The remove control is compact while preserving an accessible text label.
+- The wall dashboard now uses a responsive CSS grid across large displays, landscape tablets, portrait tablets and mobile.
+- With 1 calendar day selected, the routine and calendar share the row at half width.
+- With 3, 5 or 7 days selected, the calendar uses the full available width.
+
+v0.13 does not add a layout editor, camera access, energy-price automation or Jarvis AI.
+
+## Family dashboard foundation introduced in v0.12
 
 - `calendar.madplan` supplies the family meal plan.
 - `todo.familieopgaver` supplies shared family tasks.
@@ -17,13 +31,11 @@ v0.12 connects the family dashboard to standard Home Assistant entities for meal
 - Family tasks and homework are shown as separate lists with deadlines and descriptions when available.
 - Authenticated family members and the shared wall display can mark items completed through Home Assistant.
 - Task completion uses the existing session, role and CSRF protection and only calls `todo.update_item` with status `completed`.
-- The family calendar now defaults to 3 days on mobile, normal family views and `/wall`; 1, 3, 5 and 7 day choices remain available.
+- The family calendar defaults to 3 days; 1, 3, 5 and 7 day choices remain available.
 - Meal plans, tasks and homework are shown on both `/` and `/wall` and refresh automatically.
 - No additional family-content database is introduced in Jarvis.
 
-v0.12 does not add task creation, task deletion, meal-plan editing, a layout editor or Jarvis AI.
-
-## Family dashboard foundation introduced in v0.11
+## Calendar and wall display introduced in v0.11
 
 - The family calendar can show 1, 3, 5 or 7 days.
 - Calendar events are grouped clearly by day with family-friendly empty states.
@@ -45,7 +57,7 @@ v0.12 does not add task creation, task deletion, meal-plan editing, a layout edi
 
 - The family dashboard is available at `/`.
 - The authenticated shared wall display is available at `/wall` and uses the same family dashboard foundation.
-- Home Assistant meal plans, family tasks and homework are available after login when the configured entities exist.
+- Home Assistant meal plans, family tasks, homework and shopping lists are available after login when the configured entities exist.
 - Owner administration is available at `/admin`.
 - The background worker runs every 60 seconds by default.
 - Event Engine, Asset Registry, Policy Engine and Action Engine remain enabled.
@@ -178,69 +190,4 @@ OPTIONAL_SERVICES=
 IGNORED_SERVICES=
 ALLOWED_RESTART_CONTAINERS=
 ALLOWED_AUTO_START_CONTAINERS=
-ASSET_DEPENDENCIES=
-DB_PATH=/data/jarvis.db
 ```
-
-Optional containers must be configured explicitly before they can be considered optional. Auto-start remains disabled unless `ALLOWED_AUTO_START_CONTAINERS` or a saved asset classification allows it and the Action Engine safety checks pass.
-
-See `.env.example`, `docs/WEATHER.md`, `docs/CALENDAR.md` and `docs/ROUTINES.md` for family integrations.
-
-## API
-
-Existing APIs remain available. The legacy `/api/containers/{name}/restart` route queues a safe action instead of executing directly.
-
-Family content:
-
-- `GET /api/family/meal-plan`
-- `GET /api/family/tasks`
-- `POST /api/family/tasks/{list_key}/complete`
-
-Action Engine:
-
-- `GET /api/actions`
-- `GET /api/actions/{action_id}`
-- `POST /api/actions/queue`
-- `POST /api/actions/{action_id}/approve`
-- `POST /api/actions/{action_id}/deny`
-- `POST /api/actions/{action_id}/cancel`
-- `POST /api/actions/{action_id}/run`
-- `GET /api/action-log`
-
-Core, Brain, Event Engine, Asset Registry, Policy Engine, family and classification APIs remain available.
-
-## Validation
-
-```bash
-bash scripts/privacy_check.sh
-bash scripts/validate.sh
-```
-
-The validation script checks privacy rules, focused regressions, Docker Compose configuration, a rebuilt live service, protected routes, family assets and Docker, Event Engine, Asset Registry, Policy Engine and Action Engine consistency.
-
-A successful run ends with:
-
-```text
-Validation OK.
-```
-
-## Security
-
-See `SECURITY.md` before deploying. Jarvis includes local session authentication, role-based access and CSRF protection for write requests. Docker socket access remains highly privileged, so deploy only on a trusted host and network.
-
-## Architecture docs
-
-```text
-docs/ARCHITECTURE.md
-docs/EVENT_ENGINE.md
-docs/ASSET_REGISTRY.md
-docs/POLICY_ENGINE.md
-docs/ACTION_ENGINE.md
-docs/WEATHER.md
-docs/CALENDAR.md
-docs/ROUTINES.md
-```
-
-## Future compatibility
-
-Future integrations can publish events, register assets, evaluate policies and queue safe actions without changing the core. Product-specific integrations and Jarvis AI should remain optional modules with explicit safety boundaries.
