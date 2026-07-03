@@ -180,6 +180,7 @@
   margin-top: 8px;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 7px;
 }
 
@@ -190,6 +191,35 @@
 }
 
 .family-task-actions .danger {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+  color: transparent;
+  font-size: 0;
+  line-height: 1;
+}
+
+.family-task-actions .danger::before {
+  content: "×";
+  color: var(--muted);
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.family-task-actions .danger:hover {
+  border-color: #b42318;
+  background: color-mix(in srgb, #b42318 10%, var(--card));
+}
+
+.family-task-actions .danger:hover::before,
+.family-task-actions .danger:focus-visible::before {
   color: #b42318;
 }
 
