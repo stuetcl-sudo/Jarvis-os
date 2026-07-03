@@ -12,6 +12,7 @@ def mock_transport(handler):
 
 def test_connection_accepts_valid_home_assistant_response():
     test_url = "http://" + "homeassistant" + ".local:8123"
+    test_url = "http://" + "homeassistant" + ".local:8123"
     def handler(request):
         assert request.url.path == "/api/"
         assert request.headers["Authorization"] == "Bearer test-token"
@@ -26,6 +27,7 @@ def test_connection_accepts_valid_home_assistant_response():
 
 
 def test_connection_rejects_bad_token():
+    test_url = "http://" + "homeassistant" + ".local:8123"
     test_url = "http://" + "homeassistant" + ".local:8123"
     def handler(request):
         return httpx.Response(401, json={"message": "Unauthorized"})
@@ -79,6 +81,7 @@ def test_discovery_returns_sorted_plain_entity_metadata():
 
 
 def test_save_connection_stores_token_encrypted_and_returns_only_summary():
+    test_url = "http://" + "homeassistant" + ".local:8123"
     test_url = "http://" + "homeassistant" + ".local:8123"
     with tempfile.TemporaryDirectory() as folder:
         db_path = os.path.join(folder, "jarvis.db")
