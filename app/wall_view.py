@@ -13,11 +13,13 @@ MODULE_CARD_SELECTORS = {
     "home": ".home-card",
     "system": ".system-card",
 }
+# The wall grid uses 12 columns on wide screens. A user-facing module size
+# must therefore map to useful spans, not raw CSS span 1/2 values.
 MODULE_SIZE_STYLES = {
-    "small": "grid-column:span 1;min-height:190px",
-    "medium": "grid-column:span 1",
-    "large": "grid-column:span 2;min-height:320px",
-    "wide": "grid-column:span 2",
+    "small": "grid-column:span 3;min-height:190px",
+    "medium": "grid-column:span 4",
+    "large": "grid-column:span 6;min-height:320px",
+    "wide": "grid-column:span 8",
     "full": "grid-column:1 / -1;min-height:340px",
 }
 
