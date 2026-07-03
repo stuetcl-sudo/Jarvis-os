@@ -1,11 +1,11 @@
-function safeNextPath(value) {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/admin";
+function safeNextPath(value, fallback = "/admin") {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return fallback;
   try {
     const parsed = new URL(value, window.location.origin);
-    if (parsed.origin !== window.location.origin) return "/admin";
+    if (parsed.origin !== window.location.origin) return fallback;
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch (error) {
-    return "/admin";
+    return fallback;
   }
 }
 
@@ -27,9 +27,11 @@ form.addEventListener("submit", async (event) => {
       body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error("login failed");
+    const result = await response.json();
     form.elements.password.value = "";
+    const fallback = result.user?.role === "owner" ? "/admin" : "/";
     const next = new URLSearchParams(window.location.search).get("next");
-    window.location.assign(safeNextPath(next));
+    window.location.assign(safeNextPath(next, fallback));
   } catch (error) {
     form.elements.password.value = "";
     errorBox.hidden = false;
