@@ -18,6 +18,19 @@ def screen_environment():
             config.DB_PATH = previous
 
 
+def test_default_wall_layout_uses_sensible_module_sizes():
+    with screen_environment():
+        wall = get_screen("wall")
+        assert wall["module_layout"] == {
+            "routine": "large",
+            "calendar": "full",
+            "weather": "wide",
+            "meal": "medium",
+            "tasks": "wide",
+            "home": "medium",
+        }
+
+
 def test_screen_registry_persists_module_size_layout():
     with screen_environment():
         created = upsert_screen(
@@ -58,10 +71,13 @@ def test_wall_page_applies_configured_module_size_css():
         assert '[data-family-card="meal"]{display:none!important}' in page
         assert 'body[data-wall-dashboard="true"] .calendar-card{grid-column:1 / -1;min-height:340px}' in page
         assert 'body[data-wall-dashboard="true"] .weather-card{grid-column:span 3;min-height:190px}' in page
+        assert '@media(max-width:1279px)' in page
+        assert '@media(min-width:921px) and (max-width:1180px)' in page
 
 
 if __name__ == "__main__":
     for test in [
+        test_default_wall_layout_uses_sensible_module_sizes,
         test_screen_registry_persists_module_size_layout,
         test_screen_registry_rejects_invalid_module_size,
         test_wall_page_applies_configured_module_size_css,
