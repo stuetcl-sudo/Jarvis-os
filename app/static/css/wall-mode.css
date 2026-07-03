@@ -53,36 +53,36 @@ body[data-wall-dashboard="true"] .system-card {
 
 body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-card,
 body[data-wall-dashboard="true"][data-calendar-days="1"] .calendar-card {
-  min-height: clamp(390px, 46vw, 520px);
+  min-height: clamp(340px, 39vw, 460px);
 }
 
 body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-panel {
-  grid-template-columns: minmax(150px, 0.8fr) minmax(0, 1.2fr);
-  gap: clamp(18px, 2vw, 30px);
+  grid-template-columns: minmax(130px, 0.72fr) minmax(0, 1.28fr);
+  gap: clamp(14px, 1.7vw, 24px);
 }
 
 body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-pictogram-frame {
-  min-height: clamp(240px, 30vw, 340px);
+  min-height: clamp(190px, 24vw, 280px);
 }
 
 body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-title {
-  font-size: clamp(38px, 4.6vw, 68px);
+  font-size: clamp(32px, 3.9vw, 54px);
 }
 
 body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-label,
 body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-progress,
 body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-time {
-  font-size: clamp(16px, 1.7vw, 21px);
+  font-size: clamp(14px, 1.5vw, 19px);
 }
 
 body[data-wall-dashboard="true"][data-calendar-days="1"] .routine-actions button {
-  min-height: clamp(52px, 5vw, 64px);
-  padding-inline: clamp(16px, 2vw, 24px);
-  font-size: clamp(18px, 2vw, 22px);
+  min-height: clamp(48px, 4.4vw, 58px);
+  padding-inline: clamp(14px, 1.7vw, 20px);
+  font-size: clamp(16px, 1.7vw, 20px);
 }
 
 body[data-wall-dashboard="true"] .card-heading h2 {
-  font-size: clamp(24px, 2.4vw, 38px);
+  font-size: clamp(22px, 2.1vw, 32px);
 }
 
 .wall-display-actions {
@@ -114,6 +114,115 @@ body[data-wall-dashboard="true"] .card-heading h2 {
 
 body[data-wall-dashboard="true"] .family-footer {
   padding-bottom: max(18px, env(safe-area-inset-bottom));
+}
+
+body[data-wall-dashboard="true"] .family-header {
+  min-height: clamp(120px, 15vw, 170px);
+  padding-bottom: 18px;
+}
+
+body[data-wall-dashboard="true"] .family-header h1 {
+  font-size: clamp(42px, 5.4vw, 74px);
+}
+
+body[data-wall-dashboard="true"] .family-subtitle {
+  font-size: clamp(17px, 1.55vw, 22px);
+}
+
+body[data-wall-dashboard="true"] .family-clock {
+  font-size: clamp(62px, 8.4vw, 110px);
+}
+
+body[data-wall-dashboard="true"] .family-card {
+  min-height: 235px;
+  padding: 24px;
+}
+
+body[data-wall-dashboard="true"] .card-icon {
+  width: 56px;
+  height: 56px;
+  font-size: 30px;
+}
+
+body[data-wall-dashboard="true"] .disconnected,
+body[data-wall-dashboard="true"] dd,
+body[data-wall-dashboard="true"] dt {
+  font-size: 17px;
+}
+
+body[data-wall-dashboard="true"] .weather-symbol {
+  width: 86px;
+  height: 86px;
+  border-radius: 24px;
+  font-size: 52px;
+}
+
+body[data-wall-dashboard="true"] .weather-temperature {
+  font-size: clamp(48px, 5.7vw, 72px);
+}
+
+body[data-wall-dashboard="true"] .weather-condition {
+  font-size: clamp(18px, 1.7vw, 24px);
+}
+
+body[data-wall-dashboard="true"] .weather-uv {
+  margin-top: 10px;
+  padding: 9px 13px;
+  font-size: 17px;
+}
+
+body[data-wall-dashboard="true"] .weather-uv strong {
+  font-size: 18px;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-item {
+  min-height: 110px;
+  padding: 14px;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-day,
+body[data-wall-dashboard="true"] .weather-forecast-temperatures {
+  font-size: 18px;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-symbol {
+  font-size: 30px;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-rain,
+body[data-wall-dashboard="true"] .weather-stale {
+  font-size: 15px;
+}
+
+body[data-wall-dashboard="true"] .family-task-list-shopping-list .family-task-items {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+
+body[data-wall-dashboard="true"] .family-task-list-shopping-list .family-task-empty,
+body[data-wall-dashboard="true"] .family-task-list-shopping-list .family-task-more {
+  grid-column: 1 / -1;
+}
+
+body[data-wall-dashboard="true"] .family-task-more {
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 720;
+}
+
+body[data-wall-dashboard="true"] .family-task-summary {
+  font-size: 18px;
+}
+
+body[data-wall-dashboard="true"] .family-task-list-heading h3 {
+  font-size: 21px;
+}
+
+body[data-wall-dashboard="true"] .family-task-list-heading span,
+body[data-wall-dashboard="true"] .family-task-due,
+body[data-wall-dashboard="true"] .family-task-description {
+  font-size: 14px;
 }
 
 @media (max-width: 1279px) {
@@ -226,6 +335,10 @@ body[data-wall-dashboard="true"] .family-footer {
   body[data-wall-dashboard="true"] .family-tasks-card,
   body[data-wall-dashboard="true"] .system-card {
     grid-column: 1;
+  }
+
+  body[data-wall-dashboard="true"] .family-task-list-shopping-list .family-task-items {
+    grid-template-columns: 1fr;
   }
 
   .wall-display-actions {
