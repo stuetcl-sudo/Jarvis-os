@@ -300,6 +300,15 @@ function formatEventTime(event) {
   return `${startText}–${timeFormatter.format(end)}`;
 }
 
+function calendarDisplayName(value) {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (value && typeof value === "object") {
+    const candidate = value.label || value.name || value.summary || value.title;
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
+  return "Kalender";
+}
+
 function createCalendarEntry(event) {
   const entry = document.createElement("li");
   entry.className = "calendar-event";
@@ -315,7 +324,7 @@ function createCalendarEntry(event) {
 
   const calendar = document.createElement("span");
   calendar.className = "calendar-event-calendar";
-  calendar.textContent = event.calendar || "Kalender";
+  calendar.textContent = calendarDisplayName(event.calendar);
 
   content.append(title, calendar);
   entry.append(time, content);
@@ -433,8 +442,7 @@ function renderCalendar(calendar) {
   }
 }
 
-async function fetchJson(endpoint) {
-  const response = await fetch(endpoint, { credentials: "same-origin" });
+async function requireOkJson(response) {
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
 }
@@ -442,10 +450,10 @@ async function fetchJson(endpoint) {
 async function refresh() {
   try {
     const [mission, weather, calendar, health] = await Promise.all([
-      fetchJson("/api/mission"),
-      fetchJson("/api/family/weather"),
-      fetchJson("/api/family/calendar"),
-      fetchJson("/api/health"),
+      fetch("/api/mission", { credentials: "same-origin" }).then(requireOkJson),
+      fetch("/api/family/weather", { credentials: "same-origin" }).then(requireOkJson),
+      fetch("/api/family/calendar", { credentials: "same-origin" }).then(requireOkJson),
+      fetch("/api/health", { credentials: "same-origin" }).then(requireOkJson),
     ]);
     renderMission(mission);
     renderWeather(weather);
