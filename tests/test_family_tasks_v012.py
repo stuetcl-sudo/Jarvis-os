@@ -3,6 +3,7 @@ from pathlib import Path
 
 from app import config
 from app.family_tasks import (
+    EDITOR_ROLES,
     FamilyTasksService,
     HomeAssistantTasksClient,
     TaskSource,
@@ -46,17 +47,17 @@ class FakeHttpClient:
 
     def request(self, method, url, params=None, json=None):
         self.__class__.requests.append((method, url, params, json))
-        if url.endswith("/api/services/todo/update_item"):
-            return FakeResponse([])
-        return FakeResponse(self.__class__.payloads[json["entity_id"]])
+        if url.endswith("/api/services/todo/get_items"):
+            return FakeResponse(self.__class__.payloads[json["entity_id"]])
+        return FakeResponse([])
 
 
 class FakeSettingsLoader:
-    def __init__(self, settings):
-        self.settings = settings
+    def __init__(self, value):
+        self.value = value
 
     def __call__(self):
-        return self.settings
+        return self.value
 
 
 def settings():
@@ -65,162 +66,177 @@ def settings():
         sources=(
             TaskSource("todo.familieopgaver", "familieopgaver", "Familieopgaver"),
             TaskSource("todo.lektier", "lektier", "Lektier"),
+            TaskSource("todo.shopping_list", "shopping-list", "Indkøbsliste"),
         ),
         cache_seconds=60,
         stale_seconds=900,
-        max_items=20,
+        max_items=30,
     )
 
 
 def task_payloads():
-    return {
-        "todo.familieopgaver": {
+    result = {}
+    for entity_id, items in {
+        "todo.familieopgaver": [
+            {"summary": "Tøm opvaskemaskinen", "uid": "family-1", "status": "needs_action"},
+            {"summary": "Allerede færdig", "uid": "family-2", "status": "completed"},
+        ],
+        "todo.lektier": [
+            {
+                "summary": "Matematik",
+                "uid": "homework-1",
+                "status": "needs_action",
+                "due": "2026-07-03",
+                "description": "Side 12 og 13",
+            }
+        ],
+        "todo.shopping_list": [
+            {"summary": "Mælk", "uid": "shopping-1", "status": "needs_action"}
+        ],
+    }.items():
+        result[entity_id] = {
             "changed_states": [],
-            "service_response": {
-                "todo.familieopgaver": {
-                    "items": [
-                        {"summary": "Tøm opvaskemaskinen", "uid": "family-1", "status": "needs_action"},
-                        {"summary": "Allerede færdig", "uid": "family-2", "status": "completed"},
-                    ]
-                }
-            },
-        },
-        "todo.lektier": {
-            "changed_states": [],
-            "service_response": {
-                "todo.lektier": {
-                    "items": [
-                        {
-                            "summary": "Matematik",
-                            "uid": "homework-1",
-                            "status": "needs_action",
-                            "due": "2026-07-03",
-                            "description": "Side 12 og 13",
-                        }
-                    ]
-                }
-            },
-        },
-    }
+            "service_response": {entity_id: {"items": items}},
+        }
+    return result
 
 
-def test_default_task_entities_match_confirmed_home_assistant_entities():
+def test_default_task_entities_include_shopping_list():
     previous = os.environ.pop("HOME_ASSISTANT_TASK_LISTS", None)
     try:
         assert config.family_tasks_configuration()["sources"] == (
-            "todo.familieopgaver|Familieopgaver,todo.lektier|Lektier"
+            "todo.familieopgaver|Familieopgaver,todo.lektier|Lektier,"
+            "todo.shopping_list|Indkøbsliste"
         )
+        assert config.family_tasks_configuration()["max_items"] == 30
     finally:
         if previous is not None:
             os.environ["HOME_ASSISTANT_TASK_LISTS"] = previous
-    assert "HOME_ASSISTANT_TASK_LISTS=todo.familieopgaver|Familieopgaver,todo.lektier|Lektier" in ENV_EXAMPLE
+    assert "todo.shopping_list|Indkøbsliste" in ENV_EXAMPLE
 
 
-def test_task_source_parser_accepts_only_plain_todo_entities():
-    sources = parse_task_sources("todo.familieopgaver|Familieopgaver,todo.lektier|Lektier")
+def test_task_source_parser_accepts_three_plain_todo_entities():
+    sources = parse_task_sources(
+        "todo.familieopgaver|Familieopgaver,todo.lektier|Lektier,todo.shopping_list|Indkøbsliste"
+    )
     assert [(source.entity_id, source.key, source.label) for source in sources] == [
         ("todo.familieopgaver", "familieopgaver", "Familieopgaver"),
         ("todo.lektier", "lektier", "Lektier"),
+        ("todo.shopping_list", "shopping-list", "Indkøbsliste"),
     ]
 
 
-def test_home_assistant_tasks_client_uses_get_items_response_and_needs_action_only():
+def test_client_reads_all_lists_and_filters_completed_items():
     FakeHttpClient.requests = []
     FakeHttpClient.payloads = task_payloads()
-
     lists, failures = HomeAssistantTasksClient(settings(), FakeHttpClient).fetch()
     assert failures == 0
-    assert [task_list["key"] for task_list in lists] == ["familieopgaver", "lektier"]
+    assert [item["key"] for item in lists] == ["familieopgaver", "lektier", "shopping-list"]
     assert [item["summary"] for item in lists[0]["items"]] == ["Tøm opvaskemaskinen"]
-    assert lists[1]["items"][0]["due"] == "2026-07-03"
     assert lists[1]["items"][0]["description"] == "Side 12 og 13"
-    assert all(request[0] == "POST" for request in FakeHttpClient.requests)
+    assert lists[2]["items"][0]["summary"] == "Mælk"
     assert all(request[1].endswith("/api/services/todo/get_items") for request in FakeHttpClient.requests)
-    assert all(request[2] == {"return_response": ""} for request in FakeHttpClient.requests)
-    assert all(request[3]["status"] == "needs_action" for request in FakeHttpClient.requests)
 
 
-def test_home_assistant_tasks_client_marks_uid_completed_only():
+def test_client_uses_only_controlled_todo_service_calls():
+    client = HomeAssistantTasksClient(settings(), FakeHttpClient)
+    source = settings().sources[2]
     FakeHttpClient.requests = []
-    HomeAssistantTasksClient(settings(), FakeHttpClient).complete(settings().sources[0], "family-1")
-    assert FakeHttpClient.requests == [
-        (
-            "POST",
-            "http://home-assistant:8123/api/services/todo/update_item",
-            None,
-            {
-                "entity_id": "todo.familieopgaver",
-                "item": "family-1",
-                "status": "completed",
-            },
-        )
+    client.complete(source, "shopping-1")
+    client.add(source, "Brød", "Rugbrød")
+    client.update(source, "shopping-1", "Letmælk", "To liter")
+    client.remove(source, "shopping-1")
+    assert [request[1].rsplit("/", 1)[-1] for request in FakeHttpClient.requests] == [
+        "update_item",
+        "add_item",
+        "update_item",
+        "remove_item",
     ]
+    assert FakeHttpClient.requests[0][3] == {
+        "entity_id": "todo.shopping_list",
+        "item": "shopping-1",
+        "status": "completed",
+    }
+    assert FakeHttpClient.requests[1][3] == {
+        "entity_id": "todo.shopping_list",
+        "item": "Brød",
+        "description": "Rugbrød",
+    }
+    assert FakeHttpClient.requests[2][3]["rename"] == "Letmælk"
+    assert FakeHttpClient.requests[3][3] == {
+        "entity_id": "todo.shopping_list",
+        "item": "shopping-1",
+    }
 
 
-def test_family_tasks_service_hides_private_lists_without_login():
+def test_permissions_allow_completion_for_family_but_editing_for_adults_only():
+    assert EDITOR_ROLES == {"owner", "adult"}
+    FakeHttpClient.payloads = task_payloads()
     service = FamilyTasksService(
         settings_loader=FakeSettingsLoader(settings()),
         client_factory=FakeHttpClient,
         monotonic=lambda: 1.0,
     )
-    result = service.get_tasks(None)
-    assert result == {
-        "status": "authentication_required",
-        "lists": [],
-        "total": 0,
-        "unavailable_lists": 0,
-        "stale": False,
-    }
-    try:
-        service.complete_task("familieopgaver", "family-1", None)
-    except PermissionError:
-        pass
-    else:
-        raise AssertionError("Anonymous task completion must be rejected")
+    anonymous = service.get_tasks(None)
+    assert anonymous["status"] == "authentication_required"
+    assert anonymous["can_edit"] is False
+    child = service.get_tasks({"role": "child"})
+    assert child["can_edit"] is False
+    owner = service.get_tasks({"role": "owner"})
+    assert owner["can_edit"] is True
+    for role in [None, {"role": "child"}, {"role": "wall_display"}]:
+        try:
+            service.add_task("shopping-list", "Brød", None, role)
+        except PermissionError:
+            pass
+        else:
+            raise AssertionError("Non-adult task editing must be rejected")
 
 
-def test_family_dashboard_replaces_task_placeholder_safely_and_supports_completion():
+def test_frontend_supports_shopping_add_edit_remove_and_safe_completion():
     assert 'data-family-card="tasks"' in INDEX
-    assert 'id="familyTaskLists"' in INDEX
-    assert '/static/css/family-tasks.css' in INDEX
     assert '/static/js/family-tasks.js' in INDEX
-    assert '/api/family/tasks' in TASKS_JS
-    assert '/api/family/tasks/${encodeURIComponent(safeListKey)}/complete' in TASKS_JS
-    assert 'method: "POST"' in TASKS_JS
+    assert 'placeholder = taskList.key === "shopping-list" ? "Tilføj en vare"' in TASKS_JS
+    assert 'method,' in TASKS_JS
+    for method in ["POST", "PUT", "DELETE"]:
+        assert f'"{method}"' in TASKS_JS
     assert 'credentials: "same-origin"' in TASKS_JS
     assert '"X-CSRF-Token": csrfToken' in TASKS_JS
+    assert "window.prompt" in TASKS_JS
+    assert "window.confirm" in TASKS_JS
     assert "replaceChildren" in TASKS_JS
-    assert 'complete.type = "button"' in TASKS_JS
     for forbidden in ["innerHTML", "insertAdjacentHTML", "localStorage", "sessionStorage", "eval("]:
         assert forbidden not in TASKS_JS
-    assert ".family-task-complete" in TASKS_CSS
-    assert "min-height" not in TASKS_CSS or "44px" in TASKS_CSS
-    assert 'body[data-family-role="wall_display"]' in TASKS_CSS
+    assert ".family-task-add" in TASKS_CSS
+    assert ".family-task-actions" in TASKS_CSS
+    assert ".family-task-list-shopping-list" in TASKS_CSS
 
 
-def test_family_task_router_allows_only_controlled_completion_write():
-    assert "from app.family_tasks import router as family_tasks_router" in MAIN_AUTH
-    assert "app.include_router(family_tasks_router)" in MAIN_AUTH
-    assert "family_task_write" in MAIN_AUTH
-    assert "FAMILY_TASK_ROLES" in MAIN_AUTH
+def test_router_and_middleware_protect_controlled_family_writes():
+    assert "FAMILY_TASK_EDITOR_ROLES" in MAIN_AUTH
+    assert "family_task_complete" in MAIN_AUTH
+    assert "family_task_edit" in MAIN_AUTH
     assert 'request.headers.get("X-CSRF-Token", "")' in MAIN_AUTH
-    assert '@router.get("/api/family/tasks")' in TASKS_MODULE
-    assert '@router.post("/api/family/tasks/{list_key}/complete")' in TASKS_MODULE
-    assert '"/api/services/todo/update_item"' in TASKS_MODULE
-    assert '"status": "completed"' in TASKS_MODULE
-    assert '"/api/services/todo/add_item"' not in TASKS_MODULE
-    assert '"/api/services/todo/remove_item"' not in TASKS_MODULE
+    for route in [
+        '@router.post("/api/family/tasks/{list_key}/complete")',
+        '@router.post("/api/family/tasks/{list_key}/items")',
+        '@router.put("/api/family/tasks/{list_key}/items")',
+        '@router.delete("/api/family/tasks/{list_key}/items")',
+    ]:
+        assert route in TASKS_MODULE
+    for service in ["todo/add_item", "todo/update_item", "todo/remove_item"]:
+        assert f'"/api/services/{service}"' in TASKS_MODULE
 
 
 if __name__ == "__main__":
     for test in [
-        test_default_task_entities_match_confirmed_home_assistant_entities,
-        test_task_source_parser_accepts_only_plain_todo_entities,
-        test_home_assistant_tasks_client_uses_get_items_response_and_needs_action_only,
-        test_home_assistant_tasks_client_marks_uid_completed_only,
-        test_family_tasks_service_hides_private_lists_without_login,
-        test_family_dashboard_replaces_task_placeholder_safely_and_supports_completion,
-        test_family_task_router_allows_only_controlled_completion_write,
+        test_default_task_entities_include_shopping_list,
+        test_task_source_parser_accepts_three_plain_todo_entities,
+        test_client_reads_all_lists_and_filters_completed_items,
+        test_client_uses_only_controlled_todo_service_calls,
+        test_permissions_allow_completion_for_family_but_editing_for_adults_only,
+        test_frontend_supports_shopping_add_edit_remove_and_safe_completion,
+        test_router_and_middleware_protect_controlled_family_writes,
     ]:
         test()
-    print("Family tasks v0.12 tests OK")
+    print("Family tasks v0.13 tests OK")

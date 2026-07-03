@@ -96,6 +96,10 @@ function createCalendarDayGroup(key, index, dayEvents) {
   return group;
 }
 
+function updateCalendarLayoutState() {
+  document.body.dataset.calendarDays = String(calendarVisibleDays);
+}
+
 function updateCalendarRangeButtons() {
   document.querySelectorAll("[data-calendar-days]").forEach((button) => {
     const days = Number(button.dataset.calendarDays);
@@ -103,6 +107,7 @@ function updateCalendarRangeButtons() {
     button.setAttribute("aria-pressed", String(selected));
     button.classList.toggle("is-selected", selected);
   });
+  updateCalendarLayoutState();
 }
 
 function renderCalendarDays(calendar) {

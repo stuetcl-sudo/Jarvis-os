@@ -48,6 +48,22 @@
     return taskCsrfToken;
   }
 
+  async function taskWrite(listKey, method, suffix, payload, message) {
+    const csrfToken = await loadTaskCsrfToken();
+    setTaskNotice(message);
+    const response = await fetch(`/api/family/tasks/${encodeURIComponent(listKey)}/${suffix}`, {
+      method,
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error("Ændringen kunne ikke gemmes");
+    renderFamilyTasks(await response.json());
+  }
+
   async function completeFamilyTask(listKey, item, button) {
     const uid = String(item?.uid || "").trim();
     const safeListKey = String(listKey || "").trim();
@@ -59,21 +75,9 @@
     button.disabled = true;
     button.classList.add("is-saving");
     button.setAttribute("aria-busy", "true");
-    setTaskNotice("Markerer som færdig…");
 
     try {
-      const csrfToken = await loadTaskCsrfToken();
-      const response = await fetch(`/api/family/tasks/${encodeURIComponent(safeListKey)}/complete`, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken,
-        },
-        body: JSON.stringify({ item: uid }),
-      });
-      if (!response.ok) throw new Error("Opgaven kunne ikke markeres som færdig");
-      renderFamilyTasks(await response.json());
+      await taskWrite(safeListKey, "POST", "complete", { item: uid }, "Markerer som færdig…");
     } catch (error) {
       setTaskNotice("Kunne ikke markere punktet som færdigt. Prøv igen.");
     } finally {
@@ -86,7 +90,55 @@
     }
   }
 
-  function createTaskItem(item, listKey) {
+  async function editFamilyTask(listKey, item) {
+    const summary = window.prompt("Ret punktet", item.summary || "");
+    if (summary === null) return;
+    const cleaned = summary.trim();
+    if (!cleaned) {
+      setTaskNotice("Punktet skal have en titel.");
+      return;
+    }
+    try {
+      await taskWrite(listKey, "PUT", "items", {
+        item: item.uid,
+        summary: cleaned,
+        description: item.description || null,
+      }, "Gemmer ændringen…");
+    } catch (error) {
+      setTaskNotice("Kunne ikke gemme ændringen. Prøv igen.");
+    }
+  }
+
+  async function removeFamilyTask(listKey, item) {
+    if (!window.confirm(`Fjern “${item.summary || "punktet"}”?`)) return;
+    try {
+      await taskWrite(listKey, "DELETE", "items", { item: item.uid }, "Fjerner punktet…");
+    } catch (error) {
+      setTaskNotice("Kunne ikke fjerne punktet. Prøv igen.");
+    }
+  }
+
+  function createTaskActions(item, listKey, canEdit) {
+    const actions = document.createElement("div");
+    actions.className = "family-task-actions";
+    if (!canEdit) return actions;
+
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.textContent = "Ret";
+    edit.addEventListener("click", () => editFamilyTask(listKey, item));
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "danger";
+    remove.textContent = "Fjern";
+    remove.addEventListener("click", () => removeFamilyTask(listKey, item));
+
+    actions.append(edit, remove);
+    return actions;
+  }
+
+  function createTaskItem(item, listKey, canEdit) {
     const row = document.createElement("li");
     row.className = "family-task-item";
 
@@ -116,14 +168,45 @@
       description.textContent = item.description;
       copy.append(description);
     }
-
+    copy.append(createTaskActions(item, listKey, canEdit));
     row.append(complete, copy);
     return row;
   }
 
-  function createTaskList(taskList) {
+  function createAddForm(taskList) {
+    const form = document.createElement("form");
+    form.className = "family-task-add";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 160;
+    input.required = true;
+    input.placeholder = taskList.key === "shopping-list" ? "Tilføj en vare" : "Tilføj et punkt";
+    input.setAttribute("aria-label", `Tilføj til ${taskList.label || "listen"}`);
+    const button = document.createElement("button");
+    button.type = "submit";
+    button.textContent = "Tilføj";
+    form.append(input, button);
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const summary = input.value.trim();
+      if (!summary) return;
+      input.disabled = true;
+      button.disabled = true;
+      try {
+        await taskWrite(taskList.key, "POST", "items", { summary, description: null }, "Tilføjer punktet…");
+      } catch (error) {
+        setTaskNotice("Kunne ikke tilføje punktet. Prøv igen.");
+        input.disabled = false;
+        button.disabled = false;
+        input.focus();
+      }
+    });
+    return form;
+  }
+
+  function createTaskList(taskList, canEdit) {
     const section = document.createElement("section");
-    section.className = "family-task-list";
+    section.className = `family-task-list family-task-list-${taskList.key || "general"}`;
 
     const heading = document.createElement("div");
     heading.className = "family-task-list-heading";
@@ -142,24 +225,26 @@
       empty.textContent = "Ingen åbne punkter";
       items.append(empty);
     } else {
-      taskList.items.forEach((item) => items.append(createTaskItem(item, taskList.key)));
+      taskList.items.forEach((item) => items.append(createTaskItem(item, taskList.key, canEdit)));
     }
 
-    section.append(heading, items);
+    section.append(heading);
+    if (canEdit) section.append(createAddForm(taskList));
+    section.append(items);
     return section;
   }
 
   function renderFamilyTasks(tasks) {
     if (tasks.status === "authentication_required") {
-      setTaskState("Log ind for at se opgaver og lektier");
+      setTaskState("Log ind for at se familiens lister");
       return;
     }
     if (tasks.status === "not_configured") {
-      setTaskState("Opgaver og lektier er ikke tilsluttet endnu");
+      setTaskState("Familiens lister er ikke tilsluttet endnu");
       return;
     }
     if (tasks.status === "unavailable") {
-      setTaskState("Opgaver og lektier kan ikke hentes lige nu");
+      setTaskState("Familiens lister kan ikke hentes lige nu");
       return;
     }
 
@@ -171,12 +256,12 @@
     const lists = document.getElementById("familyTaskLists");
     if (lists) {
       lists.replaceChildren();
-      (tasks.lists || []).forEach((taskList) => lists.append(createTaskList(taskList)));
+      (tasks.lists || []).forEach((taskList) => lists.append(createTaskList(taskList, Boolean(tasks.can_edit))));
     }
 
     const messages = {
       partial: "En af listerne kunne ikke hentes",
-      stale: "Viser senest hentede opgaver og lektier",
+      stale: "Viser senest hentede familielister",
     };
     setTaskNotice(messages[tasks.status] || "");
   }
@@ -184,10 +269,10 @@
   async function refreshFamilyTasks() {
     try {
       const response = await fetch("/api/family/tasks", { credentials: "same-origin" });
-      if (!response.ok) throw new Error("Opgaver kunne ikke hentes");
+      if (!response.ok) throw new Error("Familiens lister kunne ikke hentes");
       renderFamilyTasks(await response.json());
     } catch (error) {
-      setTaskState("Opgaver og lektier kan ikke hentes lige nu");
+      setTaskState("Familiens lister kan ikke hentes lige nu");
     }
   }
 
