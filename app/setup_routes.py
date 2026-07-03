@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app import config, home_assistant_setup, settings_store
+from app import config, home_assistant_setup, home_entity_settings, settings_store
 
 
 router = APIRouter(prefix="/api/admin/setup", tags=["setup"])
@@ -10,6 +10,18 @@ router = APIRouter(prefix="/api/admin/setup", tags=["setup"])
 class HomeAssistantConnectionPayload(BaseModel):
     base_url: str
     token: str = ""
+
+
+class HomeAssistantEntitySettingsPayload(BaseModel):
+    calendar_entities: list[str] = []
+    meal_calendar: str = ""
+    task_entities: list[str] = []
+    weather_entity: str = ""
+    electricity_price_entity: str = ""
+    power_entity: str = ""
+    energy_entity: str = ""
+    temperature_entities: list[str] = []
+    humidity_entities: list[str] = []
 
 
 def _connection_values(payload=None):
@@ -62,3 +74,16 @@ def discover_home_assistant_entities(payload: HomeAssistantConnectionPayload):
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"entities": entities, "count": len(entities)}
+
+
+@router.get("/home-assistant/entity-settings")
+def get_home_assistant_entity_settings():
+    return home_entity_settings.load_entity_settings(db_path=config.DB_PATH)
+
+
+@router.post("/home-assistant/entity-settings")
+def save_home_assistant_entity_settings(payload: HomeAssistantEntitySettingsPayload):
+    try:
+        return home_entity_settings.save_entity_settings(payload.model_dump(), db_path=config.DB_PATH)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
