@@ -164,6 +164,7 @@ check_live_route "/static/js/wall.js" "wall dashboard JavaScript" "wallRoutineEn
 check_live_route "/static/js/admin.js" "home administration JavaScript" "adminSections"
 check_live_route "/static/js/admin-render.js" "admin render JavaScript" "renderActions"
 check_live_route "/static/js/admin-page.js" "admin page JavaScript" "initializeAdmin"
+check_live_route "/static/js/admin-screens.js" "admin screen management JavaScript" "screenAdminPanel"
 check_live_route "/static/js/setup.js" "setup JavaScript" "credentials = \"same-origin\""
 check_live_route "/static/css/login.css" "login stylesheet"
 check_live_route "/static/css/family.css" "family dashboard stylesheet"
