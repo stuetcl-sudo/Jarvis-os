@@ -91,7 +91,7 @@ bash scripts/privacy_check.sh || {
   exit 1
 }
 
-echo "[2/10] Running focused admin UI, wall dashboard, login payload, frontend safety, routine editor, routine, family status validation, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
+echo "[2/10] Running focused admin UI, setup, wall dashboard, login payload, frontend safety, routine editor, routine, family status validation, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
 if [ -z "$PYTHON_BIN" ]; then
   echo "ERROR: Python is required for focused tests."
   exit 1
@@ -107,6 +107,11 @@ PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_family_role_views.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_auth_roles.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_setup_access.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_home_setup.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_home_entity_settings.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_home_assistant_setup.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_settings_store.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_dashboard_routes.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_action_state_machine.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_action_verification.py
@@ -148,7 +153,9 @@ check_live_json_status "/api/family/calendar" "family calendar API" "calendar"
 check_live_route "/api/family/routines" "family routines API" '"status":"authentication_required"'
 check_live_route "/login" "login page" "Log ind på Jarvis"
 check_live_redirect "/admin" "/login?next=/admin"
+check_live_redirect "/setup" "/login?next=/setup"
 check_live_route "/static/admin.html" "home administration static page" "Hjemmets administration"
+check_live_route "/static/setup.html" "first-run setup static page" "Gør Jarvis klar til hjemmet"
 check_live_route "/static/js/login.js" "login JavaScript"
 check_live_route "/static/js/family.js" "family dashboard JavaScript"
 check_live_route "/static/js/routines.js" "routine JavaScript"
@@ -157,6 +164,7 @@ check_live_route "/static/js/wall.js" "wall dashboard JavaScript" "wallRoutineEn
 check_live_route "/static/js/admin.js" "home administration JavaScript" "adminSections"
 check_live_route "/static/js/admin-render.js" "admin render JavaScript" "renderActions"
 check_live_route "/static/js/admin-page.js" "admin page JavaScript" "initializeAdmin"
+check_live_route "/static/js/setup.js" "setup JavaScript" "credentials = \"same-origin\""
 check_live_route "/static/css/login.css" "login stylesheet"
 check_live_route "/static/css/family.css" "family dashboard stylesheet"
 check_live_route "/static/css/weather.css" "weather stylesheet"
@@ -166,6 +174,8 @@ check_live_route "/static/css/routine-editor.css" "routine editor stylesheet"
 check_live_route "/static/css/wall.css" "wall dashboard stylesheet" ".wall-shell"
 check_live_route "/static/css/wall-details.css" "wall dashboard detail stylesheet" ".wall-uv"
 check_live_route "/static/css/admin.css" "home administration stylesheet" ".admin-shell"
+check_live_route "/static/css/admin-connections.css" "Home Assistant administration stylesheet" ".entity-selector-grid"
+check_live_route "/static/css/setup.css" "setup stylesheet" ".setup-shell"
 check_live_route "/static/pictograms/routines.svg" "routine pictograms" "symbol id=\"complete\""
 
 echo "[8/10] Checking API endpoints"
