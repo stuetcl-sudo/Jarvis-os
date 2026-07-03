@@ -46,7 +46,7 @@ def test_wall_screen_profiles_are_loaded_and_adaptive():
     stylesheet = (ROOT / "app/static/css/wall-profiles.css").read_text(encoding="utf-8")
 
     assert "/static/css/wall-profiles.css" in html
-    assert "data.wallScreenProfile" in source
+    assert "dataset.wallScreenProfile" in source
     assert 'return "mobile"' in source
     assert 'return "square"' in source
     assert 'return "tablet"' in source
