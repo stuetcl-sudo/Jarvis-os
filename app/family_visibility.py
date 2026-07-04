@@ -128,6 +128,18 @@ def role_can_do(role, action, rules=None):
     return bool(active_rules.get(role, {}).get(action, False))
 
 
+def family_role(current_user):
+    role = current_user.get("role") if isinstance(current_user, dict) else None
+    return role if role in ROLES else None
+
+
+def family_feature_hidden(current_user, feature):
+    role = family_role(current_user)
+    if role is None:
+        return False
+    return not role_can_see(role, feature)
+
+
 router = APIRouter()
 
 
