@@ -10,11 +10,12 @@ from app.calendar import router as calendar_router
 from app.db import log_action
 from app.family_tasks import router as family_tasks_router
 from app.family_view import render_family_page
-from app.family_visibility import router as family_visibility_router
+from app.family_visibility import family_feature_hidden, router as family_visibility_router
 from app.main import app
 from app.meal_plan import router as meal_plan_router
 from app.routine_definitions import EDITOR_ROLES
 from app.routines import ROUTINE_ROLES, router as routines_router
+from app.safety_status import status_item
 from app.safety_status import router as safety_status_router
 from app.screen_routes import router as screen_router
 from app.wall_view import WALL_ROLES, render_wall_page
@@ -35,6 +36,31 @@ ROUTINE_WRITE_ACTIONS = {"complete", "back", "reset"}
 
 def wall_login_target(path):
     return f"/login?next={path}"
+
+
+def hidden_tasks_response():
+    return {
+        "status": "hidden",
+        "lists": [],
+        "total": 0,
+        "unavailable_lists": 0,
+        "stale": False,
+        "can_add": False,
+        "can_complete": False,
+        "can_edit": False,
+        "can_remove": False,
+    }
+
+
+def hidden_safety_response():
+    hidden = status_item("unknown", "Skjult")
+    return {
+        "status": "hidden",
+        "internet": hidden,
+        "doors": hidden,
+        "motion": hidden,
+        "cameras": hidden,
+    }
 
 
 @app.on_event("startup")
@@ -80,6 +106,12 @@ async def enforce_local_authentication(request: Request, call_next):
         if request.method == "GET" and path == "/":
             return HTMLResponse(render_family_page(current_user))
 
+        if request.method == "GET" and path == "/api/family/tasks" and family_feature_hidden(current_user, "tasks"):
+            return JSONResponse(hidden_tasks_response())
+
+        if request.method == "GET" and path == "/api/family/safety-status" and family_feature_hidden(current_user, "safety"):
+            return JSONResponse(hidden_safety_response())
+
         if request.method == "GET" and (path == "/wall" or path.startswith("/wall/")):
             if not current_user:
                 return RedirectResponse(wall_login_target(path), status_code=303)
@@ -119,6 +151,8 @@ async def enforce_local_authentication(request: Request, call_next):
         if family_task_write:
             if not current_user:
                 return JSONResponse({"detail": "Authentication required"}, status_code=401)
+            if family_feature_hidden(current_user, "tasks"):
+                return JSONResponse({"detail": "Task access is hidden"}, status_code=403)
             supplied = request.headers.get("X-CSRF-Token", "")
             expected = current_user.get("csrf_value", "")
             if not supplied or not expected or not hmac.compare_digest(supplied, expected):
