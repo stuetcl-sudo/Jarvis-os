@@ -12,6 +12,7 @@ import httpx
 from fastapi import APIRouter, Request
 
 from app import config
+from app.family_visibility import family_feature_hidden
 from app.home_assistant import (
     HomeAssistantClient,
     HomeAssistantConfigurationError,
@@ -352,6 +353,8 @@ class CalendarService:
             self._signature = None
 
     def get_calendar(self, current_user=None):
+        if family_feature_hidden(current_user, "calendar"):
+            return _empty_snapshot("hidden")
         try:
             settings = self.settings_loader()
         except CalendarConfigurationError:
