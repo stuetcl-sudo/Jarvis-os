@@ -103,6 +103,7 @@ def test_wall_reuses_family_dashboard_as_shared_display():
             assert '/static/js/family-calendar.js' in page
             assert '/static/js/routines.js' in page
             assert '/static/js/wall-mode.js' in page
+            assert '/static/js/wall-safety.js' in page
             assert '/static/css/wall-mode.css' in page
             assert '/static/css/wall-profiles.css' in page
             assert '/static/js/wall.js' not in page
@@ -183,6 +184,7 @@ def test_wall_family_assets_are_available():
             ("/static/js/family-calendar.js", "calendarDayChoices"),
             ("/static/js/routines.js", "routineEndpoints"),
             ("/static/js/wall-mode.js", "requestFullscreen"),
+            ("/static/js/wall-safety.js", "/api/family/safety-status"),
             ("/static/css/family.css", ".family-shell"),
             ("/static/css/calendar-range.css", ".calendar-range-controls"),
             ("/static/css/wall-mode.css", ".wall-safety-strip"),
@@ -265,15 +267,17 @@ def test_calendar_day_selection_does_not_resize_routine_card_on_wall():
 def test_wall_safety_strip_is_bottom_scoped_and_static():
     template = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
     wall_styles = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
+    wall_safety = (ROOT / "app/static/js/wall-safety.js").read_text(encoding="utf-8")
     assert 'id="wallSafetyStrip"' in template
     assert 'aria-label="Tryghedsstatus for hjemmet"' in template
+    assert '/static/js/wall-safety.js' in template
     for item in ["internet", "doors", "motion", "cameras"]:
         assert f'data-wall-safety-item="{item}"' in template
     assert ".wall-safety-strip {" in wall_styles
     assert 'body[data-wall-dashboard="true"] .wall-safety-strip' in wall_styles
     assert "position: sticky" in wall_styles
     assert "bottom: max" in wall_styles
-    assert "fetch(" not in wall_styles
+    assert 'fetch("/api/family/safety-status", { credentials: "same-origin" })' in wall_safety
 
 
 def test_render_wall_page_rejects_invalid_roles():
