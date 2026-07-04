@@ -92,6 +92,7 @@ def test_admin_keeps_existing_api_contract_and_security_helpers():
         "/api/actions?limit=25",
         "/api/admin/screens",
         "/api/admin/family-visibility",
+        "/api/admin/family-actions",
     ]:
         assert endpoint in JAVASCRIPT
     assert '/static/js/admin-render.js' in CORE_JAVASCRIPT
@@ -139,6 +140,13 @@ def test_admin_role_visibility_ui_is_plain_and_safe():
     assert "Ejer ser altid alt" in ROLE_VISIBILITY_JAVASCRIPT
     assert "data-visibility-role" in ROLE_VISIBILITY_JAVASCRIPT
     assert "data-visibility-feature" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "roleActionPanel" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "Hvem må ændre hvad?" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "Gem rettigheder" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "Tilføje opgaver og indkøb" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "Afslutte opgaver" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "data-action-role" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "data-action-feature" in ROLE_VISIBILITY_JAVASCRIPT
     assert 'method: "POST"' in ROLE_VISIBILITY_JAVASCRIPT
     assert "innerHTML" not in ROLE_VISIBILITY_JAVASCRIPT
 
