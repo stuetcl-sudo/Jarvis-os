@@ -20,7 +20,7 @@ function createSafetyInfoCard() {
   return card;
 }
 
-function createSafetyCheckboxPicker(id, label, type, acceptedDeviceClasses = null) {
+function createSafetyCheckboxPicker(id, label, type, acceptedDeviceClasses = null, helpText = "") {
   const card = element("section", "entity-picker-card");
   const title = element("h5", "", label);
   const searchLabel = element("label", "visually-hidden", `Søg i ${label}`);
@@ -62,7 +62,9 @@ function createSafetyCheckboxPicker(id, label, type, acceptedDeviceClasses = nul
 
   search.addEventListener("input", () => render(search.value));
   render();
-  card.append(title, searchLabel, search, list);
+  card.append(title);
+  if (helpText) card.append(element("p", "panel-help", helpText));
+  card.append(searchLabel, search, list);
   return card;
 }
 
@@ -72,7 +74,13 @@ function appendSafetySelectors() {
   grid.append(
     createSafetyInfoCard(),
     createSafetyCheckboxPicker("haSafetyDoorEntities", "Døre og vinduer", "binary_sensor", ["door", "window", "opening", "garage_door"]),
-    createSafetyCheckboxPicker("haSafetyMotionEntities", "Bevægelse", "binary_sensor", ["motion", "occupancy", "presence"]),
+    createSafetyCheckboxPicker(
+      "haSafetyMotionEntities",
+      "Bevægelse",
+      "binary_sensor",
+      null,
+      "Viser alle binary sensors, så Zigbee/PIR-sensorer uden korrekt type også kan vælges. Søg fx efter motion, bevægelse, PIR eller presence.",
+    ),
     createSafetyCheckboxPicker("haSafetyCameraEntities", "Kameraer", "camera"),
   );
 }
