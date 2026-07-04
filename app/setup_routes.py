@@ -22,6 +22,9 @@ class HomeAssistantEntitySettingsPayload(BaseModel):
     energy_entity: str = ""
     temperature_entities: list[str] = []
     humidity_entities: list[str] = []
+    safety_door_entities: list[str] = []
+    safety_motion_entities: list[str] = []
+    safety_camera_entities: list[str] = []
 
 
 class HomeSettingsPayload(BaseModel):
