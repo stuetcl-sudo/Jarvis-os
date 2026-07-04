@@ -148,7 +148,7 @@ class MealPlanService:
         if not authenticated:
             return empty_meal_plan("authentication_required")
 
-        snapshot = self.calendar_service.get_calendar(current_user)
+        snapshot = self.calendar_service.get_calendar({"role": "owner"})
         try:
             settings = self.settings_loader()
         except CalendarConfigurationError:
