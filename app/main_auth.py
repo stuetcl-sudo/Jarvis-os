@@ -16,6 +16,7 @@ from app.main import app
 from app.meal_plan import router as meal_plan_router
 from app.routine_definitions import EDITOR_ROLES
 from app.routines import ROUTINE_ROLES, router as routines_router
+from app.safety_status import router as safety_status_router
 from app.screen_routes import router as screen_router
 from app.wall_view import WALL_ROLES, render_wall_page
 from app.weather import router as weather_router
@@ -26,6 +27,7 @@ app.include_router(calendar_router)
 app.include_router(meal_plan_router)
 app.include_router(family_tasks_router)
 app.include_router(routines_router)
+app.include_router(safety_status_router)
 app.include_router(screen_router)
 
 ROUTINE_WRITE_ACTIONS = {"complete", "back", "reset"}
