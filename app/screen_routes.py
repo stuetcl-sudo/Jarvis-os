@@ -13,6 +13,7 @@ class ScreenPayload(BaseModel):
     screen_type: str = "wall-large"
     modules: list[str] | None = None
     module_layout: dict[str, str] | None = None
+    display_options: dict[str, bool] | None = None
     is_active: bool = True
 
 
@@ -31,6 +32,7 @@ def api_create_or_update_screen(payload: ScreenPayload):
             payload.modules,
             payload.is_active,
             payload.module_layout,
+            payload.display_options,
         )
     except ValueError as exc:
         return JSONResponse({"detail": str(exc)}, status_code=400)
