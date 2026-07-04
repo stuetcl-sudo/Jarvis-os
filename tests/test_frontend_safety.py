@@ -10,6 +10,7 @@ SCRIPT_NAMES = (
     "family-calendar.js",
     "wall.js",
     "wall-mode.js",
+    "wall-safety.js",
 )
 SCRIPTS = {
     name: (ROOT / "app" / "static" / "js" / name).read_text(encoding="utf-8")
@@ -57,6 +58,7 @@ def test_same_origin_credentials_are_explicit_for_each_frontend():
     admin = SCRIPTS["admin.js"]
     family = SCRIPTS["family.js"]
     wall = SCRIPTS["wall.js"]
+    wall_safety = SCRIPTS["wall-safety.js"]
 
     assert 'credentials: "same-origin"' in login
     assert 'options.credentials = "same-origin"' in admin
@@ -84,6 +86,8 @@ def test_same_origin_credentials_are_explicit_for_each_frontend():
     assert 'fetch(wallRoutineEndpoints[wallActiveRoutine][action], {' in wall
     assert 'fetch("/api/auth/logout", {' in wall
     assert wall.count('credentials: "same-origin"') == 6
+    assert 'fetch("/api/family/safety-status", { credentials: "same-origin" })' in wall_safety
+    assert wall_safety.count('credentials: "same-origin"') == 1
 
 
 def test_calendar_and_wall_mode_enhancements_are_read_only_and_storage_free():
