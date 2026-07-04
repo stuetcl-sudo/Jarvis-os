@@ -74,7 +74,10 @@ def normalize_action_rules(value):
 
 
 def _load_json_setting(key, normalizer, db_path=None):
-    raw = settings_store.get_setting(key, "", db_path=db_path)
+    try:
+        raw = settings_store.get_setting(key, "", db_path=db_path)
+    except OSError:
+        return normalizer({})
     if not raw:
         return normalizer({})
     try:
