@@ -11,11 +11,13 @@ ADMIN_SCRIPTS = [
     (ROOT / "app/static/js/admin-connections.js").read_text(encoding="utf-8"),
     (ROOT / "app/static/js/admin-safety-connections.js").read_text(encoding="utf-8"),
     (ROOT / "app/static/js/admin-screens.js").read_text(encoding="utf-8"),
+    (ROOT / "app/static/js/admin-role-visibility.js").read_text(encoding="utf-8"),
 ]
 JAVASCRIPT = "\n".join(ADMIN_SCRIPTS)
 CORE_JAVASCRIPT = ADMIN_SCRIPTS[0]
 CONNECTION_JAVASCRIPT = ADMIN_SCRIPTS[3] + "\n" + ADMIN_SCRIPTS[4]
 SCREEN_JAVASCRIPT = ADMIN_SCRIPTS[5]
+ROLE_VISIBILITY_JAVASCRIPT = ADMIN_SCRIPTS[6]
 CSS = (ROOT / "app/static/css/admin.css").read_text(encoding="utf-8")
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 
@@ -89,12 +91,14 @@ def test_admin_keeps_existing_api_contract_and_security_helpers():
         "/api/policy-decisions/latest?limit=20",
         "/api/actions?limit=25",
         "/api/admin/screens",
+        "/api/admin/family-visibility",
     ]:
         assert endpoint in JAVASCRIPT
     assert '/static/js/admin-render.js' in CORE_JAVASCRIPT
     assert '/static/js/admin-page.js' in CORE_JAVASCRIPT
     assert '/static/js/admin-safety-connections.js' in CORE_JAVASCRIPT
     assert '/static/js/admin-screens.js' in CORE_JAVASCRIPT
+    assert '/static/js/admin-role-visibility.js' in CORE_JAVASCRIPT
     assert 'options.credentials = "same-origin"' in CORE_JAVASCRIPT
     assert '"X-CSRF-Token": csrfToken' in CORE_JAVASCRIPT
     assert 'window.location.assign("/login?next=/admin")' in CORE_JAVASCRIPT
@@ -122,6 +126,21 @@ def test_admin_screen_management_ui_is_plain_and_safe():
     assert "deleteScreen" in SCREEN_JAVASCRIPT
     assert 'method: "DELETE"' in SCREEN_JAVASCRIPT
     assert "innerHTML" not in SCREEN_JAVASCRIPT
+
+
+def test_admin_role_visibility_ui_is_plain_and_safe():
+    assert "roleVisibilityPanel" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "Hvem må se hvad?" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "Gem synlighed" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "Kalender" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "Madplan" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "Opgaver" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "Tryghedsstatus" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "Ejer ser altid alt" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "data-visibility-role" in ROLE_VISIBILITY_JAVASCRIPT
+    assert "data-visibility-feature" in ROLE_VISIBILITY_JAVASCRIPT
+    assert 'method: "POST"' in ROLE_VISIBILITY_JAVASCRIPT
+    assert "innerHTML" not in ROLE_VISIBILITY_JAVASCRIPT
 
 
 def test_home_assistant_safety_picker_is_admin_configured():
@@ -186,6 +205,7 @@ if __name__ == "__main__":
         test_admin_feedback_and_navigation_are_accessible,
         test_admin_keeps_existing_api_contract_and_security_helpers,
         test_admin_screen_management_ui_is_plain_and_safe,
+        test_admin_role_visibility_ui_is_plain_and_safe,
         test_home_assistant_safety_picker_is_admin_configured,
         test_admin_uses_inline_feedback_and_status_aware_actions,
         test_release_metadata_and_v010_admin_polish,
