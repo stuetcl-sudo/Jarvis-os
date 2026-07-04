@@ -10,6 +10,7 @@ from app.calendar import (
     CalendarSettings,
     CalendarSource,
 )
+from app.family_visibility import family_feature_hidden
 from app.home_assistant import (
     HomeAssistantConfigurationError,
     load_home_assistant_connection,
@@ -111,6 +112,15 @@ def meal_days(events, lookahead_days, now=None):
     return result
 
 
+def empty_meal_plan(status):
+    return {
+        "status": status,
+        "days": [],
+        "today": [],
+        "stale": False,
+    }
+
+
 class MealPlanService:
     def __init__(
         self,
@@ -129,17 +139,14 @@ class MealPlanService:
         self.calendar_service.clear_cache()
 
     def get_meal_plan(self, current_user=None):
+        if family_feature_hidden(current_user, "meal"):
+            return empty_meal_plan("hidden")
         authenticated = (
             isinstance(current_user, dict)
             and current_user.get("role") in AUTHENTICATED_ROLES
         )
         if not authenticated:
-            return {
-                "status": "authentication_required",
-                "days": [],
-                "today": [],
-                "stale": False,
-            }
+            return empty_meal_plan("authentication_required")
 
         snapshot = self.calendar_service.get_calendar(current_user)
         try:
@@ -148,7 +155,7 @@ class MealPlanService:
             settings = None
         lookahead_days = settings.lookahead_days if settings is not None else 7
 
-        if snapshot["status"] in {"not_configured", "unavailable"}:
+        if snapshot["status"] in {"not_configured", "unavailable", "hidden"}:
             return {
                 "status": snapshot["status"],
                 "days": [],
