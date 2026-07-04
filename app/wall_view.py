@@ -51,13 +51,18 @@ body[data-wall-dashboard=\"true\"] .family-card{height:100%}
 """.strip()
 
 
-def wall_actions_for(role):
+def screen_option(screen, key, default=False):
+    options = screen.get("display_options") if isinstance(screen, dict) else {}
+    return bool(options.get(key, default)) if isinstance(options, dict) else default
+
+
+def wall_actions_for(role, screen):
     links = [
         '<div class="wall-home-status unknown" id="wallHomeStatusBadge" role="status" aria-live="polite"><span class="wall-home-status-dot" id="wallHomeStatusDot" aria-hidden="true"></span><span id="wallHomeStatusText">Status hentes…</span></div>',
         '<button type="button" id="wallFullscreen">Fuld skærm</button>',
         '<a href="/">Familie</a>',
     ]
-    if role == "owner":
+    if role == "owner" and screen_option(screen, "show_admin_link", False):
         links.append('<a href="/admin">Administration</a>')
     return '<nav class="wall-display-actions" aria-label="Vægskærm">' + "".join(links) + "</nav>"
 
@@ -68,6 +73,8 @@ def module_visibility_style(screen):
     for module in ["routine", "calendar", "weather", "meal", "tasks", "system"]:
         if module not in modules:
             hidden.append(f'body[data-wall-dashboard="true"] [data-family-card="{module}"]{{display:none!important}}')
+    if not screen_option(screen, "show_safety_status", True):
+        hidden.append('body[data-wall-dashboard="true"] #wallSafetyStrip{display:none!important}')
     return "".join(hidden)
 
 
@@ -118,7 +125,7 @@ def render_wall_page(current_user, screen_slug="wall"):
         raise LookupError("screen not found")
 
     shared_display = {"role": "wall_display", "display_name": ""}
-    page = render_family_page(shared_display, wall_actions=wall_actions_for(role))
+    page = render_family_page(shared_display, wall_actions=wall_actions_for(role, screen))
     safe_name = escape(screen["name"])
     safe_slug = escape(screen["slug"])
     safe_type = escape(screen["screen_type"])
