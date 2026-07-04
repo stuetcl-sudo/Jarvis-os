@@ -19,6 +19,9 @@ LIST_FIELDS = {
     "task_entities": ("home_assistant.task_entities", {"todo"}),
     "temperature_entities": ("home_assistant.temperature_entities", {"sensor"}),
     "humidity_entities": ("home_assistant.humidity_entities", {"sensor"}),
+    "safety_door_entities": ("home_assistant.safety_door_entities", {"binary_sensor"}),
+    "safety_motion_entities": ("home_assistant.safety_motion_entities", {"binary_sensor"}),
+    "safety_camera_entities": ("home_assistant.safety_camera_entities", {"camera"}),
 }
 
 
