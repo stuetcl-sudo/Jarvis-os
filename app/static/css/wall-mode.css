@@ -78,6 +78,61 @@ body[data-wall-dashboard="true"] .card-heading h2 {
   outline-offset: 2px;
 }
 
+.wall-safety-strip {
+  display: none;
+}
+
+body[data-wall-dashboard="true"] .wall-safety-strip {
+  position: sticky;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  z-index: 8;
+  margin: 18px auto 8px;
+  padding: 8px;
+  width: fit-content;
+  max-width: min(100%, 920px);
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(14px);
+}
+
+body[data-wall-dashboard="true"] .wall-safety-item {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--jarvis-status-info-bg, var(--soft));
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+body[data-wall-dashboard="true"] .wall-safety-item.ok {
+  background: var(--jarvis-status-ok-bg, var(--soft));
+}
+
+body[data-wall-dashboard="true"] .wall-safety-item.warning {
+  background: var(--jarvis-status-warning-bg, var(--soft));
+}
+
+body[data-wall-dashboard="true"] .wall-safety-item.critical {
+  background: var(--jarvis-status-critical-bg, var(--soft));
+}
+
+body[data-wall-dashboard="true"] .wall-safety-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
 body[data-wall-dashboard="true"] .family-footer {
   padding-bottom: max(18px, env(safe-area-inset-bottom));
 }
@@ -310,6 +365,16 @@ body[data-wall-dashboard="true"] .family-task-description {
   body[data-wall-dashboard="true"] .family-tasks-card,
   body[data-wall-dashboard="true"] .system-card {
     grid-column: 1;
+  }
+
+  body[data-wall-dashboard="true"] .wall-safety-strip {
+    width: calc(100% - 12px);
+    border-radius: 24px;
+  }
+
+  body[data-wall-dashboard="true"] .wall-safety-item {
+    flex: 1 1 120px;
+    justify-content: center;
   }
 
   body[data-wall-dashboard="true"] .family-task-list-shopping-list .family-task-items {
