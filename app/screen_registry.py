@@ -9,6 +9,7 @@ SCREEN_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
 SCREEN_TYPES = {"wall-large", "wall-tablet", "wall-square", "mobile"}
 SCREEN_MODULES = {"routine", "calendar", "weather", "meal", "tasks", "home", "system"}
 SCREEN_MODULE_SIZES = {"small", "medium", "large", "wide", "full"}
+SCREEN_DISPLAY_OPTIONS = {"show_admin_link", "show_safety_status"}
 DEFAULT_MODULES = ["routine", "calendar", "weather", "meal", "tasks", "home"]
 DEFAULT_MODULE_LAYOUT = {
     "routine": "large",
@@ -18,6 +19,10 @@ DEFAULT_MODULE_LAYOUT = {
     "tasks": "large",
     "home": "small",
     "system": "small",
+}
+DEFAULT_DISPLAY_OPTIONS = {
+    "show_admin_link": False,
+    "show_safety_status": True,
 }
 LEGACY_DEFAULT_MODULE_LAYOUTS = [
     {
@@ -43,6 +48,7 @@ DEFAULT_SCREEN = {
     "screen_type": "wall-large",
     "modules": DEFAULT_MODULES,
     "module_layout": {module: DEFAULT_MODULE_LAYOUT[module] for module in DEFAULT_MODULES},
+    "display_options": dict(DEFAULT_DISPLAY_OPTIONS),
     "is_active": True,
 }
 
@@ -53,6 +59,7 @@ CREATE TABLE IF NOT EXISTS screens (
     screen_type TEXT NOT NULL,
     modules TEXT NOT NULL,
     module_layout TEXT NOT NULL DEFAULT '{}',
+    display_options TEXT NOT NULL DEFAULT '{}',
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -75,6 +82,8 @@ def ensure_screen_table(conn):
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(screens)").fetchall()}
     if "module_layout" not in columns:
         conn.execute("ALTER TABLE screens ADD COLUMN module_layout TEXT NOT NULL DEFAULT '{}'")
+    if "display_options" not in columns:
+        conn.execute("ALTER TABLE screens ADD COLUMN display_options TEXT NOT NULL DEFAULT '{}'")
 
 
 def normalize_slug(value):
@@ -113,6 +122,15 @@ def normalize_module_layout(values, modules):
     return layout
 
 
+def normalize_display_options(values):
+    source = values if isinstance(values, dict) else {}
+    options = dict(DEFAULT_DISPLAY_OPTIONS)
+    for key in SCREEN_DISPLAY_OPTIONS:
+        if key in source:
+            options[key] = bool(source.get(key))
+    return options
+
+
 def normalize_screen_type(value):
     screen_type = str(value or "wall-large").strip().lower()
     if screen_type not in SCREEN_TYPES:
@@ -140,8 +158,26 @@ def parse_module_layout(value):
     return parsed if isinstance(parsed, dict) else {}
 
 
+def serialize_display_options(options):
+    return json.dumps(normalize_display_options(options), sort_keys=True, separators=(",", ":"))
+
+
+def parse_display_options(value):
+    try:
+        parsed = json.loads(str(value or "{}"))
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
 def default_screen():
-    return {**DEFAULT_SCREEN, "modules": list(DEFAULT_MODULES), "module_layout": dict(DEFAULT_SCREEN["module_layout"]), "url": "/wall"}
+    return {
+        **DEFAULT_SCREEN,
+        "modules": list(DEFAULT_MODULES),
+        "module_layout": dict(DEFAULT_SCREEN["module_layout"]),
+        "display_options": dict(DEFAULT_DISPLAY_OPTIONS),
+        "url": "/wall",
+    }
 
 
 def row_to_screen(row):
@@ -153,6 +189,7 @@ def row_to_screen(row):
     if item.get("slug") == "wall" and item["modules"] == DEFAULT_MODULES and parsed_layout in LEGACY_DEFAULT_MODULE_LAYOUTS:
         parsed_layout = DEFAULT_MODULE_LAYOUT
     item["module_layout"] = normalize_module_layout(parsed_layout, item["modules"])
+    item["display_options"] = normalize_display_options(parse_display_options(item.get("display_options")))
     item["is_active"] = bool(item.get("is_active"))
     item["url"] = "/wall" if item["slug"] == "wall" else f"/wall/{item['slug']}"
     return item
@@ -187,7 +224,7 @@ def list_screens():
         conn.close()
 
 
-def upsert_screen(name, slug, screen_type="wall-large", modules=None, is_active=True, module_layout=None):
+def upsert_screen(name, slug, screen_type="wall-large", modules=None, is_active=True, module_layout=None, display_options=None):
     cleaned_name = str(name or "").strip()
     if not cleaned_name:
         raise ValueError("screen name is required")
@@ -195,6 +232,7 @@ def upsert_screen(name, slug, screen_type="wall-large", modules=None, is_active=
     screen_type = normalize_screen_type(screen_type)
     modules = normalize_modules(modules)
     module_layout = normalize_module_layout(module_layout, modules)
+    display_options = normalize_display_options(display_options)
     timestamp = now_iso()
     conn = connect()
     try:
@@ -202,13 +240,13 @@ def upsert_screen(name, slug, screen_type="wall-large", modules=None, is_active=
         existing = conn.execute("SELECT slug FROM screens WHERE slug = ?", (slug,)).fetchone()
         if existing:
             conn.execute(
-                "UPDATE screens SET name = ?, screen_type = ?, modules = ?, module_layout = ?, is_active = ?, updated_at = ? WHERE slug = ?",
-                (cleaned_name, screen_type, serialize_modules(modules), serialize_module_layout(module_layout), 1 if is_active else 0, timestamp, slug),
+                "UPDATE screens SET name = ?, screen_type = ?, modules = ?, module_layout = ?, display_options = ?, is_active = ?, updated_at = ? WHERE slug = ?",
+                (cleaned_name, screen_type, serialize_modules(modules), serialize_module_layout(module_layout), serialize_display_options(display_options), 1 if is_active else 0, timestamp, slug),
             )
         else:
             conn.execute(
-                "INSERT INTO screens (slug, name, screen_type, modules, module_layout, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (slug, cleaned_name, screen_type, serialize_modules(modules), serialize_module_layout(module_layout), 1 if is_active else 0, timestamp, timestamp),
+                "INSERT INTO screens (slug, name, screen_type, modules, module_layout, display_options, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (slug, cleaned_name, screen_type, serialize_modules(modules), serialize_module_layout(module_layout), serialize_display_options(display_options), 1 if is_active else 0, timestamp, timestamp),
             )
         conn.commit()
     finally:
