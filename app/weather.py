@@ -10,9 +10,10 @@ from typing import Callable
 from urllib.parse import quote
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app import config
+from app.family_visibility import family_feature_hidden
 from app.home_assistant import (
     HomeAssistantClient,
     HomeAssistantConfigurationError,
@@ -295,7 +296,9 @@ class WeatherService:
             self._cached = None
             self._cached_at = None
 
-    def get_weather(self):
+    def get_weather(self, current_user=None):
+        if family_feature_hidden(current_user, "weather"):
+            return _status("hidden")
         try:
             settings = self.settings_loader()
         except WeatherConfigurationError:
@@ -348,5 +351,6 @@ router = APIRouter()
 
 
 @router.get("/api/family/weather")
-def family_weather():
-    return weather_service.get_weather()
+def family_weather(request: Request):
+    current_user = getattr(request.state, "current_user", None)
+    return weather_service.get_weather(current_user)
