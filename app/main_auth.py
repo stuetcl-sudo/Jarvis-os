@@ -12,6 +12,7 @@ from app.family_tasks import AUTHENTICATED_ROLES as FAMILY_TASK_ROLES
 from app.family_tasks import EDITOR_ROLES as FAMILY_TASK_EDITOR_ROLES
 from app.family_tasks import router as family_tasks_router
 from app.family_view import render_family_page
+from app.family_visibility import router as family_visibility_router
 from app.main import app
 from app.meal_plan import router as meal_plan_router
 from app.routine_definitions import EDITOR_ROLES
@@ -28,6 +29,7 @@ app.include_router(meal_plan_router)
 app.include_router(family_tasks_router)
 app.include_router(routines_router)
 app.include_router(safety_status_router)
+app.include_router(family_visibility_router)
 app.include_router(screen_router)
 
 ROUTINE_WRITE_ACTIONS = {"complete", "back", "reset"}
