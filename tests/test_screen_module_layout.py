@@ -29,9 +29,10 @@ def test_default_wall_layout_uses_equal_module_sizes():
             "tasks": "large",
             "home": "small",
         }
+        assert wall["display_options"] == {"show_admin_link": False, "show_safety_status": True}
 
 
-def test_screen_registry_persists_module_size_layout():
+def test_screen_registry_persists_module_size_layout_and_display_options():
     with screen_environment():
         created = upsert_screen(
             "Stuen",
@@ -39,11 +40,14 @@ def test_screen_registry_persists_module_size_layout():
             "wall-tablet",
             ["calendar", "weather", "meal"],
             module_layout={"calendar": "full", "weather": "small", "meal": "medium"},
+            display_options={"show_admin_link": True, "show_safety_status": False},
         )
         assert created["module_layout"] == {"calendar": "full", "weather": "small", "meal": "medium"}
+        assert created["display_options"] == {"show_admin_link": True, "show_safety_status": False}
 
         reloaded = get_screen("stuen")
         assert reloaded["module_layout"] == created["module_layout"]
+        assert reloaded["display_options"] == created["display_options"]
         assert reloaded["modules"] == ["calendar", "weather", "meal"]
 
 
@@ -65,11 +69,14 @@ def test_wall_page_applies_configured_module_size_css_and_status_badge():
             "wall-tablet",
             ["calendar", "weather"],
             module_layout={"calendar": "full", "weather": "small"},
+            display_options={"show_admin_link": True, "show_safety_status": False},
         )
-        page = render_wall_page({"role": "adult"}, "stuen")
+        page = render_wall_page({"role": "owner"}, "stuen")
         assert 'data-wall-screen-slug="stuen"' in page
         assert 'id="wallHomeStatusBadge"' in page
         assert 'id="wallHomeStatusText"' in page
+        assert 'href="/admin">Administration</a>' in page
+        assert '#wallSafetyStrip{display:none!important}' in page
         assert 'body[data-wall-dashboard="true"] .family-grid{align-items:stretch}' in page
         assert 'body[data-wall-dashboard="true"] [data-family-card="home"]{display:none!important}' in page
         assert '[data-family-card="meal"]{display:none!important}' in page
@@ -84,7 +91,7 @@ def test_wall_page_applies_configured_module_size_css_and_status_badge():
 if __name__ == "__main__":
     for test in [
         test_default_wall_layout_uses_equal_module_sizes,
-        test_screen_registry_persists_module_size_layout,
+        test_screen_registry_persists_module_size_layout_and_display_options,
         test_screen_registry_rejects_invalid_module_size,
         test_wall_page_applies_configured_module_size_css_and_status_badge,
     ]:
