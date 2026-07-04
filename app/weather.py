@@ -296,9 +296,7 @@ class WeatherService:
             self._cached = None
             self._cached_at = None
 
-    def get_weather(self, current_user=None):
-        if family_feature_hidden(current_user, "weather"):
-            return _status("hidden")
+    def get_weather(self):
         try:
             settings = self.settings_loader()
         except WeatherConfigurationError:
@@ -353,4 +351,6 @@ router = APIRouter()
 @router.get("/api/family/weather")
 def family_weather(request: Request):
     current_user = getattr(request.state, "current_user", None)
-    return weather_service.get_weather(current_user)
+    if family_feature_hidden(current_user, "weather"):
+        return _status("hidden")
+    return weather_service.get_weather()
