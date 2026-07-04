@@ -119,35 +119,41 @@
     }
   }
 
-  function createTaskActions(item, listKey, canEdit) {
+  function createTaskActions(item, listKey, permissions) {
     const actions = document.createElement("div");
     actions.className = "family-task-actions";
-    if (!canEdit) return actions;
+    if (!permissions.canEdit && !permissions.canRemove) return actions;
 
-    const edit = document.createElement("button");
-    edit.type = "button";
-    edit.textContent = "Ret";
-    edit.addEventListener("click", () => editFamilyTask(listKey, item));
+    if (permissions.canEdit) {
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.textContent = "Ret";
+      edit.addEventListener("click", () => editFamilyTask(listKey, item));
+      actions.append(edit);
+    }
 
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "danger";
-    remove.textContent = "Fjern";
-    remove.addEventListener("click", () => removeFamilyTask(listKey, item));
+    if (permissions.canRemove) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "danger";
+      remove.textContent = "Fjern";
+      remove.addEventListener("click", () => removeFamilyTask(listKey, item));
+      actions.append(remove);
+    }
 
-    actions.append(edit, remove);
     return actions;
   }
 
-  function createTaskItem(item, listKey, canEdit) {
+  function createTaskItem(item, listKey, permissions) {
     const row = document.createElement("li");
     row.className = "family-task-item";
 
     const complete = document.createElement("button");
     complete.type = "button";
     complete.className = "family-task-complete";
+    complete.disabled = !permissions.canComplete;
     complete.setAttribute("aria-label", `Markér ${item.summary || "opgaven"} som færdig`);
-    complete.addEventListener("click", () => completeFamilyTask(listKey, item, complete));
+    if (permissions.canComplete) complete.addEventListener("click", () => completeFamilyTask(listKey, item, complete));
 
     const copy = document.createElement("div");
     const summary = document.createElement("p");
@@ -169,7 +175,7 @@
       description.textContent = item.description;
       copy.append(description);
     }
-    copy.append(createTaskActions(item, listKey, canEdit));
+    copy.append(createTaskActions(item, listKey, permissions));
     row.append(complete, copy);
     return row;
   }
@@ -229,7 +235,16 @@
     return `${total} ${total === 1 ? "punkt" : "punkter"}`;
   }
 
-  function createTaskList(taskList, canEdit) {
+  function taskPermissions(tasks) {
+    return {
+      canAdd: Boolean(tasks.can_add),
+      canComplete: Boolean(tasks.can_complete),
+      canEdit: Boolean(tasks.can_edit),
+      canRemove: Boolean(tasks.can_remove),
+    };
+  }
+
+  function createTaskList(taskList, permissions) {
     const section = document.createElement("section");
     section.className = `family-task-list family-task-list-${taskList.key || "general"}`;
     if (isShoppingList(taskList)) section.classList.add("family-task-list-shopping-list");
@@ -253,7 +268,7 @@
       empty.textContent = "Ingen åbne punkter";
       items.append(empty);
     } else {
-      visibleItems.forEach((item) => items.append(createTaskItem(item, taskList.key, canEdit)));
+      visibleItems.forEach((item) => items.append(createTaskItem(item, taskList.key, permissions)));
       if (visibleItems.length < total) {
         const more = document.createElement("li");
         more.className = "family-task-more";
@@ -263,7 +278,7 @@
     }
 
     section.append(heading);
-    if (canEdit) section.append(createAddForm(taskList));
+    if (permissions.canAdd) section.append(createAddForm(taskList));
     section.append(items);
     return section;
   }
@@ -287,10 +302,11 @@
     if (state) state.hidden = true;
     if (data) data.hidden = false;
 
+    const permissions = taskPermissions(tasks);
     const lists = document.getElementById("familyTaskLists");
     if (lists) {
       lists.replaceChildren();
-      (tasks.lists || []).forEach((taskList) => lists.append(createTaskList(taskList, Boolean(tasks.can_edit))));
+      (tasks.lists || []).forEach((taskList) => lists.append(createTaskList(taskList, permissions)));
     }
 
     const messages = {
