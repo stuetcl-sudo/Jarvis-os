@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app import config
+from app.family_visibility import role_can_do
 from app.home_assistant import (
     HomeAssistantClient,
     HomeAssistantConfigurationError,
@@ -267,11 +268,21 @@ def _snapshot(status, lists, failures):
     }
 
 
+def _task_permissions(current_user):
+    role = current_user.get("role") if isinstance(current_user, dict) else None
+    return {
+        "can_add": role_can_do(role, "task_add"),
+        "can_complete": role_can_do(role, "task_complete"),
+        "can_edit": role_can_do(role, "task_edit"),
+        "can_remove": role_can_do(role, "task_remove"),
+    }
+
+
 def _public_snapshot(snapshot, current_user):
     authenticated = isinstance(current_user, dict) and current_user.get("role") in AUTHENTICATED_ROLES
     if authenticated:
         result = copy.deepcopy(snapshot)
-        result["can_edit"] = current_user.get("role") in EDITOR_ROLES
+        result.update(_task_permissions(current_user))
         return result
     return {
         "status": "authentication_required",
@@ -279,7 +290,10 @@ def _public_snapshot(snapshot, current_user):
         "total": 0,
         "unavailable_lists": 0,
         "stale": False,
+        "can_add": False,
+        "can_complete": False,
         "can_edit": False,
+        "can_remove": False,
     }
 
 
@@ -287,8 +301,9 @@ def _authenticated(current_user):
     return isinstance(current_user, dict) and current_user.get("role") in AUTHENTICATED_ROLES
 
 
-def _can_edit(current_user):
-    return isinstance(current_user, dict) and current_user.get("role") in EDITOR_ROLES
+def _can_perform(current_user, action):
+    role = current_user.get("role") if isinstance(current_user, dict) else None
+    return _authenticated(current_user) and role_can_do(role, action)
 
 
 class FamilyTasksService:
@@ -364,8 +379,8 @@ class FamilyTasksService:
         return settings, source
 
     def complete_task(self, list_key, item_uid, current_user=None):
-        if not _authenticated(current_user):
-            raise PermissionError("Family role required")
+        if not _can_perform(current_user, "task_complete"):
+            raise PermissionError("Task completion is not allowed")
         settings, source = self._settings_and_source(list_key)
         cleaned_uid = _required_text(item_uid, MAX_ITEM_ID_LENGTH, "Task item is invalid")
         HomeAssistantTasksClient(settings, self.client_factory).complete(source, cleaned_uid)
@@ -373,8 +388,8 @@ class FamilyTasksService:
         return self.get_tasks(current_user)
 
     def add_task(self, list_key, summary, description, current_user=None):
-        if not _can_edit(current_user):
-            raise PermissionError("Adult role required")
+        if not _can_perform(current_user, "task_add"):
+            raise PermissionError("Task creation is not allowed")
         settings, source = self._settings_and_source(list_key)
         cleaned_summary = _required_text(summary, MAX_SUMMARY_LENGTH, "Task summary is invalid")
         cleaned_description = _optional_text(description, MAX_DESCRIPTION_LENGTH)
@@ -387,8 +402,8 @@ class FamilyTasksService:
         return self.get_tasks(current_user)
 
     def update_task(self, list_key, item_uid, summary, description, current_user=None):
-        if not _can_edit(current_user):
-            raise PermissionError("Adult role required")
+        if not _can_perform(current_user, "task_edit"):
+            raise PermissionError("Task editing is not allowed")
         settings, source = self._settings_and_source(list_key)
         cleaned_uid = _required_text(item_uid, MAX_ITEM_ID_LENGTH, "Task item is invalid")
         cleaned_summary = _required_text(summary, MAX_SUMMARY_LENGTH, "Task summary is invalid")
@@ -403,8 +418,8 @@ class FamilyTasksService:
         return self.get_tasks(current_user)
 
     def remove_task(self, list_key, item_uid, current_user=None):
-        if not _can_edit(current_user):
-            raise PermissionError("Adult role required")
+        if not _can_perform(current_user, "task_remove"):
+            raise PermissionError("Task removal is not allowed")
         settings, source = self._settings_and_source(list_key)
         cleaned_uid = _required_text(item_uid, MAX_ITEM_ID_LENGTH, "Task item is invalid")
         HomeAssistantTasksClient(settings, self.client_factory).remove(source, cleaned_uid)
