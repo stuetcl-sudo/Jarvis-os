@@ -1,6 +1,7 @@
 from html import escape
 from pathlib import Path
 
+from app import config
 from app.family_visibility import load_visibility_rules, role_can_see
 
 FAMILY_TEMPLATE = Path(__file__).resolve().parent / "static" / "index.html"
@@ -115,7 +116,7 @@ def navigation_for(role):
 def visibility_style(role):
     if role == "anonymous":
         return ""
-    rules = load_visibility_rules()
+    rules = load_visibility_rules(db_path=config.DB_PATH)
     hidden = []
     for feature, selector in VISIBILITY_SELECTORS.items():
         if not role_can_see(role, feature, rules):
