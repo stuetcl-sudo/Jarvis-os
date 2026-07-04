@@ -223,80 +223,14 @@ async function dismissRecommendation(id) {
   }
 }
 
-async function togglePolicy(id, enable) {
-  const action = enable ? "aktivere" : "deaktivere";
-  if (!window.confirm(`Vil du ${action} denne automatiske regel? Det ændrer, hvilke forslag systemet kan oprette.`)) return;
-  try {
-    await getJson(`/api/policies/${encodeURIComponent(id)}/${enable ? "enable" : "disable"}`, {
-      method: "POST",
-    });
-    showNotice(`Den automatiske regel er ${enable ? "aktiveret" : "deaktiveret"}.`, "success");
-    await refreshAll();
-  } catch (error) {
-    showNotice(`Reglen kunne ikke ændres: ${error.message}`, "error", 0);
-  }
-}
-
-function recommendedClassification(container) {
-  const name = String(container.name || "").toLowerCase();
-  const image = String(container.image || "").toLowerCase();
-  if (name.includes("test") || name.includes("demo") || name.includes("debug")) {
-    return "stopped_by_design";
-  }
-  if (
-    name.includes("proxy") || name.includes("gateway") || name.includes("dns") ||
-    image.includes("proxy") || image.includes("gateway") || image.includes("dns")
-  ) {
-    return "critical";
-  }
-  return "optional";
-}
-
-function classificationLabel(value) {
-  return {
-    critical: "Vigtig for hjemmet",
-    optional: "Valgfri tjeneste",
-    stopped_by_design: "Bevidst stoppet",
-    unknown: "Ikke vurderet",
-  }[value] || value;
-}
-
 function classificationControlId(control, index, scope = "table") {
-  return `${control}-${scope}-${index}`;
+  return `${scope}-${control}-${index}`;
 }
 
-async function classifyContainer(index, preset = null, scope = "table") {
-  const container = containerRows[index];
-  const classification = preset || document.getElementById(
-    classificationControlId("cls", index, scope),
-  ).value;
-  const protectedBox = document.getElementById(classificationControlId("prot", index, scope));
-  const autoBox = document.getElementById(classificationControlId("auto", index, scope));
-  const protectedValue = protectedBox ? protectedBox.checked : false;
-  const autoValue = autoBox ? autoBox.checked : false;
-  const summary = `${classificationLabel(classification)}, beskyttet: ${protectedValue ? "ja" : "nej"}, automatisk start: ${autoValue ? "ja" : "nej"}`;
-  if (!window.confirm(`Gem vurderingen for ${container.name}?\n\n${summary}`)) return;
-  try {
-    await getJson(`/api/service-classifications/${encodeURIComponent(container.name)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        classification,
-        protected: protectedValue,
-        auto_start_allowed: autoValue,
-      }),
-    });
-    showNotice(`Vurderingen for ${container.name} er gemt.`, "success");
-    await refreshAll();
-  } catch (error) {
-    showNotice(`Vurderingen kunne ikke gemmes: ${error.message}`, "error", 0);
-  }
-}
-
-function classificationSelect(index, current, scope = "table") {
-  const select = element("select");
-  select.id = classificationControlId("cls", index, scope);
-  select.setAttribute("aria-label", "Tjenestens betydning for hjemmet");
+function classificationSelect(index, value, scope = "table") {
+  const current = value || "unknown";
+  const select = document.createElement("select");
+  select.id = classificationControlId("classification", index, scope);
   [
     ["critical", "Vigtig for hjemmet"],
     ["optional", "Valgfri tjeneste"],
@@ -326,4 +260,5 @@ loadAdminScript("/static/js/admin-render.js")
   .then(() => loadAdminScript("/static/js/admin-connections.js"))
   .then(() => loadAdminScript("/static/js/admin-safety-connections.js"))
   .then(() => loadAdminScript("/static/js/admin-screens.js"))
+  .then(() => loadAdminScript("/static/js/admin-role-visibility.js"))
   .catch((error) => showNotice(`Administrationen kunne ikke startes: ${error.message}`, "error", 0));
