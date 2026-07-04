@@ -223,6 +223,21 @@ async function dismissRecommendation(id) {
   }
 }
 
+function classificationLabel(value) {
+  return {
+    critical: "Vigtig for hjemmet",
+    optional: "Valgfri tjeneste",
+    stopped_by_design: "Bevidst stoppet",
+    unknown: "Ikke vurderet",
+  }[value] || "Ikke vurderet";
+}
+
+function recommendedClassification(container) {
+  const state = String(container.docker_state || container.status || "").toLowerCase();
+  if (state === "exited") return "optional";
+  return "unknown";
+}
+
 function classificationControlId(control, index, scope = "table") {
   return `${scope}-${control}-${index}`;
 }
@@ -230,7 +245,7 @@ function classificationControlId(control, index, scope = "table") {
 function classificationSelect(index, value, scope = "table") {
   const current = value || "unknown";
   const select = document.createElement("select");
-  select.id = classificationControlId("classification", index, scope);
+  select.id = classificationControlId("cls", index, scope);
   [
     ["critical", "Vigtig for hjemmet"],
     ["optional", "Valgfri tjeneste"],
@@ -243,6 +258,39 @@ function classificationSelect(index, value, scope = "table") {
     select.append(option);
   });
   return select;
+}
+
+async function classifyContainer(index, value = null, scope = "table") {
+  const container = containerRows[index];
+  if (!container) return;
+  const select = document.getElementById(classificationControlId("cls", index, scope));
+  const protectedBox = document.getElementById(classificationControlId("prot", index, scope));
+  const autoBox = document.getElementById(classificationControlId("auto", index, scope));
+  try {
+    await getJson(`/api/service-classifications/${encodeURIComponent(container.name)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        classification: value || select?.value || container.classification || "unknown",
+        protected: protectedBox ? protectedBox.checked : Boolean(container.protected),
+        auto_start_allowed: autoBox ? autoBox.checked : Boolean(container.auto_start_allowed),
+      }),
+    });
+    showNotice("Vurderingen er gemt.", "success");
+    await refreshAll();
+  } catch (error) {
+    showNotice(`Vurderingen kunne ikke gemmes: ${error.message}`, "error", 0);
+  }
+}
+
+async function togglePolicy(policyId, enabled) {
+  try {
+    await getJson(`/api/policies/${encodeURIComponent(policyId)}/${enabled ? "enable" : "disable"}`, { method: "POST" });
+    showNotice(enabled ? "Reglen er aktiveret." : "Reglen er deaktiveret.", "success");
+    await refreshAll();
+  } catch (error) {
+    showNotice(`Reglen kunne ikke ændres: ${error.message}`, "error", 0);
+  }
 }
 
 function loadAdminScript(path) {
