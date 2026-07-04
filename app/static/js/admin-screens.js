@@ -23,13 +23,17 @@
   ];
   const defaultModules = ["routine", "calendar", "weather", "meal", "tasks", "home"];
   const defaultModuleLayout = {
-    routine: "medium",
-    calendar: "wide",
-    weather: "medium",
-    meal: "medium",
-    tasks: "wide",
-    home: "medium",
-    system: "medium",
+    routine: "large",
+    calendar: "large",
+    weather: "large",
+    meal: "large",
+    tasks: "large",
+    home: "small",
+    system: "small",
+  };
+  const defaultDisplayOptions = {
+    show_admin_link: false,
+    show_safety_status: true,
   };
   let selectedScreen = null;
 
@@ -44,6 +48,14 @@
     return (screen?.modules || [])
       .map((key) => `${modules.find(([module]) => module === key)?.[1] || key}: ${sizeLookup[layout[key] || defaultModuleLayout[key] || "medium"]}`)
       .join(" · ");
+  }
+
+  function displayLabels(screen) {
+    const options = { ...defaultDisplayOptions, ...(screen?.display_options || {}) };
+    const labels = [];
+    labels.push(options.show_safety_status ? "Tryghedsstatus vises" : "Tryghedsstatus skjult");
+    labels.push(options.show_admin_link ? "Admin-link vises for ejer" : "Admin-link skjult");
+    return labels.join(" · ");
   }
 
   function slugFromName(value) {
@@ -74,6 +86,13 @@
     return layout;
   }
 
+  function selectedDisplayOptions() {
+    return {
+      show_admin_link: document.getElementById("screenShowAdminLink")?.checked === true,
+      show_safety_status: document.getElementById("screenShowSafetyStatus")?.checked !== false,
+    };
+  }
+
   function labeledInput(labelText, input) {
     const label = element("label", "screen-field", labelText);
     label.append(input);
@@ -94,12 +113,17 @@
     const slug = document.getElementById("screenSlug");
     const type = document.getElementById("screenType");
     const active = document.getElementById("screenActive");
+    const adminLink = document.getElementById("screenShowAdminLink");
+    const safetyStatus = document.getElementById("screenShowSafetyStatus");
     if (!name || !slug || !type || !active) return;
     name.value = screen?.name || "";
     slug.value = screen?.slug || "";
     slug.disabled = screen?.slug === "wall";
     type.value = screen?.screen_type || "wall-large";
     active.checked = screen?.is_active !== false;
+    const displayOptions = { ...defaultDisplayOptions, ...(screen?.display_options || {}) };
+    if (adminLink) adminLink.checked = displayOptions.show_admin_link === true;
+    if (safetyStatus) safetyStatus.checked = displayOptions.show_safety_status !== false;
     const activeModules = screen?.modules || defaultModules;
     const activeLayout = screen?.module_layout || defaultModuleLayout;
     document.querySelectorAll("[data-screen-module]").forEach((input) => {
@@ -119,6 +143,7 @@
     const url = element("span", "", screen.url);
     const detail = element("small", "", `${screenTypes.find(([key]) => key === screen.screen_type)?.[1] || screen.screen_type} · ${moduleLabels(screen.modules)}`);
     const layout = element("small", "", moduleLayoutLabels(screen));
+    const display = element("small", "", displayLabels(screen));
     const actions = element("div", "quick-buttons");
 
     const open = element("a", "family-link", "Åbn");
@@ -137,7 +162,7 @@
       remove.addEventListener("click", () => deleteScreen(screen));
       actions.append(remove);
     }
-    card.append(title, url, detail, layout, actions);
+    card.append(title, url, detail, layout, display, actions);
     return card;
   }
 
@@ -162,6 +187,7 @@
       screen_type: document.getElementById("screenType").value,
       modules: selectedModules(),
       module_layout: selectedModuleLayout(),
+      display_options: selectedDisplayOptions(),
       is_active: document.getElementById("screenActive").checked,
     };
     try {
@@ -241,6 +267,31 @@
     return fieldset;
   }
 
+  function createDisplayOptions() {
+    const fieldset = element("fieldset", "screen-module-picker");
+    fieldset.append(
+      element("legend", "", "Synlighed"),
+      element("p", "panel-help", "Vælg hvad denne vægskærm må vise. Familien behøver ikke se admin-link eller tekniske valg."),
+    );
+
+    const safetyLabel = element("label", "checkbox-control", "");
+    const safety = document.createElement("input");
+    safety.id = "screenShowSafetyStatus";
+    safety.type = "checkbox";
+    safety.checked = defaultDisplayOptions.show_safety_status;
+    safetyLabel.append(safety, document.createTextNode(" Vis tryghedsstatus"));
+
+    const adminLabel = element("label", "checkbox-control", "");
+    const admin = document.createElement("input");
+    admin.id = "screenShowAdminLink";
+    admin.type = "checkbox";
+    admin.checked = defaultDisplayOptions.show_admin_link;
+    adminLabel.append(admin, document.createTextNode(" Vis admin-link for ejer"));
+
+    fieldset.append(safetyLabel, adminLabel);
+    return fieldset;
+  }
+
   function createScreenForm() {
     const form = element("form", "screen-form");
     form.id = "screenForm";
@@ -264,7 +315,7 @@
     save.type = "submit";
     actions.append(save);
 
-    form.append(grid, createModulePicker(), actions);
+    form.append(grid, createModulePicker(), createDisplayOptions(), actions);
     form.addEventListener("submit", saveScreen);
     name.addEventListener("input", (event) => {
       if (!selectedScreen && !slug.value) slug.value = slugFromName(event.target.value);
