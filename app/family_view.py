@@ -1,6 +1,8 @@
 from html import escape
 from pathlib import Path
 
+from app.family_visibility import load_visibility_rules, role_can_see
+
 FAMILY_TEMPLATE = Path(__file__).resolve().parent / "static" / "index.html"
 FAMILY_ROLES = {"owner", "adult", "child", "wall_display"}
 PERSONALIZED_ROLES = {"owner", "adult", "child"}
@@ -63,6 +65,14 @@ ROUTINE_EDITOR_ACTION = """
           <button type="button" class="routine-edit-action" id="routineEditButton">Rediger rutine</button>
 """
 
+VISIBILITY_SELECTORS = {
+    "calendar": '[data-family-card="calendar"]',
+    "weather": '[data-family-card="weather"]',
+    "meal": '[data-family-card="meal"]',
+    "tasks": '[data-family-card="tasks"]',
+    "safety": "#wallSafetyStrip",
+}
+
 
 def anonymous_context():
     return {
@@ -102,6 +112,17 @@ def navigation_for(role):
     return '<nav class="family-navigation" aria-label="Bruger">' + "".join(links) + "</nav>"
 
 
+def visibility_style(role):
+    if role == "anonymous":
+        return ""
+    rules = load_visibility_rules()
+    hidden = []
+    for feature, selector in VISIBILITY_SELECTORS.items():
+        if not role_can_see(role, feature, rules):
+            hidden.append(f'body[data-family-role="{role}"] {selector}{{display:none!important}}')
+    return "<style>" + "".join(hidden) + "</style>" if hidden else ""
+
+
 def render_family_page(current_user, wall_actions=""):
     context = resolve_family_context(current_user)
     page = FAMILY_TEMPLATE.read_text(encoding="utf-8")
@@ -117,6 +138,7 @@ def render_family_page(current_user, wall_actions=""):
         body,
         1,
     )
+    page = page.replace("</head>", visibility_style(context["role"]) + "\n</head>", 1)
     page = page.replace(
         '<p class="family-view-label" id="familyViewLabel">Fælles overblik</p>',
         f'<p class="family-view-label" id="familyViewLabel">{escape(context["label"])}</p>',
