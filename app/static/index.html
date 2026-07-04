@@ -84,18 +84,48 @@
             <button type="button" data-calendar-days="5" aria-pressed="false">5 dage</button>
             <button type="button" data-calendar-days="7" aria-pressed="false">7 dage</button>
           </div>
-          <div class="calendar-events calendar-days-3" id="calendarEvents" aria-live="polite">
-            <p class="disconnected">Kalender er ikke tilsluttet endnu.</p>
+          <p class="disconnected" id="calendarState">Ikke tilsluttet endnu</p>
+          <div class="calendar-data" id="calendarData" hidden>
+            <div class="calendar-anonymous-summary" id="calendarAnonymousSummary" hidden>
+              <strong id="calendarTodaySummary">Ingen aftaler i dag</strong>
+              <p id="calendarNextSummary"></p>
+              <p id="calendarUpcomingSummary"></p>
+            </div>
+            <ul class="calendar-legend" id="calendarLegend" aria-label="Fælles kalendere"></ul>
+            <ol class="calendar-events" id="calendarEvents" aria-label="Familiens kommende aftaler"></ol>
+            <p class="calendar-empty" id="calendarEmpty" hidden>Ingen aftaler i den valgte periode</p>
+            <p class="calendar-notice" id="calendarNotice" hidden></p>
           </div>
-          <p class="calendar-meta" id="calendarMeta"></p>
         </div>
       </article>
 
       <article class="family-card weather-card" data-family-card="weather">
-        <div class="card-icon" aria-hidden="true">☁️</div>
+        <div class="card-icon" id="weatherCardIcon" aria-hidden="true">☁️</div>
         <div class="card-heading"><p class="card-eyebrow">Vejr</p><h2>Dagens vejr</h2></div>
-        <div class="weather-card-content" id="weatherContent">
-          <p class="disconnected">Vejr er ikke tilsluttet endnu.</p>
+        <div class="weather-card-content">
+          <p class="disconnected" id="weatherState">Ikke tilsluttet endnu</p>
+          <div class="weather-data" id="weatherData" hidden>
+            <div class="weather-current">
+              <span class="weather-symbol" id="weatherSymbol" role="img" aria-label="Vejrsymbol">☁️</span>
+              <div>
+                <strong class="weather-temperature" id="weatherTemperature">–</strong>
+                <p class="weather-condition" id="weatherCondition">Ukendt vejr</p>
+                <p class="weather-uv" id="weatherUv" hidden>
+                  <strong id="weatherUvValue">UV –</strong>
+                  <span id="weatherUvLabel">Ukendt</span>
+                </p>
+              </div>
+            </div>
+            <dl class="weather-measurements" id="weatherMeasurements">
+              <div data-weather-detail="apparent"><dt>Føles som</dt><dd id="weatherApparent">–</dd></div>
+              <div data-weather-detail="humidity"><dt>Luftfugtighed</dt><dd id="weatherHumidity">–</dd></div>
+              <div data-weather-detail="wind"><dt>Vind</dt><dd id="weatherWind">–</dd></div>
+              <div data-weather-detail="rain"><dt>Regnchance</dt><dd id="weatherRain">–</dd></div>
+            </dl>
+            <p class="weather-child-summary" id="weatherChildRain" hidden></p>
+            <ol class="weather-forecast" id="weatherForecast" aria-label="Vejrudsigt for de næste dage"></ol>
+            <p class="weather-stale" id="weatherStale" hidden>Viser senest hentede vejrdata</p>
+          </div>
         </div>
       </article>
 
@@ -104,16 +134,25 @@
       <article class="family-card meal-card" data-family-card="meal">
         <div class="card-icon" aria-hidden="true">🍽️</div>
         <div class="card-heading"><p class="card-eyebrow">Madplan</p><h2>Aftensmad</h2></div>
-        <div class="meal-plan-content" id="mealPlanContent">
-          <p class="disconnected">Madplan er ikke tilsluttet endnu.</p>
+        <div class="meal-card-content">
+          <p class="disconnected" id="mealPlanState">Henter madplan…</p>
+          <div class="meal-plan-data" id="mealPlanData" hidden>
+            <div class="meal-plan-today"><span>I dag</span><strong id="mealPlanToday">Ikke planlagt</strong></div>
+            <ol class="meal-plan-days" id="mealPlanDays" aria-label="Madplan for de næste dage"></ol>
+            <p class="meal-plan-notice" id="mealPlanNotice" hidden></p>
+          </div>
         </div>
       </article>
 
       <article class="family-card family-tasks-card" data-family-card="tasks">
-        <div class="card-icon" aria-hidden="true">📝</div>
-        <div class="card-heading"><p class="card-eyebrow">Opgaver</p><h2>Lektier og opgaver</h2></div>
-        <div class="family-tasks-content" id="familyTasksContent">
-          <p class="disconnected">Opgaver er ikke tilsluttet endnu.</p>
+        <div class="card-icon" aria-hidden="true">✏️</div>
+        <div class="card-heading"><p class="card-eyebrow">Lektier og opgaver</p><h2>Det næste</h2></div>
+        <div class="family-tasks-content">
+          <p class="disconnected" id="familyTasksState">Henter opgaver og lektier…</p>
+          <div class="family-tasks-data" id="familyTasksData" hidden>
+            <div class="family-task-lists" id="familyTaskLists"></div>
+            <p class="family-tasks-notice" id="familyTasksNotice" hidden></p>
+          </div>
         </div>
       </article>
 
@@ -121,25 +160,34 @@
     </section>
 
     <section class="wall-safety-strip" id="wallSafetyStrip" aria-label="Tryghedsstatus for hjemmet" aria-live="polite">
-      <span class="wall-safety-item unknown" id="wallSafetyInternet" data-wall-safety-item="internet"><span class="wall-safety-icon" aria-hidden="true">🌐</span><span>Online</span></span>
-      <span class="wall-safety-item unknown" id="wallSafetyDoors" data-wall-safety-item="doors"><span class="wall-safety-icon" aria-hidden="true">🚪</span><span>Lukket</span></span>
-      <span class="wall-safety-item unknown" id="wallSafetyMotion" data-wall-safety-item="motion"><span class="wall-safety-icon" aria-hidden="true">👣</span><span>Roligt</span></span>
-      <span class="wall-safety-item unknown" id="wallSafetyCameras" data-wall-safety-item="cameras"><span class="wall-safety-icon" aria-hidden="true">📷</span><span>OK</span></span>
+      <article class="wall-safety-item ok" data-wall-safety-item="internet"><span class="wall-safety-icon" aria-hidden="true">🌐</span><span class="wall-safety-text">Online</span></article>
+      <article class="wall-safety-item ok" data-wall-safety-item="doors"><span class="wall-safety-icon" aria-hidden="true">🚪</span><span class="wall-safety-text">Lukket</span></article>
+      <article class="wall-safety-item ok" data-wall-safety-item="motion"><span class="wall-safety-icon" aria-hidden="true">👣</span><span class="wall-safety-text">Roligt</span></article>
+      <article class="wall-safety-item ok" data-wall-safety-item="cameras"><span class="wall-safety-icon" aria-hidden="true">📷</span><span class="wall-safety-text">OK</span></article>
     </section>
 
-    <footer class="family-footer">
-      <p>Jarvis viser kun det vigtigste her. Tekniske detaljer er gemt til administrationen.</p>
-<!-- FAMILY_NAVIGATION -->
-    </footer>
+    <footer class="family-footer"><p>Familievisningen tilpasser sig den aktive rolle. Administrative kontroller kræver en ejerkonto.</p><!-- FAMILY_NAVIGATION --></footer>
   </main>
 
-  <script src="/static/js/family.js"></script>
-  <script src="/static/js/family-calendar.js"></script>
-  <script src="/static/js/family-uv.js"></script>
-  <script src="/static/js/family-meals.js"></script>
-  <script src="/static/js/family-tasks.js"></script>
-  <script src="/static/js/routines.js"></script>
-  <script src="/static/js/routine-editor.js"></script>
-  <script src="/static/js/wall-safety.js"></script>
+  <dialog class="routine-editor" id="routineEditor" aria-labelledby="routineEditorTitle">
+    <form method="dialog" class="routine-editor-shell" id="routineEditorForm">
+      <header class="routine-editor-header"><div><p class="card-eyebrow">Familierutiner</p><h2 id="routineEditorTitle">Rediger rutine</h2></div><button type="button" id="routineEditorClose" aria-label="Luk editor">×</button></header>
+      <div class="routine-editor-switch" role="group" aria-label="Vælg rutine"><button type="button" data-editor-routine="morning">Morgen</button><button type="button" data-editor-routine="evening">Aften</button></div>
+      <label class="routine-editor-label">Rutinenavn<input id="routineEditorLabel" maxlength="40" required /></label>
+      <p class="routine-editor-message" id="routineEditorMessage" role="status"></p>
+      <ol class="routine-editor-list" id="routineEditorList"></ol>
+      <button type="button" class="routine-editor-add" id="routineEditorAdd">Tilføj trin</button>
+      <footer class="routine-editor-footer"><button type="button" class="danger" id="routineEditorRestore">Gendan standard</button><span></span><button type="button" id="routineEditorCancel">Annuller</button><button type="submit" class="primary" id="routineEditorSave">Gem ændringer</button></footer>
+    </form>
+  </dialog>
+
+  <script src="/static/js/family.js" defer></script>
+  <script src="/static/js/family-uv.js" defer></script>
+  <script src="/static/js/family-calendar.js" defer></script>
+  <script src="/static/js/family-meals.js" defer></script>
+  <script src="/static/js/family-tasks.js" defer></script>
+  <script src="/static/js/routines.js" defer></script>
+  <script src="/static/js/routine-editor.js" defer></script>
+  <script src="/static/js/wall-safety.js" defer></script>
 </body>
 </html>
