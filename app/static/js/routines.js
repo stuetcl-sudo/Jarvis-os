@@ -31,11 +31,28 @@ function setRoutineText(id, value) {
   if (element) element.textContent = value;
 }
 
+function isWallDashboard() {
+  return document.body.dataset.wallDashboard === "true";
+}
+
+function syncRoutinePictogramButton() {
+  const frame = document.querySelector(".routine-pictogram-frame");
+  const completeButton = routineElement("routineComplete");
+  if (!frame || !isWallDashboard()) return;
+
+  const active = Boolean(completeButton && !completeButton.hidden && !completeButton.disabled && !routineRequestPending);
+  frame.setAttribute("role", "button");
+  frame.setAttribute("tabindex", active ? "0" : "-1");
+  frame.setAttribute("aria-label", active ? "Færdiggør dette trin" : "Rutinepiktogram");
+  frame.setAttribute("aria-disabled", String(!active));
+}
+
 function setRoutineBusy(busy) {
   routineRequestPending = busy;
   document.querySelectorAll("[data-routine-select], #routineBack, #routineComplete, #routineReset").forEach((button) => {
     button.disabled = busy;
   });
+  syncRoutinePictogramButton();
 }
 
 function setRoutinePictogram(name, alternativeText) {
@@ -108,6 +125,7 @@ function renderRoutine() {
 
   if (backButton) backButton.disabled = routineRequestPending || routine.current_index === 0;
   if (completeButton) completeButton.disabled = routineRequestPending;
+  syncRoutinePictogramButton();
   const panel = routineElement("routinePanel");
   if (panel) {
     panel.classList.remove("routine-transition");
@@ -172,6 +190,13 @@ async function changeRoutine(action) {
   }
 }
 
+function completeRoutineFromPictogram() {
+  if (!isWallDashboard() || routineRequestPending) return;
+  const completeButton = routineElement("routineComplete");
+  if (!completeButton || completeButton.hidden || completeButton.disabled) return;
+  completeButton.click();
+}
+
 function initializeRoutineControls() {
   document.querySelectorAll("[data-routine-select]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -184,6 +209,14 @@ function initializeRoutineControls() {
   routineElement("routineComplete")?.addEventListener("click", () => changeRoutine("complete"));
   routineElement("routineBack")?.addEventListener("click", () => changeRoutine("back"));
   routineElement("routineReset")?.addEventListener("click", () => changeRoutine("reset"));
+
+  const pictogramFrame = document.querySelector(".routine-pictogram-frame");
+  pictogramFrame?.addEventListener("click", completeRoutineFromPictogram);
+  pictogramFrame?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    completeRoutineFromPictogram();
+  });
 }
 
 initializeRoutineControls();
