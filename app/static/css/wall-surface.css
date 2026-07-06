@@ -63,15 +63,15 @@
   }
 
   body[data-wall-dashboard="true"] .routine-pictogram-frame {
-    min-height: 58px !important;
-    max-height: 70px !important;
+    min-height: 72px !important;
+    max-height: 88px !important;
   }
 
   body[data-wall-dashboard="true"] .routine-pictogram {
-    width: 46px !important;
-    height: 46px !important;
-    max-width: 46px !important;
-    max-height: 46px !important;
+    width: 64px !important;
+    height: 64px !important;
+    max-width: 64px !important;
+    max-height: 64px !important;
   }
 
   body[data-wall-dashboard="true"] .routine-title {
