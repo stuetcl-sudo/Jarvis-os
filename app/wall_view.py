@@ -50,13 +50,13 @@ body[data-wall-dashboard=\"true\"] .family-card{height:100%}
 @media(max-width:640px){.wall-home-status{grid-column:1 / -1;justify-content:center}}
 """.strip()
 SURFACE_WALL_STYLE = """
-@media (orientation: landscape) and (min-width:1100px) and (max-width:2000px) and (max-height:2000px) and (min-aspect-ratio:4/3) and (max-aspect-ratio:17/10){
+@media (orientation: landscape) and (min-width:860px) and (max-width:1600px) and (min-height:560px) and (max-height:1100px){
 body[data-wall-dashboard=\"true\"] .family-shell{width:min(100% - 22px,1220px);padding-top:max(12px,env(safe-area-inset-top))}
 body[data-wall-dashboard=\"true\"] .family-header{min-height:0;padding-bottom:10px}
 body[data-wall-dashboard=\"true\"] .family-header h1{font-size:clamp(36px,4.2vw,54px)}
 body[data-wall-dashboard=\"true\"] .family-clock{font-size:clamp(40px,5vw,64px)}
 body[data-wall-dashboard=\"true\"] .family-grid{grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:10px}
-body[data-wall-dashboard=\"true\"] .routine-card,body[data-wall-dashboard=\"true\"] .weather-card{grid-column:span 2!important;min-height:280px!important;height:auto}
+body[data-wall-dashboard=\"true\"] .routine-card,body[data-wall-dashboard=\"true\"] .weather-card{grid-column:span 2!important;min-height:300px!important;height:448px!important}
 body[data-wall-dashboard=\"true\"] .calendar-card,body[data-wall-dashboard=\"true\"] .meal-card,body[data-wall-dashboard=\"true\"] .family-tasks-card{grid-column:span 2!important;min-height:0!important;height:auto}
 body[data-wall-dashboard=\"true\"] .routine-card{order:1}
 body[data-wall-dashboard=\"true\"] .weather-card{order:2}
