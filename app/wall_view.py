@@ -69,14 +69,15 @@ body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(28px,3vw,40px)
 body[data-wall-dashboard=\"true\"] .weather-temperature{font-size:clamp(44px,5vw,60px)}
 body[data-wall-dashboard=\"true\"] .weather-forecast-item{min-height:74px}
 body[data-wall-dashboard=\"true\"] .wall-safety-strip{position:static!important;margin-top:10px}
-body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .family-shell{width:min(100% - 64px,1180px);padding-top:18px;padding-bottom:18px}
-body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .family-header{padding-bottom:12px}
-body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .family-header h1{font-size:clamp(34px,4vw,50px)}
-body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .family-clock{font-size:clamp(38px,4.6vw,58px)}
-body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .family-grid{gap:12px;align-items:start}
-body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .routine-card,body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .weather-card{min-height:270px!important}
-body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .weather-temperature{font-size:clamp(42px,4.6vw,56px)}
-body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .wall-display-actions a,body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .wall-display-actions button{min-height:40px;padding:7px 12px}
+body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .family-shell{width:min(100% - 48px,1260px);padding-top:14px;padding-bottom:14px}
+body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .family-header{padding-bottom:10px}
+body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .family-header h1{font-size:clamp(34px,3.8vw,48px)}
+body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .family-clock{font-size:clamp(38px,4.4vw,56px)}
+body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .family-grid{gap:10px;align-items:start}
+body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .routine-card,body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .weather-card{min-height:260px!important}
+body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .weather-temperature{font-size:clamp(40px,4.3vw,52px)}
+body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .weather-forecast-item{min-height:68px;padding:8px}
+body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .wall-display-actions a,body.wall-is-fullscreen[data-wall-dashboard=\"true\"] .wall-display-actions button{min-height:38px;padding:6px 11px}
 }
 """.strip()
 
