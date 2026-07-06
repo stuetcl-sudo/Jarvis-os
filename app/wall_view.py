@@ -51,23 +51,31 @@ body[data-wall-dashboard=\"true\"] .family-card{height:100%}
 """.strip()
 SURFACE_WALL_STYLE = """
 @media (orientation: landscape) and (min-width:1280px) and (max-width:1450px) and (min-height:840px) and (max-height:980px){
-body[data-wall-dashboard=\"true\"] .family-shell{width:min(100% - 22px,1220px);padding-top:max(12px,env(safe-area-inset-top))}
-body[data-wall-dashboard=\"true\"] .family-header{min-height:0;padding-bottom:10px}
-body[data-wall-dashboard=\"true\"] .family-header h1{font-size:clamp(36px,4.2vw,54px)}
-body[data-wall-dashboard=\"true\"] .family-clock{font-size:clamp(40px,5vw,64px)}
+body[data-wall-dashboard=\"true\"] .family-shell{width:min(100% - 22px,1220px);padding-top:max(8px,env(safe-area-inset-top))}
+body[data-wall-dashboard=\"true\"] .family-header{min-height:0;padding-bottom:6px}
+body[data-wall-dashboard=\"true\"] .family-header h1{font-size:clamp(34px,4vw,50px)}
+body[data-wall-dashboard=\"true\"] .family-clock{font-size:clamp(38px,4.8vw,60px)}
 body[data-wall-dashboard=\"true\"] .family-grid{grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:10px}
-body[data-wall-dashboard=\"true\"] .routine-card,body[data-wall-dashboard=\"true\"] .weather-card{grid-column:span 2!important;min-height:300px!important;height:clamp(340px,38vh,390px)!important}
+body[data-wall-dashboard=\"true\"] .routine-card,body[data-wall-dashboard=\"true\"] .weather-card{grid-column:span 2!important;min-height:300px!important;height:clamp(360px,40vh,380px)!important;padding:18px!important;overflow:hidden}
 body[data-wall-dashboard=\"true\"] .calendar-card,body[data-wall-dashboard=\"true\"] .meal-card,body[data-wall-dashboard=\"true\"] .family-tasks-card{grid-column:span 2!important;min-height:0!important;height:auto!important}
 body[data-wall-dashboard=\"true\"] .routine-card{order:1}
 body[data-wall-dashboard=\"true\"] .weather-card{order:2}
 body[data-wall-dashboard=\"true\"] .calendar-card{order:3}
 body[data-wall-dashboard=\"true\"] .meal-card{order:4}
 body[data-wall-dashboard=\"true\"] .family-tasks-card{order:5}
-body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{min-height:54px;max-height:66px}
-body[data-wall-dashboard=\"true\"] .routine-pictogram{width:46px;height:46px;max-width:46px;max-height:46px}
-body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(28px,3vw,40px);line-height:1.05;word-break:normal;overflow-wrap:break-word}
-body[data-wall-dashboard=\"true\"] .weather-temperature{font-size:clamp(44px,5vw,60px)}
-body[data-wall-dashboard=\"true\"] .weather-forecast-item{min-height:74px}
+body[data-wall-dashboard=\"true\"] .routine-panel{gap:8px}
+body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{min-height:42px;max-height:54px}
+body[data-wall-dashboard=\"true\"] .routine-pictogram{width:40px;height:40px;max-width:40px;max-height:40px}
+body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(26px,2.8vw,36px);line-height:1.05;word-break:normal;overflow-wrap:break-word}
+body[data-wall-dashboard=\"true\"] .routine-actions button,body[data-wall-dashboard=\"true\"] .routine-reset,body[data-wall-dashboard=\"true\"] .routine-edit-action,body[data-wall-dashboard=\"true\"] .routine-switch button{min-height:36px;padding:7px 10px;font-size:14px}
+body[data-wall-dashboard=\"true\"] .weather-symbol{width:62px;height:62px;border-radius:18px;font-size:38px}
+body[data-wall-dashboard=\"true\"] .weather-temperature{font-size:clamp(42px,4.8vw,56px)}
+body[data-wall-dashboard=\"true\"] .weather-data{margin-top:12px}
+body[data-wall-dashboard=\"true\"] .weather-forecast{margin-top:12px;gap:8px}
+body[data-wall-dashboard=\"true\"] .weather-forecast-item{min-height:62px;padding:8px;border-radius:16px}
+body[data-wall-dashboard=\"true\"] .weather-forecast-day,body[data-wall-dashboard=\"true\"] .weather-forecast-temperatures{font-size:14px}
+body[data-wall-dashboard=\"true\"] .weather-forecast-symbol{font-size:21px}
+body[data-wall-dashboard=\"true\"] .weather-forecast-rain{font-size:12px}
 body[data-wall-dashboard=\"true\"] .wall-safety-strip{position:static!important;margin-top:10px}
 }
 """.strip()
