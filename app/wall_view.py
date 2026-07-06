@@ -50,7 +50,7 @@ body[data-wall-dashboard=\"true\"] .family-card{height:100%}
 @media(max-width:640px){.wall-home-status{grid-column:1 / -1;justify-content:center}}
 """.strip()
 SURFACE_WALL_STYLE = """
-@media (orientation: landscape) and (min-width:1000px) and (max-width:1400px) and (min-aspect-ratio:4/3) and (max-aspect-ratio:17/10){
+@media (orientation: landscape) and (min-width:1000px) and (max-width:2000px) and (max-height:2000px) and (min-aspect-ratio:4/3) and (max-aspect-ratio:17/10){
 body[data-wall-dashboard=\"true\"] .family-shell{width:min(100% - 22px,1220px);padding-top:max(12px,env(safe-area-inset-top))}
 body[data-wall-dashboard=\"true\"] .family-header{min-height:0;padding-bottom:10px}
 body[data-wall-dashboard=\"true\"] .family-header h1{font-size:clamp(36px,4.2vw,54px)}
