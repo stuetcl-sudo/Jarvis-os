@@ -65,10 +65,13 @@ body[data-wall-dashboard=\"true\"] .meal-card{order:4}
 body[data-wall-dashboard=\"true\"] .family-tasks-card{order:5}
 body[data-wall-dashboard=\"true\"] .routine-panel{margin-top:8px;gap:8px;align-items:start}
 body[data-wall-dashboard=\"true\"] .routine-copy{margin-top:-16px}
-body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{width:172px;max-width:172px;min-height:92px;max-height:92px;justify-self:center;border-radius:20px}
+body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{width:172px;max-width:172px;min-height:92px;max-height:92px;justify-self:center;border-radius:20px;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
+body[data-wall-dashboard=\"true\"] .routine-pictogram-frame:active{transform:scale(.98)}
+body[data-wall-dashboard=\"true\"] .routine-pictogram-frame[aria-disabled=\"true\"]{cursor:default;opacity:.78}
 body[data-wall-dashboard=\"true\"] .routine-pictogram{width:38px;height:38px;max-width:38px;max-height:38px}
 body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(26px,2.8vw,36px);line-height:1.05;word-break:normal;overflow-wrap:break-word}
 body[data-wall-dashboard=\"true\"] .routine-actions{display:grid;grid-template-columns:1fr;margin-top:6px}
+body[data-wall-dashboard=\"true\"] #routineBack{display:none!important}
 body[data-wall-dashboard=\"true\"] .routine-reset{display:none!important}
 body[data-wall-dashboard=\"true\"] .routine-actions button,body[data-wall-dashboard=\"true\"] .routine-edit-action,body[data-wall-dashboard=\"true\"] .routine-switch button{min-height:38px;padding:8px 10px;font-size:14px}
 body[data-wall-dashboard=\"true\"] .weather-symbol{width:62px;height:62px;border-radius:18px;font-size:38px}
