@@ -49,6 +49,28 @@ body[data-wall-dashboard=\"true\"] .family-card{height:100%}
 .wall-home-status.unknown .wall-home-status-dot{background:var(--muted)}
 @media(max-width:640px){.wall-home-status{grid-column:1 / -1;justify-content:center}}
 """.strip()
+SURFACE_WALL_STYLE = """
+@media (orientation: landscape) and (min-width:1000px) and (max-width:1400px) and (min-aspect-ratio:4/3) and (max-aspect-ratio:17/10){
+body[data-wall-dashboard=\"true\"] .family-shell{width:min(100% - 22px,1220px);padding-top:max(12px,env(safe-area-inset-top))}
+body[data-wall-dashboard=\"true\"] .family-header{min-height:0;padding-bottom:10px}
+body[data-wall-dashboard=\"true\"] .family-header h1{font-size:clamp(36px,4.2vw,54px)}
+body[data-wall-dashboard=\"true\"] .family-clock{font-size:clamp(40px,5vw,64px)}
+body[data-wall-dashboard=\"true\"] .family-grid{grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:10px}
+body[data-wall-dashboard=\"true\"] .routine-card,body[data-wall-dashboard=\"true\"] .weather-card{grid-column:span 2!important;min-height:280px!important;height:auto}
+body[data-wall-dashboard=\"true\"] .calendar-card,body[data-wall-dashboard=\"true\"] .meal-card,body[data-wall-dashboard=\"true\"] .family-tasks-card{grid-column:span 2!important;min-height:0!important;height:auto}
+body[data-wall-dashboard=\"true\"] .routine-card{order:1}
+body[data-wall-dashboard=\"true\"] .weather-card{order:2}
+body[data-wall-dashboard=\"true\"] .calendar-card{order:3}
+body[data-wall-dashboard=\"true\"] .meal-card{order:4}
+body[data-wall-dashboard=\"true\"] .family-tasks-card{order:5}
+body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{min-height:54px;max-height:66px}
+body[data-wall-dashboard=\"true\"] .routine-pictogram{width:46px;height:46px;max-width:46px;max-height:46px}
+body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(28px,3vw,40px);line-height:1.05;word-break:normal;overflow-wrap:break-word}
+body[data-wall-dashboard=\"true\"] .weather-temperature{font-size:clamp(44px,5vw,60px)}
+body[data-wall-dashboard=\"true\"] .weather-forecast-item{min-height:74px}
+body[data-wall-dashboard=\"true\"] .wall-safety-strip{position:static!important;margin-top:10px}
+}
+""".strip()
 
 
 def screen_option(screen, key, default=False):
@@ -111,7 +133,7 @@ def module_layout_style(screen):
 
 
 def screen_style(screen):
-    css = WALL_STATUS_STYLE + module_visibility_style(screen) + module_layout_style(screen)
+    css = WALL_STATUS_STYLE + module_visibility_style(screen) + module_layout_style(screen) + SURFACE_WALL_STYLE
     return "<style>" + css + "</style>" if css else ""
 
 
