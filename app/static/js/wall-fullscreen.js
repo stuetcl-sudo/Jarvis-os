@@ -6,6 +6,10 @@
     return document.fullscreenElement || document.webkitFullscreenElement || null;
   }
 
+  function isFullscreen() {
+    return Boolean(fullscreenElement());
+  }
+
   async function enterFullscreen() {
     const target = document.documentElement;
     const request = target.requestFullscreen || target.webkitRequestFullscreen;
@@ -21,13 +25,15 @@
     return true;
   }
 
-  function updateLabel() {
-    button.textContent = fullscreenElement() ? "Luk fuld skærm" : "Fuld skærm";
+  function updateState() {
+    const active = isFullscreen();
+    document.body.classList.toggle("wall-is-fullscreen", active);
+    button.textContent = active ? "Luk fuld skærm" : "Fuld skærm";
   }
 
   button.addEventListener("click", async () => {
     try {
-      if (fullscreenElement()) {
+      if (isFullscreen()) {
         await exitFullscreen();
       } else {
         await enterFullscreen();
@@ -35,11 +41,11 @@
     } catch (error) {
       button.textContent = "Brug browserens fuld skærm";
     } finally {
-      updateLabel();
+      updateState();
     }
   });
 
-  document.addEventListener("fullscreenchange", updateLabel);
-  document.addEventListener("webkitfullscreenchange", updateLabel);
-  updateLabel();
+  document.addEventListener("fullscreenchange", updateState);
+  document.addEventListener("webkitfullscreenchange", updateState);
+  updateState();
 })();
