@@ -19,13 +19,13 @@
 
   body[data-wall-dashboard="true"] .family-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-auto-flow: row !important;
     align-items: start !important;
     gap: 12px !important;
   }
 
   body[data-wall-dashboard="true"] .routine-card,
   body[data-wall-dashboard="true"] .weather-card {
-    grid-column: span 2 !important;
     min-height: 300px !important;
     height: auto !important;
   }
@@ -33,16 +33,34 @@
   body[data-wall-dashboard="true"] .calendar-card,
   body[data-wall-dashboard="true"] .meal-card,
   body[data-wall-dashboard="true"] .family-tasks-card {
-    grid-column: span 2 !important;
     min-height: 0 !important;
     height: auto !important;
   }
 
-  body[data-wall-dashboard="true"] .routine-card { order: 1 !important; }
-  body[data-wall-dashboard="true"] .weather-card { order: 2 !important; }
-  body[data-wall-dashboard="true"] .calendar-card { order: 3 !important; }
-  body[data-wall-dashboard="true"] .meal-card { order: 4 !important; }
-  body[data-wall-dashboard="true"] .family-tasks-card { order: 5 !important; }
+  body[data-wall-dashboard="true"] .routine-card {
+    grid-column: 1 / span 2 !important;
+    grid-row: 1 !important;
+  }
+
+  body[data-wall-dashboard="true"] .weather-card {
+    grid-column: 3 / span 2 !important;
+    grid-row: 1 !important;
+  }
+
+  body[data-wall-dashboard="true"] .calendar-card {
+    grid-column: 1 / span 2 !important;
+    grid-row: 2 !important;
+  }
+
+  body[data-wall-dashboard="true"] .meal-card {
+    grid-column: 3 / span 2 !important;
+    grid-row: 2 !important;
+  }
+
+  body[data-wall-dashboard="true"] .family-tasks-card {
+    grid-column: 1 / span 2 !important;
+    grid-row: 3 !important;
+  }
 
   body[data-wall-dashboard="true"] .routine-pictogram-frame {
     min-height: 58px !important;
