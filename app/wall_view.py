@@ -67,7 +67,9 @@ body[data-wall-dashboard=\"true\"] .routine-panel{gap:8px}
 body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{min-height:42px;max-height:54px}
 body[data-wall-dashboard=\"true\"] .routine-pictogram{width:40px;height:40px;max-width:40px;max-height:40px}
 body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(26px,2.8vw,36px);line-height:1.05;word-break:normal;overflow-wrap:break-word}
-body[data-wall-dashboard=\"true\"] .routine-actions button,body[data-wall-dashboard=\"true\"] .routine-reset,body[data-wall-dashboard=\"true\"] .routine-edit-action,body[data-wall-dashboard=\"true\"] .routine-switch button{min-height:36px;padding:7px 10px;font-size:14px}
+body[data-wall-dashboard=\"true\"] .routine-actions{display:grid;grid-template-columns:1fr;margin-top:6px}
+body[data-wall-dashboard=\"true\"] .routine-reset{display:none!important}
+body[data-wall-dashboard=\"true\"] .routine-actions button,body[data-wall-dashboard=\"true\"] .routine-edit-action,body[data-wall-dashboard=\"true\"] .routine-switch button{min-height:38px;padding:8px 10px;font-size:14px}
 body[data-wall-dashboard=\"true\"] .weather-symbol{width:62px;height:62px;border-radius:18px;font-size:38px}
 body[data-wall-dashboard=\"true\"] .weather-temperature{font-size:clamp(42px,4.8vw,56px)}
 body[data-wall-dashboard=\"true\"] .weather-data{margin-top:12px}
