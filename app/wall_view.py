@@ -58,14 +58,15 @@ body[data-wall-dashboard=\"true\"] .family-clock{font-size:clamp(38px,4.8vw,60px
 body[data-wall-dashboard=\"true\"] .family-grid{grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:10px}
 body[data-wall-dashboard=\"true\"] .routine-card,body[data-wall-dashboard=\"true\"] .weather-card{grid-column:span 2!important;min-height:300px!important;height:clamp(360px,40vh,380px)!important;padding:18px!important;overflow:hidden}
 body[data-wall-dashboard=\"true\"] .calendar-card,body[data-wall-dashboard=\"true\"] .meal-card,body[data-wall-dashboard=\"true\"] .family-tasks-card{grid-column:span 2!important;min-height:0!important;height:auto!important}
-body[data-wall-dashboard=\"true\"] .routine-card{order:1}
+body[data-wall-dashboard=\"true\"] .routine-card{order:1;padding-top:14px!important}
 body[data-wall-dashboard=\"true\"] .weather-card{order:2}
 body[data-wall-dashboard=\"true\"] .calendar-card{order:3}
 body[data-wall-dashboard=\"true\"] .meal-card{order:4}
 body[data-wall-dashboard=\"true\"] .family-tasks-card{order:5}
-body[data-wall-dashboard=\"true\"] .routine-panel{gap:8px}
-body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{min-height:42px;max-height:54px}
-body[data-wall-dashboard=\"true\"] .routine-pictogram{width:40px;height:40px;max-width:40px;max-height:40px}
+body[data-wall-dashboard=\"true\"] .routine-panel{margin-top:8px;gap:8px;align-items:start}
+body[data-wall-dashboard=\"true\"] .routine-copy{margin-top:-16px}
+body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{width:172px;max-width:172px;min-height:92px;max-height:92px;justify-self:center;border-radius:20px}
+body[data-wall-dashboard=\"true\"] .routine-pictogram{width:38px;height:38px;max-width:38px;max-height:38px}
 body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(26px,2.8vw,36px);line-height:1.05;word-break:normal;overflow-wrap:break-word}
 body[data-wall-dashboard=\"true\"] .routine-actions{display:grid;grid-template-columns:1fr;margin-top:6px}
 body[data-wall-dashboard=\"true\"] .routine-reset{display:none!important}
