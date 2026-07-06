@@ -56,7 +56,7 @@ body[data-wall-dashboard=\"true\"] .family-header{min-height:0;padding-bottom:10
 body[data-wall-dashboard=\"true\"] .family-header h1{font-size:clamp(36px,4.2vw,54px)}
 body[data-wall-dashboard=\"true\"] .family-clock{font-size:clamp(40px,5vw,64px)}
 body[data-wall-dashboard=\"true\"] .family-grid{grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:10px}
-body[data-wall-dashboard=\"true\"] .routine-card,body[data-wall-dashboard=\"true\"] .weather-card{grid-column:span 2!important;min-height:300px!important;height:auto!important}
+body[data-wall-dashboard=\"true\"] .routine-card,body[data-wall-dashboard=\"true\"] .weather-card{grid-column:span 2!important;min-height:300px!important;height:clamp(340px,38vh,390px)!important}
 body[data-wall-dashboard=\"true\"] .calendar-card,body[data-wall-dashboard=\"true\"] .meal-card,body[data-wall-dashboard=\"true\"] .family-tasks-card{grid-column:span 2!important;min-height:0!important;height:auto!important}
 body[data-wall-dashboard=\"true\"] .routine-card{order:1}
 body[data-wall-dashboard=\"true\"] .weather-card{order:2}
