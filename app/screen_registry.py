@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from app import config
 
 SCREEN_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
-SCREEN_TYPES = {"wall-large", "wall-tablet", "wall-square", "mobile"}
+SCREEN_TYPES = {"wall-large", "wall-surface", "wall-ipad", "wall-tablet", "wall-square", "mobile"}
 SCREEN_MODULES = {"routine", "calendar", "weather", "meal", "tasks", "home", "system"}
 SCREEN_MODULE_SIZES = {"small", "medium", "large", "wide", "full"}
 SCREEN_DISPLAY_OPTIONS = {"show_admin_link", "show_safety_status"}
@@ -45,7 +45,7 @@ LEGACY_DEFAULT_MODULE_LAYOUTS = [
 DEFAULT_SCREEN = {
     "name": "Vægskærm",
     "slug": "wall",
-    "screen_type": "wall-large",
+    "screen_type": "wall-surface",
     "modules": DEFAULT_MODULES,
     "module_layout": {module: DEFAULT_MODULE_LAYOUT[module] for module in DEFAULT_MODULES},
     "display_options": dict(DEFAULT_DISPLAY_OPTIONS),
@@ -132,10 +132,16 @@ def normalize_display_options(values):
 
 
 def normalize_screen_type(value):
-    screen_type = str(value or "wall-large").strip().lower()
+    screen_type = str(value or "wall-surface").strip().lower()
     if screen_type not in SCREEN_TYPES:
         raise ValueError("screen type is invalid")
     return screen_type
+
+
+def public_screen_type(item):
+    if item.get("slug") == "wall" and item.get("screen_type") == "wall-tablet":
+        return "wall-surface"
+    return item.get("screen_type") or DEFAULT_SCREEN["screen_type"]
 
 
 def serialize_modules(modules):
@@ -184,6 +190,7 @@ def row_to_screen(row):
     if not row:
         return None
     item = dict(row)
+    item["screen_type"] = public_screen_type(item)
     item["modules"] = parse_modules(item.get("modules"))
     parsed_layout = parse_module_layout(item.get("module_layout"))
     if item.get("slug") == "wall" and item["modules"] == DEFAULT_MODULES and parsed_layout in LEGACY_DEFAULT_MODULE_LAYOUTS:
@@ -224,7 +231,7 @@ def list_screens():
         conn.close()
 
 
-def upsert_screen(name, slug, screen_type="wall-large", modules=None, is_active=True, module_layout=None, display_options=None):
+def upsert_screen(name, slug, screen_type="wall-surface", modules=None, is_active=True, module_layout=None, display_options=None):
     cleaned_name = str(name or "").strip()
     if not cleaned_name:
         raise ValueError("screen name is required")
@@ -258,10 +265,3 @@ def delete_screen(slug):
     slug = normalize_slug(slug)
     if slug == "wall":
         raise ValueError("default screen cannot be deleted")
-    conn = connect()
-    try:
-        ensure_screen_table(conn)
-        conn.execute("DELETE FROM screens WHERE slug = ?", (slug,))
-        conn.commit()
-    finally:
-        conn.close()
