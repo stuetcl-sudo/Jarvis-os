@@ -40,7 +40,7 @@ MODULE_SIZE_STYLES = {
 }
 WALL_STATUS_STYLE = """
 body[data-wall-dashboard=\"true\"]{color-scheme:dark;--bg:#07111f;--surface:rgba(15,23,42,.88);--soft:rgba(148,163,184,.08);--card-border:rgba(148,163,184,.24);--text:#eef4fb;--muted:#aab8c9;--accent:#7dd3fc;--good:#86efac;--warning:#fde68a;--critical:#fecaca;background:radial-gradient(circle at top right,#17324f,var(--bg) 48%);color:var(--text)}
-body[data-wall-dashboard=\"true\"] .family-shell{color:var(--text)}
+body[data-wall-dashboard=\"true\"] .family-shell{color:var(--text);overflow-x:hidden}
 body[data-wall-dashboard=\"true\"] .family-grid{align-items:stretch}
 body[data-wall-dashboard=\"true\"] .family-card{height:100%;background:var(--surface);border-color:var(--card-border);box-shadow:0 18px 52px rgba(0,0,0,.22)}
 body[data-wall-dashboard=\"true\"] .family-view-label{display:none!important}
@@ -59,27 +59,27 @@ body[data-wall-dashboard=\"true\"] .wall-top-bars button,body[data-wall-dashboar
 """.strip()
 SURFACE_WALL_STYLE = """
 @media (orientation: landscape) and (min-width:1280px) and (max-width:1450px) and (min-height:840px) and (max-height:980px){
-body[data-wall-dashboard=\"true\"] .family-shell{width:min(100% - 22px,1220px);padding-top:max(8px,env(safe-area-inset-top))}
+body[data-wall-dashboard=\"true\"] .family-shell{width:min(100% - 24px,1180px);padding-top:max(6px,env(safe-area-inset-top))}
 body[data-wall-dashboard=\"true\"] .family-header{min-height:0;padding-bottom:6px}
-body[data-wall-dashboard=\"true\"] .family-header h1{font-size:clamp(34px,4vw,50px)}
-body[data-wall-dashboard=\"true\"] .family-clock{font-size:clamp(38px,4.8vw,60px)}
+body[data-wall-dashboard=\"true\"] .family-header h1{font-size:clamp(32px,3.8vw,46px)}
+body[data-wall-dashboard=\"true\"] .family-clock{font-size:clamp(36px,4.4vw,56px)}
 body[data-wall-dashboard=\"true\"] .wall-top-bars{margin-bottom:10px;gap:10px}
-body[data-wall-dashboard=\"true\"] .family-grid{grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:10px}
-body[data-wall-dashboard=\"true\"] .routine-card,body[data-wall-dashboard=\"true\"] .weather-card{grid-column:span 2!important;min-height:300px!important;height:clamp(360px,40vh,380px)!important;padding:18px!important;overflow:hidden}
-body[data-wall-dashboard=\"true\"] .calendar-card,body[data-wall-dashboard=\"true\"] .meal-card,body[data-wall-dashboard=\"true\"] .family-tasks-card{grid-column:span 2!important;min-height:0!important;height:auto!important}
-body[data-wall-dashboard=\"true\"] .routine-card{order:1;padding-top:14px!important}
+body[data-wall-dashboard=\"true\"] .family-grid{grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:10px;overflow:hidden}
+body[data-wall-dashboard=\"true\"] .routine-card,body[data-wall-dashboard=\"true\"] .weather-card{grid-column:span 2!important;min-height:300px!important;height:clamp(340px,38vh,365px)!important;padding:16px!important;overflow:hidden}
+body[data-wall-dashboard=\"true\"] .calendar-card,body[data-wall-dashboard=\"true\"] .meal-card,body[data-wall-dashboard=\"true\"] .family-tasks-card{grid-column:span 2!important;min-height:0!important;height:auto!important;overflow:hidden}
+body[data-wall-dashboard=\"true\"] .routine-card{order:1;padding-top:12px!important}
 body[data-wall-dashboard=\"true\"] .weather-card{order:2}
 body[data-wall-dashboard=\"true\"] .calendar-card{order:3}
 body[data-wall-dashboard=\"true\"] .meal-card{order:4}
 body[data-wall-dashboard=\"true\"] .family-tasks-card{order:5}
-body[data-wall-dashboard=\"true\"] .routine-panel{margin-top:8px;gap:8px;align-items:start}
-body[data-wall-dashboard=\"true\"] .routine-copy{margin-top:-16px}
-body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{width:172px;max-width:172px;min-height:120px;max-height:120px;justify-self:center;border-radius:24px;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
+body[data-wall-dashboard=\"true\"] .routine-panel{margin-top:6px;gap:8px;align-items:stretch;grid-template-columns:minmax(175px,.74fr) minmax(0,1fr);height:calc(100% - 78px);min-height:0;overflow:hidden}
+body[data-wall-dashboard=\"true\"] .routine-copy{display:flex;flex-direction:column;margin-top:-10px;min-width:0;min-height:0;height:100%;overflow:hidden}
+body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{width:158px;max-width:158px;min-height:104px;max-height:104px;justify-self:center;border-radius:24px;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
 body[data-wall-dashboard=\"true\"] .routine-pictogram-frame:active{transform:scale(.98)}
 body[data-wall-dashboard=\"true\"] .routine-pictogram-frame[aria-disabled=\"true\"]{cursor:default;opacity:.78}
-body[data-wall-dashboard=\"true\"] .routine-pictogram{width:56px;height:56px;max-width:56px;max-height:56px}
-body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(26px,2.8vw,36px);line-height:1.05;word-break:normal;overflow-wrap:break-word}
-body[data-wall-dashboard=\"true\"] .routine-actions{display:grid;grid-template-columns:1fr 1fr;margin-top:6px;gap:8px}
+body[data-wall-dashboard=\"true\"] .routine-pictogram{width:50px;height:50px;max-width:50px;max-height:50px}
+body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(23px,2.25vw,30px);line-height:1.02;word-break:normal;overflow-wrap:break-word;hyphens:auto;max-width:100%;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+body[data-wall-dashboard=\"true\"] .routine-actions{display:grid;grid-template-columns:minmax(82px,.62fr) minmax(0,1fr);margin-top:auto;gap:8px;flex:0 0 auto}
 body[data-wall-dashboard=\"true\"] .routine-reset{display:none!important}
 body[data-wall-dashboard=\"true\"] .routine-actions button,body[data-wall-dashboard=\"true\"] .routine-edit-action,body[data-wall-dashboard=\"true\"] .routine-switch button{min-height:38px;padding:8px 10px;font-size:14px}
 body[data-wall-dashboard=\"true\"] .weather-symbol{width:62px;height:62px;border-radius:18px;font-size:38px}
