@@ -41,7 +41,11 @@ MODULE_SIZE_STYLES = {
 WALL_STATUS_STYLE = """
 body[data-wall-dashboard=\"true\"] .family-grid{align-items:stretch}
 body[data-wall-dashboard=\"true\"] .family-card{height:100%}
-body[data-wall-dashboard=\"true\"] .wall-safety-strip{position:static!important;margin:0 0 10px 0;z-index:1}
+body[data-wall-dashboard=\"true\"] .family-view-label{display:none!important}
+body[data-wall-dashboard=\"true\"] .wall-top-bars{display:grid;grid-template-columns:1fr auto;align-items:center;gap:14px;margin:0 0 10px 0}
+body[data-wall-dashboard=\"true\"] .wall-top-bars .wall-safety-strip,body[data-wall-dashboard=\"true\"] .wall-top-bars .wall-display-actions{min-height:44px;display:flex;align-items:center;margin:0!important}
+body[data-wall-dashboard=\"true\"] .wall-top-bars .wall-safety-strip{position:static!important;z-index:1;flex-wrap:wrap;gap:8px}
+body[data-wall-dashboard=\"true\"] .wall-top-bars .wall-display-actions{justify-content:flex-end;gap:8px;white-space:nowrap}
 .wall-home-status{min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid var(--card-border);border-radius:14px;background:var(--soft);color:var(--text);font-weight:820;letter-spacing:.04em}
 .wall-home-status-dot{width:13px;height:13px;border-radius:999px;background:var(--muted);box-shadow:0 0 0 6px var(--soft)}
 .wall-home-status.ok .wall-home-status-dot{background:var(--good)}
@@ -56,6 +60,7 @@ body[data-wall-dashboard=\"true\"] .family-shell{width:min(100% - 22px,1220px);p
 body[data-wall-dashboard=\"true\"] .family-header{min-height:0;padding-bottom:6px}
 body[data-wall-dashboard=\"true\"] .family-header h1{font-size:clamp(34px,4vw,50px)}
 body[data-wall-dashboard=\"true\"] .family-clock{font-size:clamp(38px,4.8vw,60px)}
+body[data-wall-dashboard=\"true\"] .wall-top-bars{margin-bottom:10px;gap:10px}
 body[data-wall-dashboard=\"true\"] .family-grid{grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:10px}
 body[data-wall-dashboard=\"true\"] .routine-card,body[data-wall-dashboard=\"true\"] .weather-card{grid-column:span 2!important;min-height:300px!important;height:clamp(360px,40vh,380px)!important;padding:18px!important;overflow:hidden}
 body[data-wall-dashboard=\"true\"] .calendar-card,body[data-wall-dashboard=\"true\"] .meal-card,body[data-wall-dashboard=\"true\"] .family-tasks-card{grid-column:span 2!important;min-height:0!important;height:auto!important}
@@ -151,20 +156,28 @@ def screen_style(screen):
     return "<style>" + css + "</style>" if css else ""
 
 
-def move_wall_safety_strip_to_top(page):
-    start = page.find('<section class="wall-safety-strip"')
+def extract_html_block(page, start_marker, end_marker):
+    start = page.find(start_marker)
     if start == -1:
-        return page
-    end = page.find("</section>", start)
+        return page, ""
+    end = page.find(end_marker, start)
     if end == -1:
+        return page, ""
+    end += len(end_marker)
+    block = page[start:end]
+    return page[:start] + page[end:], block
+
+
+def move_wall_top_bars_above_cards(page):
+    page, strip = extract_html_block(page, '<section class="wall-safety-strip"', "</section>")
+    page, actions = extract_html_block(page, '<nav class="wall-display-actions"', "</nav>")
+    if not strip and not actions:
         return page
-    end += len("</section>")
-    strip = page[start:end]
-    page_without_strip = page[:start] + page[end:]
-    grid_start = page_without_strip.find('<section class="family-grid"')
+    top_bars = '<div class="wall-top-bars">' + strip + actions + "</div>"
+    grid_start = page.find('<section class="family-grid"')
     if grid_start == -1:
-        return page_without_strip + strip
-    return page_without_strip[:grid_start] + strip + "\n\n" + page_without_strip[grid_start:]
+        return page + top_bars
+    return page[:grid_start] + top_bars + "\n\n" + page[grid_start:]
 
 
 def render_wall_page(current_user, screen_slug="wall"):
@@ -178,7 +191,7 @@ def render_wall_page(current_user, screen_slug="wall"):
 
     shared_display = {"role": "wall_display", "display_name": ""}
     page = render_family_page(shared_display, wall_actions=wall_actions_for(role, screen))
-    page = move_wall_safety_strip_to_top(page)
+    page = move_wall_top_bars_above_cards(page)
     safe_name = escape(screen["name"])
     safe_slug = escape(screen["slug"])
     safe_type = escape(screen["screen_type"])
