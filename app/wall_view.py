@@ -39,13 +39,16 @@ MODULE_SIZE_STYLES = {
     },
 }
 WALL_STATUS_STYLE = """
+body[data-wall-dashboard=\"true\"]{color-scheme:dark;--bg:#07111f;--surface:rgba(15,23,42,.88);--soft:rgba(148,163,184,.08);--card-border:rgba(148,163,184,.24);--text:#eef4fb;--muted:#aab8c9;--accent:#7dd3fc;--good:#86efac;--warning:#fde68a;--critical:#fecaca;background:radial-gradient(circle at top right,#17324f,var(--bg) 48%);color:var(--text)}
+body[data-wall-dashboard=\"true\"] .family-shell{color:var(--text)}
 body[data-wall-dashboard=\"true\"] .family-grid{align-items:stretch}
-body[data-wall-dashboard=\"true\"] .family-card{height:100%}
+body[data-wall-dashboard=\"true\"] .family-card{height:100%;background:var(--surface);border-color:var(--card-border);box-shadow:0 18px 52px rgba(0,0,0,.22)}
 body[data-wall-dashboard=\"true\"] .family-view-label{display:none!important}
 body[data-wall-dashboard=\"true\"] .wall-top-bars{display:grid;grid-template-columns:1fr auto;align-items:center;gap:14px;margin:0 0 10px 0}
 body[data-wall-dashboard=\"true\"] .wall-top-bars .wall-safety-strip,body[data-wall-dashboard=\"true\"] .wall-top-bars .wall-display-actions{min-height:44px;display:flex;align-items:center;margin:0!important}
 body[data-wall-dashboard=\"true\"] .wall-top-bars .wall-safety-strip{position:static!important;z-index:1;flex-wrap:wrap;gap:8px}
 body[data-wall-dashboard=\"true\"] .wall-top-bars .wall-display-actions{justify-content:flex-end;gap:8px;white-space:nowrap}
+body[data-wall-dashboard=\"true\"] .wall-top-bars button,body[data-wall-dashboard=\"true\"] .wall-top-bars a{background:rgba(148,163,184,.16);border:1px solid var(--card-border);color:var(--text)}
 .wall-home-status{min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid var(--card-border);border-radius:14px;background:var(--soft);color:var(--text);font-weight:820;letter-spacing:.04em}
 .wall-home-status-dot{width:13px;height:13px;border-radius:999px;background:var(--muted);box-shadow:0 0 0 6px var(--soft)}
 .wall-home-status.ok .wall-home-status-dot{background:var(--good)}
@@ -76,8 +79,7 @@ body[data-wall-dashboard=\"true\"] .routine-pictogram-frame:active{transform:sca
 body[data-wall-dashboard=\"true\"] .routine-pictogram-frame[aria-disabled=\"true\"]{cursor:default;opacity:.78}
 body[data-wall-dashboard=\"true\"] .routine-pictogram{width:56px;height:56px;max-width:56px;max-height:56px}
 body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(26px,2.8vw,36px);line-height:1.05;word-break:normal;overflow-wrap:break-word}
-body[data-wall-dashboard=\"true\"] .routine-actions{display:grid;grid-template-columns:1fr;margin-top:6px}
-body[data-wall-dashboard=\"true\"] #routineBack{display:none!important}
+body[data-wall-dashboard=\"true\"] .routine-actions{display:grid;grid-template-columns:1fr 1fr;margin-top:6px;gap:8px}
 body[data-wall-dashboard=\"true\"] .routine-reset{display:none!important}
 body[data-wall-dashboard=\"true\"] .routine-actions button,body[data-wall-dashboard=\"true\"] .routine-edit-action,body[data-wall-dashboard=\"true\"] .routine-switch button{min-height:38px;padding:8px 10px;font-size:14px}
 body[data-wall-dashboard=\"true\"] .weather-symbol{width:62px;height:62px;border-radius:18px;font-size:38px}
