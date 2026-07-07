@@ -24,3 +24,38 @@ body[data-wall-dashboard="true"] .wall-safety-item.critical {
 body[data-wall-dashboard="true"] .wall-safety-item.unknown {
   opacity: .78;
 }
+
+body[data-wall-dashboard="true"] .wall-idle-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  width: 100vw;
+  height: 100vh;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #020304;
+  color: rgba(255, 255, 255, .78);
+  font: 700 24px system-ui, sans-serif;
+  letter-spacing: .02em;
+  cursor: pointer;
+}
+
+body[data-wall-dashboard="true"] .wall-idle-overlay[hidden] {
+  display: none !important;
+}
+
+body[data-wall-dashboard="true"] .wall-idle-text {
+  font-size: clamp(28px, 4vw, 48px);
+}
+
+body[data-wall-dashboard="true"] .wall-idle-hint {
+  margin-top: 12px;
+  font-size: clamp(14px, 1.6vw, 20px);
+  font-weight: 650;
+  color: rgba(255, 255, 255, .42);
+}
