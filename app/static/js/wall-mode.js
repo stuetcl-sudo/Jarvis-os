@@ -1,7 +1,19 @@
 (() => {
   if (document.body.dataset.wallDashboard !== "true") return;
 
+  function preferredProfile() {
+    return {
+      "wall-surface": "surface",
+      "wall-ipad": "ipad",
+      "wall-tablet": "tablet",
+      "wall-square": "square",
+      mobile: "mobile",
+    }[document.body.dataset.wallPreferredProfile || ""] || "";
+  }
+
   function profileFor(width, height) {
+    const preferred = preferredProfile();
+    if (preferred) return preferred;
     if (width <= 640) return "mobile";
     const ratio = height > 0 ? width / height : 1;
     if (ratio < 1.15 || width <= 920) return "square";
