@@ -79,7 +79,7 @@ body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{width:158px;max-widt
 body[data-wall-dashboard=\"true\"] .routine-pictogram-frame:active{transform:scale(.98)}
 body[data-wall-dashboard=\"true\"] .routine-pictogram-frame[aria-disabled=\"true\"]{cursor:default;opacity:.78}
 body[data-wall-dashboard=\"true\"] .routine-pictogram{width:50px;height:50px;max-width:50px;max-height:50px}
-body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(23px,2.25vw,30px);line-height:1.02;word-break:normal;overflow-wrap:break-word;hyphens:auto;max-width:100%;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(22px,2.15vw,29px);line-height:1.14;word-break:normal;overflow-wrap:break-word;hyphens:auto;max-width:100%;max-height:2.28em;overflow:hidden;display:block;padding-bottom:3px}
 body[data-wall-dashboard=\"true\"] .routine-actions{display:grid;grid-template-columns:minmax(82px,.62fr) minmax(0,1fr);margin-top:auto;gap:8px;flex:0 0 auto}
 body[data-wall-dashboard=\"true\"] .routine-reset{display:none!important}
 body[data-wall-dashboard=\"true\"] .routine-actions button,body[data-wall-dashboard=\"true\"] .routine-edit-action,body[data-wall-dashboard=\"true\"] .routine-switch button{min-height:38px;padding:8px 10px;font-size:14px}
