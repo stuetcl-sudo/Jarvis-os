@@ -41,6 +41,7 @@ MODULE_SIZE_STYLES = {
 WALL_STATUS_STYLE = """
 body[data-wall-dashboard=\"true\"] .family-grid{align-items:stretch}
 body[data-wall-dashboard=\"true\"] .family-card{height:100%}
+body[data-wall-dashboard=\"true\"] .wall-safety-strip{position:static!important;margin:0 0 10px 0;z-index:1}
 .wall-home-status{min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid var(--card-border);border-radius:14px;background:var(--soft);color:var(--text);font-weight:820;letter-spacing:.04em}
 .wall-home-status-dot{width:13px;height:13px;border-radius:999px;background:var(--muted);box-shadow:0 0 0 6px var(--soft)}
 .wall-home-status.ok .wall-home-status-dot{background:var(--good)}
@@ -82,7 +83,6 @@ body[data-wall-dashboard=\"true\"] .weather-forecast-item{min-height:62px;paddin
 body[data-wall-dashboard=\"true\"] .weather-forecast-day,body[data-wall-dashboard=\"true\"] .weather-forecast-temperatures{font-size:14px}
 body[data-wall-dashboard=\"true\"] .weather-forecast-symbol{font-size:21px}
 body[data-wall-dashboard=\"true\"] .weather-forecast-rain{font-size:12px}
-body[data-wall-dashboard=\"true\"] .wall-safety-strip{position:static!important;margin-top:10px}
 }
 """.strip()
 
@@ -151,6 +151,22 @@ def screen_style(screen):
     return "<style>" + css + "</style>" if css else ""
 
 
+def move_wall_safety_strip_to_top(page):
+    start = page.find('<section class="wall-safety-strip"')
+    if start == -1:
+        return page
+    end = page.find("</section>", start)
+    if end == -1:
+        return page
+    end += len("</section>")
+    strip = page[start:end]
+    page_without_strip = page[:start] + page[end:]
+    grid_start = page_without_strip.find('<section class="family-grid"')
+    if grid_start == -1:
+        return page_without_strip + strip
+    return page_without_strip[:grid_start] + strip + "\n\n" + page_without_strip[grid_start:]
+
+
 def render_wall_page(current_user, screen_slug="wall"):
     role = current_user.get("role") if isinstance(current_user, dict) else None
     if role not in WALL_ROLES:
@@ -162,6 +178,7 @@ def render_wall_page(current_user, screen_slug="wall"):
 
     shared_display = {"role": "wall_display", "display_name": ""}
     page = render_family_page(shared_display, wall_actions=wall_actions_for(role, screen))
+    page = move_wall_safety_strip_to_top(page)
     safe_name = escape(screen["name"])
     safe_slug = escape(screen["slug"])
     safe_type = escape(screen["screen_type"])
