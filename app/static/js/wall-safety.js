@@ -28,7 +28,16 @@ function ensureWallIdleOverlay() {
   overlay.className = "wall-idle-overlay";
   overlay.setAttribute("aria-label", "Væk Jarvis vægskærm");
   overlay.hidden = true;
-  overlay.innerHTML = '<span class="wall-idle-text">Jarvis sover</span><span class="wall-idle-hint">Tryk eller bevæg dig for at vække skærmen</span>';
+
+  const title = document.createElement("span");
+  title.className = "wall-idle-text";
+  title.textContent = "Jarvis sover";
+
+  const hint = document.createElement("span");
+  hint.className = "wall-idle-hint";
+  hint.textContent = "Tryk eller bevæg dig for at vække skærmen";
+
+  overlay.append(title, hint);
   overlay.addEventListener("click", () => markWallActivity());
   document.body.appendChild(overlay);
   return overlay;
