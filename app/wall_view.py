@@ -93,6 +93,39 @@ body[data-wall-dashboard=\"true\"] .weather-forecast-symbol{font-size:21px}
 body[data-wall-dashboard=\"true\"] .weather-forecast-rain{font-size:12px}
 }
 """.strip()
+PC_WALL_STYLE = """
+@media (orientation: landscape) and (min-width:1700px) and (max-width:2200px) and (min-height:820px) and (max-height:1200px) and (max-resolution:1.5dppx){
+body[data-wall-dashboard=\"true\"] .family-shell{width:min(100% - 72px,1540px);padding-top:max(10px,env(safe-area-inset-top))}
+body[data-wall-dashboard=\"true\"] .family-header{min-height:0;padding-bottom:10px}
+body[data-wall-dashboard=\"true\"] .family-header h1{font-size:clamp(48px,3.8vw,68px)}
+body[data-wall-dashboard=\"true\"] .family-clock{font-size:clamp(68px,5vw,96px)}
+body[data-wall-dashboard=\"true\"] .wall-top-bars{margin-bottom:12px;gap:12px}
+body[data-wall-dashboard=\"true\"] .family-grid{grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:14px;overflow:hidden}
+body[data-wall-dashboard=\"true\"] .routine-card,body[data-wall-dashboard=\"true\"] .weather-card{grid-column:span 2!important;min-height:300px!important;height:clamp(350px,38vh,390px)!important;padding:20px!important;overflow:hidden}
+body[data-wall-dashboard=\"true\"] .calendar-card,body[data-wall-dashboard=\"true\"] .meal-card,body[data-wall-dashboard=\"true\"] .family-tasks-card{grid-column:span 2!important;min-height:0!important;height:auto!important;overflow:hidden}
+body[data-wall-dashboard=\"true\"] .routine-card{order:1;padding-top:16px!important}
+body[data-wall-dashboard=\"true\"] .weather-card{order:2}
+body[data-wall-dashboard=\"true\"] .calendar-card{order:3}
+body[data-wall-dashboard=\"true\"] .meal-card{order:4}
+body[data-wall-dashboard=\"true\"] .family-tasks-card{order:5}
+body[data-wall-dashboard=\"true\"] .routine-panel{margin-top:10px;gap:14px;align-items:stretch;grid-template-columns:minmax(220px,.82fr) minmax(0,1fr);height:calc(100% - 90px);min-height:0;overflow:hidden}
+body[data-wall-dashboard=\"true\"] .routine-copy{display:flex;flex-direction:column;margin-top:-4px;min-width:0;min-height:0;height:100%;overflow:hidden}
+body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{width:220px;max-width:220px;min-height:128px;max-height:128px;justify-self:center;border-radius:26px;cursor:pointer}
+body[data-wall-dashboard=\"true\"] .routine-pictogram{width:62px;height:62px;max-width:62px;max-height:62px}
+body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(24px,1.8vw,34px);line-height:1.1;word-break:normal;overflow-wrap:break-word;hyphens:auto;max-width:100%;max-height:2.2em;overflow:hidden;display:block;padding-bottom:3px}
+body[data-wall-dashboard=\"true\"] .routine-actions{display:grid;grid-template-columns:1fr;margin-top:auto;gap:8px;flex:0 0 auto}
+body[data-wall-dashboard=\"true\"] .routine-reset{display:none!important}
+body[data-wall-dashboard=\"true\"] .routine-actions button,body[data-wall-dashboard=\"true\"] .routine-edit-action,body[data-wall-dashboard=\"true\"] .routine-switch button{min-height:42px;padding:9px 12px;font-size:15px}
+body[data-wall-dashboard=\"true\"] .weather-symbol{width:76px;height:76px;border-radius:22px;font-size:44px}
+body[data-wall-dashboard=\"true\"] .weather-temperature{font-size:clamp(48px,4vw,68px)}
+body[data-wall-dashboard=\"true\"] .weather-data{margin-top:14px}
+body[data-wall-dashboard=\"true\"] .weather-forecast{margin-top:14px;gap:10px}
+body[data-wall-dashboard=\"true\"] .weather-forecast-item{min-height:78px;padding:10px;border-radius:18px}
+body[data-wall-dashboard=\"true\"] .weather-forecast-day,body[data-wall-dashboard=\"true\"] .weather-forecast-temperatures{font-size:15px}
+body[data-wall-dashboard=\"true\"] .weather-forecast-symbol{font-size:24px}
+body[data-wall-dashboard=\"true\"] .weather-forecast-rain{font-size:12px}
+}
+""".strip()
 
 
 def screen_option(screen, key, default=False):
@@ -155,7 +188,7 @@ def module_layout_style(screen):
 
 
 def screen_style(screen):
-    css = WALL_STATUS_STYLE + module_visibility_style(screen) + module_layout_style(screen) + SURFACE_WALL_STYLE
+    css = WALL_STATUS_STYLE + module_visibility_style(screen) + module_layout_style(screen) + SURFACE_WALL_STYLE + PC_WALL_STYLE
     return "<style>" + css + "</style>" if css else ""
 
 
