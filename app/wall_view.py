@@ -113,9 +113,11 @@ body[data-wall-dashboard=\"true\"] .routine-copy{display:flex;flex-direction:col
 body[data-wall-dashboard=\"true\"] .routine-pictogram-frame{width:220px;max-width:220px;min-height:128px;max-height:128px;justify-self:center;align-self:center;border-radius:26px;cursor:pointer}
 body[data-wall-dashboard=\"true\"] .routine-pictogram{width:62px;height:62px;max-width:62px;max-height:62px}
 body[data-wall-dashboard=\"true\"] .routine-title{font-size:clamp(24px,1.8vw,34px);line-height:1.06;word-break:normal;overflow-wrap:break-word;hyphens:auto;max-width:100%;max-height:none;overflow:visible;display:block;padding-bottom:0}
-body[data-wall-dashboard=\"true\"] .routine-actions{display:grid;grid-template-columns:1fr;gap:6px;margin-top:auto;flex:0 0 auto}
-body[data-wall-dashboard=\"true\"] #routineBack,body[data-wall-dashboard=\"true\"] .routine-reset{display:none!important}
-body[data-wall-dashboard=\"true\"] .routine-actions button,body[data-wall-dashboard=\"true\"] .routine-edit-action,body[data-wall-dashboard=\"true\"] .routine-switch button{min-height:38px;padding:8px 12px;font-size:15px}
+body[data-wall-dashboard=\"true\"] .routine-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;margin-top:auto;flex:0 0 auto}
+body[data-wall-dashboard=\"true\"] .routine-reset{display:none!important}
+body[data-wall-dashboard=\"true\"] #routineBack{display:inline-flex!important;width:auto!important;min-width:104px;max-width:118px;flex:0 0 auto}
+body[data-wall-dashboard=\"true\"] #routineComplete{display:inline-flex!important;width:auto!important;min-width:128px;max-width:145px;flex:0 0 auto}
+body[data-wall-dashboard=\"true\"] .routine-actions button,body[data-wall-dashboard=\"true\"] .routine-edit-action,body[data-wall-dashboard=\"true\"] .routine-switch button{min-height:34px;padding:7px 12px;font-size:14px}
 body[data-wall-dashboard=\"true\"] .weather-symbol{width:76px;height:76px;border-radius:22px;font-size:44px}
 body[data-wall-dashboard=\"true\"] .weather-temperature{font-size:clamp(48px,4vw,68px)}
 body[data-wall-dashboard=\"true\"] .weather-data{margin-top:14px}
