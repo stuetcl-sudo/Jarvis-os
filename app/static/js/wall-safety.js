@@ -3,6 +3,9 @@ const wallSafetyItems = {
   doors: document.querySelector('[data-wall-safety-item="doors"]'),
   motion: document.querySelector('[data-wall-safety-item="motion"]'),
   cameras: document.querySelector('[data-wall-safety-item="cameras"]'),
+  temperature: document.querySelector('[data-wall-safety-item="temperature"]'),
+  humidity: document.querySelector('[data-wall-safety-item="humidity"]'),
+  electricity_price: document.querySelector('[data-wall-safety-item="electricity-price"]'),
 };
 let wallSafetyRefreshInFlight = false;
 let wallIdleTimer = null;
@@ -83,6 +86,9 @@ function wallSafetyIcon(key, status) {
   if (key === "doors") return status === "ok" ? "🔒" : "🚪";
   if (key === "motion") return status === "warning" ? "👣" : "🟢";
   if (key === "cameras") return status === "ok" ? "📷" : "⚠️";
+  if (key === "temperature") return "🌡️";
+  if (key === "humidity") return "💧";
+  if (key === "electricity_price") return "⚡";
   return "•";
 }
 
@@ -101,6 +107,9 @@ function renderWallSafetyStatus(data) {
   updateWallSafetyItem("doors", data.doors);
   updateWallSafetyItem("motion", data.motion);
   updateWallSafetyItem("cameras", data.cameras);
+  updateWallSafetyItem("temperature", data.temperature);
+  updateWallSafetyItem("humidity", data.humidity);
+  updateWallSafetyItem("electricity_price", data.electricity_price);
   updateWallIdleFromSafetyStatus(data);
 }
 
@@ -118,6 +127,9 @@ async function refreshWallSafetyStatus() {
       doors: { status: "unknown", label: "Ukendt" },
       motion: { status: "unknown", label: "Ukendt" },
       cameras: { status: "unknown", label: "Ukendt" },
+      temperature: { status: "unknown", label: "Ukendt" },
+      humidity: { status: "unknown", label: "Ukendt" },
+      electricity_price: { status: "unknown", label: "Ukendt" },
     });
   } finally {
     wallSafetyRefreshInFlight = false;
