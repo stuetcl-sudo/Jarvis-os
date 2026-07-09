@@ -9,6 +9,7 @@ from app.home_assistant import HomeAssistantClient, HomeAssistantConfigurationEr
 SAFE_STATES = {"off", "closed", "idle", "standby"}
 UNKNOWN_STATES = {"unavailable", "unknown", "none", ""}
 CAMERA_PROBLEM_STATES = {"unavailable", "unknown", "none", "offline", ""}
+INTERNET_ONLINE_STATES = {"on", "connected", "online", "up", "ok", "running"}
 
 
 class SafetyStatusConfigurationError(ValueError):
@@ -33,6 +34,7 @@ def load_safety_status_settings(db_path=None):
     settings = home_entity_settings.load_entity_settings(db_path=db_path)
     return {
         "connection": connection,
+        "internet": settings.get("internet_status_entity") or "",
         "doors": settings.get("safety_door_entities") or [],
         "motion": settings.get("safety_motion_entities") or [],
         "cameras": settings.get("safety_camera_entities") or [],
@@ -78,6 +80,17 @@ def compact_number(value, digits=1):
     if float(value).is_integer():
         return str(int(value))
     return f"{value:.{digits}f}"
+
+
+def internet_status(entity_id, states):
+    if not entity_id:
+        return status_item("unknown", "Ikke valgt")
+    state = entity_state(states.get(entity_id))
+    if state in UNKNOWN_STATES:
+        return status_item("unknown", "Ukendt")
+    if state in INTERNET_ONLINE_STATES:
+        return status_item("ok", "Online")
+    return status_item("warning", "Ikke online")
 
 
 def door_status(entities, states):
@@ -162,7 +175,7 @@ def single_numeric_status(entity_id, states, unit_fallback="", digits=2):
 def normalize_safety_status(settings, states):
     return {
         "status": "ok",
-        "internet": status_item("ok", "Online"),
+        "internet": internet_status(settings["internet"], states),
         "doors": door_status(settings["doors"], states),
         "motion": motion_status(settings["motion"], states),
         "cameras": camera_status(settings["cameras"], states),
@@ -182,7 +195,8 @@ class HomeAssistantSafetyStatusClient:
         states = {}
         entity_ids = list(
             dict.fromkeys(
-                self.settings["doors"]
+                ([self.settings["internet"]] if self.settings["internet"] else [])
+                + self.settings["doors"]
                 + self.settings["motion"]
                 + self.settings["cameras"]
                 + self.settings["temperature"]
@@ -221,7 +235,7 @@ class SafetyStatusService:
 def unavailable_status(label):
     return {
         "status": "unknown",
-        "internet": status_item("ok", "Online"),
+        "internet": status_item("unknown", label),
         "doors": status_item("unknown", label),
         "motion": status_item("unknown", label),
         "cameras": status_item("unknown", label),
