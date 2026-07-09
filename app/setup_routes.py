@@ -17,6 +17,7 @@ class HomeAssistantEntitySettingsPayload(BaseModel):
     meal_calendar: str = ""
     task_entities: list[str] = []
     weather_entity: str = ""
+    internet_status_entity: str = ""
     electricity_price_entity: str = ""
     power_entity: str = ""
     energy_entity: str = ""
