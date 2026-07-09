@@ -96,9 +96,11 @@ function updateWallSafetyItem(key, data) {
   const item = wallSafetyItems[key];
   if (!item || !data) return;
   const status = safetyStatusClass(data.status);
+  const icon = item.querySelector(".wall-safety-icon");
   const text = item.querySelector(".wall-safety-text");
   item.className = `wall-safety-item ${status}`;
-  if (text) text.textContent = `${wallSafetyIcon(key, status)} ${String(data.label || "Ukendt")}`;
+  if (icon) icon.textContent = wallSafetyIcon(key, status);
+  if (text) text.textContent = String(data.label || "Ukendt");
 }
 
 function renderWallSafetyStatus(data) {
