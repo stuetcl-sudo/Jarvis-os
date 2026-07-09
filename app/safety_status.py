@@ -129,17 +129,22 @@ def camera_status(entities, states):
     return status_item("critical", f"{problem_count} offline")
 
 
-def first_numeric_status(entities, states, unit_fallback="", digits=1):
+def average_numeric_status(entities, states, unit_fallback="", digits=1):
     if not entities:
         return status_item("unknown", "Ikke valgt")
+    values = []
+    unit = unit_fallback
     for entity_id in entities:
         payload = states.get(entity_id)
         value = numeric_state(payload)
         if value is None:
             continue
-        unit = entity_unit(payload, unit_fallback)
-        return status_item("ok", f"{compact_number(value, digits)}{unit}")
-    return status_item("unknown", "Ukendt")
+        values.append(value)
+        unit = entity_unit(payload, unit_fallback) or unit
+    if not values:
+        return status_item("unknown", "Ukendt")
+    average = sum(values) / len(values)
+    return status_item("ok", f"{compact_number(average, digits)}{unit}")
 
 
 def single_numeric_status(entity_id, states, unit_fallback="", digits=2):
@@ -161,8 +166,8 @@ def normalize_safety_status(settings, states):
         "doors": door_status(settings["doors"], states),
         "motion": motion_status(settings["motion"], states),
         "cameras": camera_status(settings["cameras"], states),
-        "temperature": first_numeric_status(settings["temperature"], states, "°", 1),
-        "humidity": first_numeric_status(settings["humidity"], states, "%", 0),
+        "temperature": average_numeric_status(settings["temperature"], states, "°", 1),
+        "humidity": average_numeric_status(settings["humidity"], states, "%", 0),
         "electricity_price": single_numeric_status(settings["electricity_price"], states, "kr/kWh", 2),
     }
 
