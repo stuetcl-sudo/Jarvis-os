@@ -60,6 +60,9 @@ def hidden_safety_response():
         "doors": hidden,
         "motion": hidden,
         "cameras": hidden,
+        "temperature": hidden,
+        "humidity": hidden,
+        "electricity_price": hidden,
     }
 
 
