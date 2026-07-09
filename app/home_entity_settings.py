@@ -9,6 +9,7 @@ ENTITY_ID_PATTERN = re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+$")
 SINGLE_FIELDS = {
     "meal_calendar": ("home_assistant.meal_calendar", {"calendar"}),
     "weather_entity": ("home_assistant.weather_entity", {"weather"}),
+    "internet_status_entity": ("home_assistant.internet_status_entity", {"binary_sensor", "sensor"}),
     "electricity_price_entity": ("home_assistant.electricity_price_entity", {"sensor"}),
     "power_entity": ("home_assistant.power_entity", {"sensor"}),
     "energy_entity": ("home_assistant.energy_entity", {"sensor"}),
