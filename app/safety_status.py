@@ -36,6 +36,9 @@ def load_safety_status_settings(db_path=None):
         "doors": settings.get("safety_door_entities") or [],
         "motion": settings.get("safety_motion_entities") or [],
         "cameras": settings.get("safety_camera_entities") or [],
+        "temperature": settings.get("temperature_entities") or [],
+        "humidity": settings.get("humidity_entities") or [],
+        "electricity_price": settings.get("electricity_price_entity") or "",
     }
 
 
@@ -50,6 +53,31 @@ def entity_state(payload):
     if not isinstance(payload, dict):
         return "unknown"
     return str(payload.get("state") or "unknown").strip().lower()
+
+
+def entity_unit(payload, fallback=""):
+    attributes = payload.get("attributes") if isinstance(payload, dict) else {}
+    if not isinstance(attributes, dict):
+        attributes = {}
+    return str(attributes.get("unit_of_measurement") or fallback).strip()
+
+
+def numeric_state(payload):
+    state = entity_state(payload)
+    if state in UNKNOWN_STATES:
+        return None
+    try:
+        return float(str(payload.get("state", "")).replace(",", "."))
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def compact_number(value, digits=1):
+    if value is None:
+        return "–"
+    if float(value).is_integer():
+        return str(int(value))
+    return f"{value:.{digits}f}"
 
 
 def door_status(entities, states):
@@ -101,6 +129,31 @@ def camera_status(entities, states):
     return status_item("critical", f"{problem_count} offline")
 
 
+def first_numeric_status(entities, states, unit_fallback="", digits=1):
+    if not entities:
+        return status_item("unknown", "Ikke valgt")
+    for entity_id in entities:
+        payload = states.get(entity_id)
+        value = numeric_state(payload)
+        if value is None:
+            continue
+        unit = entity_unit(payload, unit_fallback)
+        return status_item("ok", f"{compact_number(value, digits)}{unit}")
+    return status_item("unknown", "Ukendt")
+
+
+def single_numeric_status(entity_id, states, unit_fallback="", digits=2):
+    if not entity_id:
+        return status_item("unknown", "Ikke valgt")
+    payload = states.get(entity_id)
+    value = numeric_state(payload)
+    if value is None:
+        return status_item("unknown", "Ukendt")
+    unit = entity_unit(payload, unit_fallback)
+    separator = " " if unit else ""
+    return status_item("ok", f"{compact_number(value, digits)}{separator}{unit}")
+
+
 def normalize_safety_status(settings, states):
     return {
         "status": "ok",
@@ -108,6 +161,9 @@ def normalize_safety_status(settings, states):
         "doors": door_status(settings["doors"], states),
         "motion": motion_status(settings["motion"], states),
         "cameras": camera_status(settings["cameras"], states),
+        "temperature": first_numeric_status(settings["temperature"], states, "°", 1),
+        "humidity": first_numeric_status(settings["humidity"], states, "%", 0),
+        "electricity_price": single_numeric_status(settings["electricity_price"], states, "kr/kWh", 2),
     }
 
 
@@ -119,7 +175,16 @@ class HomeAssistantSafetyStatusClient:
     def fetch(self):
         client = HomeAssistantClient(self.settings["connection"], self.client_factory)
         states = {}
-        entity_ids = list(dict.fromkeys(self.settings["doors"] + self.settings["motion"] + self.settings["cameras"]))
+        entity_ids = list(
+            dict.fromkeys(
+                self.settings["doors"]
+                + self.settings["motion"]
+                + self.settings["cameras"]
+                + self.settings["temperature"]
+                + self.settings["humidity"]
+                + ([self.settings["electricity_price"]] if self.settings["electricity_price"] else [])
+            )
+        )
         try:
             for entity_id in entity_ids:
                 states[entity_id] = client.get_json(f"/api/states/{quote(entity_id, safe='')}")
@@ -155,6 +220,9 @@ def unavailable_status(label):
         "doors": status_item("unknown", label),
         "motion": status_item("unknown", label),
         "cameras": status_item("unknown", label),
+        "temperature": status_item("unknown", label),
+        "humidity": status_item("unknown", label),
+        "electricity_price": status_item("unknown", label),
     }
 
 
