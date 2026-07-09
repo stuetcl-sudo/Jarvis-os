@@ -65,7 +65,10 @@ function measurement(value, unit = "") {
 }
 
 function greetingFor(hour) {
-  return hour < 10 ? "Godmorgen" : hour < 18 ? "God eftermiddag" : "Godaften";
+  if (hour < 5) return "Godnat";
+  if (hour < 10) return "Godmorgen";
+  if (hour < 17) return "God eftermiddag";
+  return "Godaften";
 }
 
 function updateClock() {
