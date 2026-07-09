@@ -78,13 +78,21 @@ function updateWallIdleFromSafetyStatus(data) {
   scheduleWallIdleCheck();
 }
 
+function wallSafetyIcon(key, status) {
+  if (key === "internet") return status === "ok" ? "🌐" : "⚠️";
+  if (key === "doors") return status === "ok" ? "🔒" : "🚪";
+  if (key === "motion") return status === "warning" ? "👣" : "🟢";
+  if (key === "cameras") return status === "ok" ? "📷" : "⚠️";
+  return "•";
+}
+
 function updateWallSafetyItem(key, data) {
   const item = wallSafetyItems[key];
   if (!item || !data) return;
   const status = safetyStatusClass(data.status);
   const text = item.querySelector(".wall-safety-text");
   item.className = `wall-safety-item ${status}`;
-  if (text) text.textContent = String(data.label || "Ukendt");
+  if (text) text.textContent = `${wallSafetyIcon(key, status)} ${String(data.label || "Ukendt")}`;
 }
 
 function renderWallSafetyStatus(data) {
