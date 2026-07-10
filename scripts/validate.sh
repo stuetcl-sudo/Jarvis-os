@@ -3,7 +3,12 @@ set -euo pipefail
 
 APP_URL="${APP_URL:-http://localhost:8088}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-90}"
-ENDPOINTS=("/api/health" "/api/mission" "/api/family/weather" "/api/family/calendar" "/api/family/routines" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations" "/api/events" "/api/events/latest" "/api/events/types" "/api/events/statistics" "/api/service-classifications" "/api/assets" "/api/assets/search" "/api/assets/relationships" "/api/policies" "/api/policy-decisions" "/api/policy-decisions/latest" "/api/actions" "/api/action-log")
+VALIDATE_OWNER_USERNAME="${VALIDATE_OWNER_USERNAME:-}"
+VALIDATE_OWNER_PASSWORD="${VALIDATE_OWNER_PASSWORD:-}"
+COOKIE_JAR="/tmp/jarvis-validate-cookies.txt"
+PROTECTED_ENDPOINTS=("/api/containers" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations" "/api/events" "/api/events/latest" "/api/events/types" "/api/events/statistics" "/api/service-classifications" "/api/assets" "/api/assets/search" "/api/assets/relationships" "/api/policies" "/api/policy-decisions" "/api/policy-decisions/latest" "/api/actions" "/api/action-log")
+AUTHENTICATED_OWNER=false
+AUTH_COOKIE_ARGS=()
 
 show_logs() {
   echo ""
@@ -37,6 +42,21 @@ check_live_route() {
     fail "Live ${label} is stale or incorrect after rebuild."
   fi
   echo "OK: ${label} at ${path} returned HTTP 200${marker:+ with expected marker}"
+}
+
+check_live_status_code() {
+  local path="$1"
+  local expected="$2"
+  local label="$3"
+  shift 3
+  local code
+  code=$(curl -sS "$@" -o /tmp/jarvis-validate-status-response.txt -w "%{http_code}" --max-time 10 "${APP_URL}${path}" || true)
+  if [ "$code" != "$expected" ]; then
+    echo "ERROR: ${APP_URL}${path} returned HTTP ${code}, expected ${expected}."
+    cat /tmp/jarvis-validate-status-response.txt || true
+    fail "Live ${label} check failed for ${path}."
+  fi
+  echo "OK: ${label} at ${path} returned HTTP ${expected}"
 }
 
 check_live_json_status() {
@@ -91,7 +111,7 @@ bash scripts/privacy_check.sh || {
   exit 1
 }
 
-echo "[2/10] Running focused admin UI, frontend foundation, screen layout, setup, wall dashboard, login payload, frontend safety, routine editor, routine, family visibility, family API visibility, family status validation, calendar, weather, authentication, family role, dashboard, Action Engine, verification, atomic queue, dependency safety, Docker transition, worker queue, policy seed, and privacy tests"
+echo "[2/10] Running focused security, family, setup, wall dashboard, Action Engine, policy, queue, and privacy tests"
 if [ -z "$PYTHON_BIN" ]; then
   echo "ERROR: Python is required for focused tests."
   exit 1
@@ -106,6 +126,8 @@ PYTHONPATH=. "$PYTHON_BIN" tests/test_family_routines.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_routine_editor.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_family_visibility.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_family_api_visibility.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_safety_status.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_api_read_access.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_live_family_status_validation.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py
@@ -149,12 +171,13 @@ while true; do
   sleep 2
 done
 
-echo "[7/10] Checking live authenticated v0.10 routes and assets"
+echo "[7/10] Checking live family routes, authentication boundaries, and assets"
 check_live_route "/" "family dashboard" "Her er et roligt overblik over hjemmet"
 check_live_redirect "/wall" "/login?next=/wall"
 check_live_json_status "/api/family/weather" "family weather API" "weather"
 check_live_json_status "/api/family/calendar" "family calendar API" "calendar"
 check_live_route "/api/family/routines" "family routines API" '"status":"authentication_required"'
+check_live_status_code "/api/family/safety-status" "401" "protected family safety API"
 check_live_route "/login" "login page" "Log ind på Jarvis"
 check_live_redirect "/admin" "/login?next=/admin"
 check_live_redirect "/setup" "/login?next=/setup"
@@ -164,7 +187,8 @@ check_live_route "/static/js/login.js" "login JavaScript"
 check_live_route "/static/js/family.js" "family dashboard JavaScript"
 check_live_route "/static/js/routines.js" "routine JavaScript"
 check_live_route "/static/js/routine-editor.js" "routine editor JavaScript"
-check_live_route "/static/js/wall.js" "wall dashboard JavaScript" "wallRoutineEndpoints"
+check_live_route "/static/js/wall-safety.js" "wall safety JavaScript" "/api/family/safety-status"
+check_live_route "/static/js/wall-fullscreen.js" "wall fullscreen JavaScript" "requestFullscreen"
 check_live_route "/static/js/admin.js" "home administration JavaScript" "adminSections"
 check_live_route "/static/js/admin-render.js" "admin render JavaScript" "renderActions"
 check_live_route "/static/js/admin-page.js" "admin page JavaScript" "initializeAdmin"
@@ -180,35 +204,50 @@ check_live_route "/static/css/weather.css" "weather stylesheet"
 check_live_route "/static/css/calendar.css" "calendar stylesheet"
 check_live_route "/static/css/routines.css" "routine stylesheet"
 check_live_route "/static/css/routine-editor.css" "routine editor stylesheet"
-check_live_route "/static/css/wall.css" "wall dashboard stylesheet" ".wall-shell"
-check_live_route "/static/css/wall-details.css" "wall dashboard detail stylesheet" ".wall-uv"
+check_live_route "/static/css/wall-mode.css" "wall dashboard stylesheet" ".wall-safety-strip"
+check_live_route "/static/css/wall-safety-polish.css" "wall safety stylesheet" ".wall-safety-item.ok"
 check_live_route "/static/css/admin.css" "home administration stylesheet" ".admin-shell"
 check_live_route "/static/css/admin-connections.css" "Home Assistant administration stylesheet" ".entity-selector-grid"
 check_live_route "/static/css/setup.css" "setup stylesheet" ".setup-shell"
 check_live_route "/static/pictograms/routines.svg" "routine pictograms" "symbol id=\"complete\""
 
-echo "[8/10] Checking API endpoints"
-for endpoint in "${ENDPOINTS[@]}"; do
-  url="${APP_URL}${endpoint}"
-  code=$(curl -sS -o /tmp/jarvis-validate-response.txt -w "%{http_code}" --max-time 10 "$url" || true)
-  if [ "$code" != "200" ]; then
-    echo "ERROR: ${url} returned HTTP ${code}."
-    cat /tmp/jarvis-validate-response.txt || true
-    fail "Endpoint validation failed for ${endpoint}."
+echo "[8/10] Checking protected technical API behavior"
+check_live_status_code "/api/health" "200" "redacted public health API"
+check_live_status_code "/api/mission" "200" "redacted public mission API"
+
+if [ -n "$VALIDATE_OWNER_USERNAME" ] && [ -n "$VALIDATE_OWNER_PASSWORD" ]; then
+  rm -f "$COOKIE_JAR"
+  login_payload=$(VALIDATE_OWNER_USERNAME="$VALIDATE_OWNER_USERNAME" VALIDATE_OWNER_PASSWORD="$VALIDATE_OWNER_PASSWORD" "$PYTHON_BIN" -c 'import json, os; print(json.dumps({"username": os.environ["VALIDATE_OWNER_USERNAME"], "password": os.environ["VALIDATE_OWNER_PASSWORD"]}))')
+  login_code=$(curl -sS -c "$COOKIE_JAR" -o /tmp/jarvis-validate-login.json -w "%{http_code}" --max-time 10 -H "Content-Type: application/json" -d "$login_payload" "${APP_URL}/api/auth/login" || true)
+  [ "$login_code" = "200" ] || fail "Owner validation login returned HTTP ${login_code}."
+  AUTHENTICATED_OWNER=true
+  AUTH_COOKIE_ARGS=(-b "$COOKIE_JAR")
+  echo "OK: validation owner login succeeded"
+fi
+
+for endpoint in "${PROTECTED_ENDPOINTS[@]}"; do
+  if [ "$AUTHENTICATED_OWNER" = true ]; then
+    check_live_status_code "$endpoint" "200" "owner-authenticated technical API" "${AUTH_COOKIE_ARGS[@]}"
+  else
+    check_live_status_code "$endpoint" "401" "anonymous technical API protection"
   fi
-  echo "OK: ${endpoint} returned HTTP 200"
 done
 
-echo "[9/10] Reading live Docker, asset, event, policy, and action snapshots"
-curl -fsS --max-time 10 "${APP_URL}/api/containers" -o /tmp/jarvis-containers.json || fail "Could not read /api/containers"
-curl -fsS --max-time 10 "${APP_URL}/api/mission" -o /tmp/jarvis-mission.json || fail "Could not read /api/mission"
-curl -fsS --max-time 10 "${APP_URL}/api/assets" -o /tmp/jarvis-assets.json || fail "Could not read /api/assets"
-curl -fsS --max-time 10 "${APP_URL}/api/events/latest" -o /tmp/jarvis-events.json || fail "Could not read /api/events/latest"
-curl -fsS --max-time 10 "${APP_URL}/api/policies" -o /tmp/jarvis-policies.json || fail "Could not read /api/policies"
-curl -fsS --max-time 10 "${APP_URL}/api/policy-decisions/latest" -o /tmp/jarvis-policy-decisions.json || fail "Could not read /api/policy-decisions/latest"
-curl -fsS --max-time 10 "${APP_URL}/api/actions" -o /tmp/jarvis-actions.json || fail "Could not read /api/actions"
+if [ "$AUTHENTICATED_OWNER" = true ]; then
+  echo "[9/10] Reading authenticated live Docker, asset, event, policy, and action snapshots"
+  curl -fsS "${AUTH_COOKIE_ARGS[@]}" --max-time 10 "${APP_URL}/api/containers" -o /tmp/jarvis-containers.json || fail "Could not read /api/containers"
+  curl -fsS "${AUTH_COOKIE_ARGS[@]}" --max-time 10 "${APP_URL}/api/mission" -o /tmp/jarvis-mission.json || fail "Could not read /api/mission"
+  curl -fsS "${AUTH_COOKIE_ARGS[@]}" --max-time 10 "${APP_URL}/api/assets" -o /tmp/jarvis-assets.json || fail "Could not read /api/assets"
+  curl -fsS "${AUTH_COOKIE_ARGS[@]}" --max-time 10 "${APP_URL}/api/events/latest" -o /tmp/jarvis-events.json || fail "Could not read /api/events/latest"
+  curl -fsS "${AUTH_COOKIE_ARGS[@]}" --max-time 10 "${APP_URL}/api/policies" -o /tmp/jarvis-policies.json || fail "Could not read /api/policies"
+  curl -fsS "${AUTH_COOKIE_ARGS[@]}" --max-time 10 "${APP_URL}/api/policy-decisions/latest" -o /tmp/jarvis-policy-decisions.json || fail "Could not read /api/policy-decisions/latest"
+  curl -fsS "${AUTH_COOKIE_ARGS[@]}" --max-time 10 "${APP_URL}/api/actions" -o /tmp/jarvis-actions.json || fail "Could not read /api/actions"
 
-echo "[10/10] Checking live Docker, Asset Registry, Event Engine, Policy Engine, and Action Engine consistency"
-PYTHONPATH=. "$PYTHON_BIN" tests/test_live_validation.py
+  echo "[10/10] Checking live Docker, Asset Registry, Event Engine, Policy Engine, and Action Engine consistency"
+  PYTHONPATH=. "$PYTHON_BIN" tests/test_live_validation.py
+else
+  echo "[9/10] Skipping authenticated live snapshots; set VALIDATE_OWNER_USERNAME and VALIDATE_OWNER_PASSWORD to enable them"
+  echo "[10/10] Protected endpoint access checks completed"
+fi
 
 echo "Validation OK."
