@@ -3,6 +3,7 @@ import hmac
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
+from app import config
 from app.auth.context import reset_current_actor, set_current_actor
 from app.auth.routes import router as auth_router
 from app.auth.service import SESSION_COOKIE_NAME, auth_service
@@ -11,6 +12,7 @@ from app.db import log_action
 from app.family_tasks import router as family_tasks_router
 from app.family_view import render_family_page
 from app.family_visibility import family_feature_hidden, router as family_visibility_router
+from app.health import get_health
 from app.main import app
 from app.meal_plan import router as meal_plan_router
 from app.routine_definitions import EDITOR_ROLES
@@ -32,7 +34,6 @@ app.include_router(family_visibility_router)
 app.include_router(screen_router)
 
 ROUTINE_WRITE_ACTIONS = {"complete", "back", "reset"}
-PUBLIC_API_PATHS = {"/api/health"}
 
 
 def wall_login_target(path):
@@ -42,11 +43,28 @@ def wall_login_target(path):
 def is_owner_only_read(method, path):
     if method != "GET" or not path.startswith("/api/"):
         return False
-    if path in PUBLIC_API_PATHS:
-        return False
     if path.startswith("/api/auth/") or path.startswith("/api/family/") or path.startswith("/api/admin/"):
         return False
     return True
+
+
+def public_health_response():
+    return {"status": "ok", "app": config.APP_NAME, "version": config.VERSION}
+
+
+def family_mission_response():
+    try:
+        health = get_health()
+        overall = "warning" if health.get("warnings") else "ok"
+    except Exception:
+        overall = "unknown"
+    return {
+        "status": "ok",
+        "overall_status": overall,
+        "safe_mode": None,
+        "docker": {"running": 0, "total": 0},
+        "active_incidents": [],
+    }
 
 
 def hidden_tasks_response():
@@ -120,6 +138,12 @@ async def enforce_local_authentication(request: Request, call_next):
     try:
         if request.method == "GET" and path == "/":
             return HTMLResponse(render_family_page(current_user))
+
+        if request.method == "GET" and path == "/api/health" and (not current_user or current_user.get("role") != "owner"):
+            return JSONResponse(public_health_response())
+
+        if request.method == "GET" and path == "/api/mission" and (not current_user or current_user.get("role") != "owner"):
+            return JSONResponse(family_mission_response())
 
         if request.method == "GET" and path == "/api/family/tasks" and family_feature_hidden(current_user, "tasks"):
             return JSONResponse(hidden_tasks_response())
