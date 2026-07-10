@@ -20,7 +20,7 @@ def payload(entity_id, state, name=None, unit=None):
 
 def settings():
     return {
-        "connection": HomeAssistantConnection("http://home-assistant.local", "test-token", 5),
+        "connection": HomeAssistantConnection("http://localhost:8123", "test-token", 5),
         "internet": "sensor.gateway_state",
         "doors": ["binary_sensor.back_door"],
         "motion": ["binary_sensor.hall_motion"],
@@ -138,7 +138,7 @@ def test_safety_client_fetches_all_home_assistant_states_once():
     assert result["internet"]["status"] == "ok"
     assert len(FakeHttpClient.requests) == 1
     assert FakeHttpClient.requests[0]["method"] == "GET"
-    assert FakeHttpClient.requests[0]["url"] == "http://home-assistant.local/api/states"
+    assert FakeHttpClient.requests[0]["url"] == "http://localhost:8123/api/states"
 
 
 def test_safety_service_reuses_short_cache():
