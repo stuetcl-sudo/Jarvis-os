@@ -85,10 +85,18 @@ def test_owner_can_read_technical_apis_and_full_health():
         assert "memory" in health.json()
 
 
+def test_static_assets_are_revalidated_after_deploy():
+    with api_access_environment() as client:
+        response = client.get("/static/js/wall-safety.js")
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-cache, must-revalidate"
+
+
 def test():
     test_anonymous_gets_only_redacted_health_and_mission_summaries()
     test_non_owner_cannot_read_technical_apis()
     test_owner_can_read_technical_apis_and_full_health()
+    test_static_assets_are_revalidated_after_deploy()
     print("API read access tests OK")
 
 
