@@ -134,6 +134,7 @@ def test_wall_family_assets_are_available():
             ("/static/css/wall-mode.css", ".wall-safety-strip"),
             ("/static/css/wall-safety-polish.css", ".wall-safety-item.ok"),
             ("/static/css/wall-profiles.css", 'data-wall-screen-profile="tablet"'),
+            ("/static/css/wall-final-polish.css", ".family-task-lists"),
             ("/static/pictograms/routines.svg", 'symbol id="complete"'),
         ]:
             response = client.get(asset)
@@ -171,6 +172,25 @@ def test_calendar_day_selection_does_not_resize_routine_card_on_wall():
     assert 'data-wall-screen-profile="tablet"].calendar-card' in compact
 
 
+def test_final_wall_polish_fills_last_row_and_repairs_mobile_top_bars():
+    polish = (ROOT / "app/static/css/wall-final-polish.css").read_text(encoding="utf-8")
+    surface = (ROOT / "app/static/css/wall-surface.css").read_text(encoding="utf-8")
+    compact = polish.replace(" ", "").replace("\n", "")
+
+    assert '@importurl("/static/css/wall-final-polish.css")' in surface.replace(" ", "").replace("\n", "")
+    assert 'data-wall-screen-slug="wall"].family-grid.family-tasks-card' in compact
+    assert "grid-column:1/-1!important" in compact
+    assert "grid-row:auto!important" in compact
+    assert ".family-task-lists{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))" in compact
+    assert '.family-footer{display:none!important}' in compact
+    assert "@media(max-width:640px)" in compact
+    assert ".wall-top-bars{grid-template-columns:minmax(0,1fr)!important" in compact
+    assert ".wall-top-bars.wall-safety-strip" in compact
+    assert "grid-template-columns:repeat(2,minmax(0,1fr))!important" in compact
+    assert ".wall-top-bars.wall-display-actions" in compact
+    assert "grid-template-columns:repeat(auto-fit,minmax(105px,1fr))!important" in compact
+
+
 def test_wall_safety_strip_is_bottom_scoped_and_static():
     template = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
     wall_styles = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
@@ -206,6 +226,7 @@ if __name__ == "__main__":
     test_wall_family_assets_are_available()
     test_wall_mode_frontend_is_read_only_and_role_safe()
     test_calendar_day_selection_does_not_resize_routine_card_on_wall()
+    test_final_wall_polish_fills_last_row_and_repairs_mobile_top_bars()
     test_wall_safety_strip_is_bottom_scoped_and_static()
     test_render_wall_page_rejects_invalid_roles()
     print("Wall dashboard tests OK")
