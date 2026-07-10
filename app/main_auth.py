@@ -102,11 +102,12 @@ async def initialize_local_authentication():
 
 @app.middleware("http")
 async def enforce_local_authentication(request: Request, call_next):
-    session_value = request.cookies.get(SESSION_COOKIE_NAME)
+    path = request.url.path
+    static_request = path.startswith("/static/")
+    session_value = None if static_request else request.cookies.get(SESSION_COOKIE_NAME)
     current_user = auth_service.resolve_session(session_value) if session_value else None
     request.state.current_user = current_user
     actor_context = set_current_actor(current_user["username"] if current_user else None)
-    path = request.url.path
     owner_page = path in {"/admin", "/setup"}
     owner_api = path.startswith("/api/admin/")
     owner_read = is_owner_only_read(request.method, path)
@@ -213,6 +214,8 @@ async def enforce_local_authentication(request: Request, call_next):
                 return JSONResponse({"detail": "Invalid request token"}, status_code=403)
 
         response = await call_next(request)
+        if static_request:
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
         if (protected_write or family_task_write) and current_user:
             log_action(
                 "authenticated_write",
