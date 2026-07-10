@@ -58,6 +58,57 @@ def response_headers(headers):
     }
 
 
+def sanitized_container_list(payload):
+    if not isinstance(payload, list):
+        return None
+    result = []
+    for item in payload:
+        if not isinstance(item, dict) or not isinstance(item.get("Id"), str):
+            continue
+        result.append(
+            {
+                "Id": item["Id"],
+                "Names": item.get("Names") if isinstance(item.get("Names"), list) else [],
+                "Image": str(item.get("Image") or ""),
+                "ImageID": str(item.get("ImageID") or ""),
+                "Created": item.get("Created"),
+                "State": str(item.get("State") or "unknown"),
+                "Status": str(item.get("Status") or ""),
+            }
+        )
+    return result
+
+
+def sanitized_container_inspect(payload):
+    if not isinstance(payload, dict) or not isinstance(payload.get("Id"), str):
+        return None
+    raw_state = payload.get("State") if isinstance(payload.get("State"), dict) else {}
+    raw_health = raw_state.get("Health") if isinstance(raw_state.get("Health"), dict) else {}
+    raw_config = payload.get("Config") if isinstance(payload.get("Config"), dict) else {}
+    state = {
+        "Status": str(raw_state.get("Status") or "unknown"),
+        "RestartCount": int(raw_state.get("RestartCount") or 0),
+    }
+    if raw_health:
+        state["Health"] = {"Status": str(raw_health.get("Status") or "unknown")}
+    return {
+        "Id": payload["Id"],
+        "Name": str(payload.get("Name") or ""),
+        "Created": payload.get("Created"),
+        "Config": {"Image": str(raw_config.get("Image") or "")},
+        "State": state,
+    }
+
+
+def sanitize_docker_payload(path, payload):
+    normalized = normalize_docker_path(path)
+    if normalized == "/containers/json":
+        return sanitized_container_list(payload)
+    if CONTAINER_INSPECT.fullmatch(normalized):
+        return sanitized_container_inspect(payload)
+    return None
+
+
 async def docker_request(method, path, *, query=None, content=b""):
     transport = httpx.AsyncHTTPTransport(uds=DOCKER_SOCKET_PATH)
     try:
@@ -111,9 +162,19 @@ async def proxy_docker_request(path: str, request: Request):
     except RuntimeError:
         return JSONResponse({"message": "Docker Engine is unavailable"}, status_code=502)
 
+    headers = response_headers(upstream.headers)
+    if upstream.is_success and request.method == "GET":
+        try:
+            sanitized = sanitize_docker_payload(upstream_path, upstream.json())
+        except (TypeError, ValueError):
+            sanitized = None
+        if sanitized is not None:
+            headers.pop("content-type", None)
+            return JSONResponse(sanitized, status_code=upstream.status_code, headers=headers)
+
     return Response(
         content=upstream.content,
         status_code=upstream.status_code,
-        headers=response_headers(upstream.headers),
+        headers=headers,
         media_type=None,
     )
