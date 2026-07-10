@@ -8,7 +8,7 @@
 
   body[data-wall-dashboard="true"] .family-header {
     min-height: 0 !important;
-    padding-bottom: 12px !important;
+    padding-bottom: 8px !important;
   }
 
   body[data-wall-dashboard="true"] .family-header h1 {
@@ -17,6 +17,50 @@
 
   body[data-wall-dashboard="true"] .family-clock {
     font-size: clamp(42px, 5.4vw, 70px) !important;
+  }
+
+  body[data-wall-dashboard="true"] .wall-top-bars {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-safety-strip {
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    flex-wrap: nowrap !important;
+    gap: 5px !important;
+    padding: 5px 7px !important;
+    margin: 0 !important;
+    border-radius: 22px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-safety-item {
+    min-height: 34px !important;
+    padding: 5px 9px !important;
+    gap: 5px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    flex: 0 0 auto !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-safety-icon {
+    font-size: 15px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-display-actions {
+    gap: 6px !important;
+    white-space: nowrap !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-display-actions a,
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-display-actions button,
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-home-status {
+    min-height: 34px !important;
+    padding: 5px 9px !important;
+    font-size: 12px !important;
   }
 
   body[data-wall-dashboard="true"] .family-grid {
@@ -64,6 +108,35 @@
     grid-row: 3 !important;
   }
 
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"][data-wall-screen-slug="wall"] .family-tasks-card {
+    grid-column: 1 / -1 !important;
+    grid-row: 3 !important;
+    padding: 16px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-task-lists {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-task-list {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 14px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-task-items {
+    flex: 1 1 auto !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-task-empty {
+    min-height: 96px !important;
+    display: grid !important;
+    place-items: center !important;
+  }
+
   body[data-wall-dashboard="true"] .routine-pictogram-frame {
     min-height: 72px !important;
     max-height: 88px !important;
@@ -85,6 +158,6 @@
 
   body[data-wall-dashboard="true"] .wall-safety-strip {
     position: static !important;
-    margin-top: 12px !important;
+    margin-top: 0 !important;
   }
 }
