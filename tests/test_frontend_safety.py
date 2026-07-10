@@ -6,17 +6,36 @@ SCRIPT_NAMES = (
     "admin.js",
     "admin-render.js",
     "admin-page.js",
+    "admin-connections.js",
+    "admin-safety-connections.js",
+    "admin-screens.js",
+    "setup.js",
     "family.js",
     "family-calendar.js",
+    "family-meals.js",
+    "family-tasks.js",
+    "routines.js",
+    "routine-editor.js",
     "wall.js",
     "wall-mode.js",
     "wall-safety.js",
+    "wall-fullscreen.js",
 )
 SCRIPTS = {
     name: (ROOT / "app" / "static" / "js" / name).read_text(encoding="utf-8")
     for name in SCRIPT_NAMES
 }
-ADMIN = "\n".join(SCRIPTS[name] for name in ("admin.js", "admin-render.js", "admin-page.js"))
+ADMIN = "\n".join(
+    SCRIPTS[name]
+    for name in (
+        "admin.js",
+        "admin-render.js",
+        "admin-page.js",
+        "admin-connections.js",
+        "admin-safety-connections.js",
+        "admin-screens.js",
+    )
+)
 
 
 def test_frontend_scripts_do_not_use_html_parser_sinks():
