@@ -62,6 +62,25 @@ def test_anonymous_gets_only_redacted_health_and_mission_summaries():
         assert "events" not in mission.json()
 
 
+def test_api_documentation_requires_owner():
+    with api_access_environment() as client:
+        for path in ["/openapi.json", "/docs", "/redoc"]:
+            response = client.get(path)
+            assert response.status_code == 401
+            assert response.json() == {"detail": "Authentication required"}
+
+    with api_access_environment() as client:
+        login(client, "adult")
+        assert client.get("/openapi.json").status_code == 403
+
+    with api_access_environment() as client:
+        login(client, "owner")
+        schema = client.get("/openapi.json")
+        assert schema.status_code == 200
+        assert schema.json()["info"]["title"] == config.APP_NAME
+        assert client.get("/docs").status_code == 200
+
+
 def test_non_owner_cannot_read_technical_apis():
     with api_access_environment() as client:
         login(client, "adult")
@@ -94,6 +113,7 @@ def test_static_assets_are_revalidated_after_deploy():
 
 def test():
     test_anonymous_gets_only_redacted_health_and_mission_summaries()
+    test_api_documentation_requires_owner()
     test_non_owner_cannot_read_technical_apis()
     test_owner_can_read_technical_apis_and_full_health()
     test_static_assets_are_revalidated_after_deploy()
