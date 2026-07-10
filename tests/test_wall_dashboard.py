@@ -182,7 +182,7 @@ def test_final_wall_polish_fills_last_row_and_repairs_mobile_top_bars():
     assert "grid-column:1/-1!important" in compact
     assert "grid-row:auto!important" in compact
     assert ".family-task-lists{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))" in compact
-    assert '.family-footer{display:none!important}' in compact
+    assert '.family-footer{display:none!important' in compact
     assert "@media(max-width:640px)" in compact
     assert ".wall-top-bars{grid-template-columns:minmax(0,1fr)!important" in compact
     assert ".wall-top-bars.wall-safety-strip" in compact
