@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app import config, home_assistant_setup, home_entity_settings, home_setup, settings_store
 
@@ -13,19 +13,19 @@ class HomeAssistantConnectionPayload(BaseModel):
 
 
 class HomeAssistantEntitySettingsPayload(BaseModel):
-    calendar_entities: list[str] = []
+    calendar_entities: list[str] = Field(default_factory=list)
     meal_calendar: str = ""
-    task_entities: list[str] = []
+    task_entities: list[str] = Field(default_factory=list)
     weather_entity: str = ""
     internet_status_entity: str = ""
     electricity_price_entity: str = ""
     power_entity: str = ""
     energy_entity: str = ""
-    temperature_entities: list[str] = []
-    humidity_entities: list[str] = []
-    safety_door_entities: list[str] = []
-    safety_motion_entities: list[str] = []
-    safety_camera_entities: list[str] = []
+    temperature_entities: list[str] = Field(default_factory=list)
+    humidity_entities: list[str] = Field(default_factory=list)
+    safety_door_entities: list[str] = Field(default_factory=list)
+    safety_motion_entities: list[str] = Field(default_factory=list)
+    safety_camera_entities: list[str] = Field(default_factory=list)
 
 
 class HomeSettingsPayload(BaseModel):
@@ -127,6 +127,7 @@ def get_home_assistant_entity_settings():
 @router.post("/home-assistant/entity-settings")
 def save_home_assistant_entity_settings(payload: HomeAssistantEntitySettingsPayload):
     try:
-        return home_entity_settings.save_entity_settings(payload.model_dump(), db_path=config.DB_PATH)
+        values = payload.model_dump(exclude_unset=True)
+        return home_entity_settings.save_entity_settings(values, db_path=config.DB_PATH)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
