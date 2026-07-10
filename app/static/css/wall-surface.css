@@ -1,3 +1,5 @@
+@import url("/static/css/wall-final-polish.css");
+
 @media (orientation: landscape) and (min-width: 860px) and (max-width: 1600px) and (min-height: 560px) and (max-height: 1100px) {
   body[data-wall-dashboard="true"] .family-shell {
     width: min(100% - 22px, 1220px) !important;
