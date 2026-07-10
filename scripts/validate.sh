@@ -6,7 +6,7 @@ READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-90}"
 VALIDATE_OWNER_USERNAME="${VALIDATE_OWNER_USERNAME:-}"
 VALIDATE_OWNER_PASSWORD="${VALIDATE_OWNER_PASSWORD:-}"
 COOKIE_JAR="/tmp/jarvis-validate-cookies.txt"
-PROTECTED_ENDPOINTS=("/api/containers" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations" "/api/events" "/api/events/latest" "/api/events/types" "/api/events/statistics" "/api/service-classifications" "/api/assets" "/api/assets/search" "/api/assets/relationships" "/api/policies" "/api/policy-decisions" "/api/policy-decisions/latest" "/api/actions" "/api/action-log")
+PROTECTED_ENDPOINTS=("/api/containers" "/api/incidents" "/api/worker/status" "/api/brain" "/api/observations" "/api/recommendations" "/api/events" "/api/events/latest" "/api/events/types" "/api/events/statistics" "/api/service-classifications" "/api/assets" "/api/assets/search" "/api/assets/relationships" "/api/policies" "/api/policy-decisions" "/api/policy-decisions/latest" "/api/actions" "/api/action-log")
 AUTHENTICATED_OWNER=false
 AUTH_COOKIE_ARGS=()
 
@@ -128,6 +128,7 @@ PYTHONPATH=. "$PYTHON_BIN" tests/test_family_visibility.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_family_api_visibility.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_safety_status.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_api_read_access.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_session_touch.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_live_family_status_validation.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py
@@ -214,6 +215,7 @@ check_live_route "/static/pictograms/routines.svg" "routine pictograms" "symbol 
 echo "[8/10] Checking protected technical API behavior"
 check_live_status_code "/api/health" "200" "redacted public health API"
 check_live_status_code "/api/mission" "200" "redacted public mission API"
+check_live_status_code "/openapi.json" "401" "protected API schema"
 
 if [ -n "$VALIDATE_OWNER_USERNAME" ] && [ -n "$VALIDATE_OWNER_PASSWORD" ]; then
   rm -f "$COOKIE_JAR"
@@ -222,6 +224,7 @@ if [ -n "$VALIDATE_OWNER_USERNAME" ] && [ -n "$VALIDATE_OWNER_PASSWORD" ]; then
   [ "$login_code" = "200" ] || fail "Owner validation login returned HTTP ${login_code}."
   AUTHENTICATED_OWNER=true
   AUTH_COOKIE_ARGS=(-b "$COOKIE_JAR")
+  check_live_status_code "/openapi.json" "200" "owner-authenticated API schema" "${AUTH_COOKIE_ARGS[@]}"
   echo "OK: validation owner login succeeded"
 fi
 
