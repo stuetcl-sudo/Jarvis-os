@@ -1,16 +1,48 @@
 services:
+  docker-socket-proxy:
+    build: .
+    image: jarvis-os:local
+    container_name: jarvis-docker-socket-proxy
+    command: ["uvicorn", "app.docker_socket_proxy:app", "--host", "0.0.0.0", "--port", "2375"]
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:2375/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
+
   jarvis-os:
     build: .
+    image: jarvis-os:local
     container_name: jarvis-os
     command: ["uvicorn", "app.main_auth:app", "--host", "0.0.0.0", "--port", "8088"]
     restart: unless-stopped
+    depends_on:
+      docker-socket-proxy:
+        condition: service_healthy
     ports:
       - "8088:8088"
     env_file:
       - .env
+    environment:
+      DOCKER_HOST: http://docker-socket-proxy:2375
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - jarvis_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
     security_opt:
       - no-new-privileges:true
 
