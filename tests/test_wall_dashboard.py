@@ -191,6 +191,19 @@ def test_final_wall_polish_fills_last_row_and_repairs_mobile_top_bars():
     assert "grid-template-columns:repeat(auto-fit,minmax(105px,1fr))!important" in compact
 
 
+def test_surface_profile_keeps_status_on_one_row_and_balances_task_lists():
+    surface = (ROOT / "app/static/css/wall-surface.css").read_text(encoding="utf-8")
+    compact = surface.replace(" ", "").replace("\n", "")
+
+    assert 'data-wall-screen-profile="surface"].wall-top-bars.wall-safety-strip' in compact
+    assert "flex-wrap:nowrap!important" in compact
+    assert "max-width:none!important" in compact
+    assert 'data-wall-screen-profile="surface"].family-task-lists{' in compact
+    assert "grid-template-columns:repeat(3,minmax(0,1fr))!important" in compact
+    assert "align-items:stretch!important" in compact
+    assert 'data-wall-screen-profile="surface"].family-task-list{height:100%!important' in compact
+
+
 def test_wall_safety_strip_is_bottom_scoped_and_static():
     template = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
     wall_styles = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
@@ -227,6 +240,7 @@ if __name__ == "__main__":
     test_wall_mode_frontend_is_read_only_and_role_safe()
     test_calendar_day_selection_does_not_resize_routine_card_on_wall()
     test_final_wall_polish_fills_last_row_and_repairs_mobile_top_bars()
+    test_surface_profile_keeps_status_on_one_row_and_balances_task_lists()
     test_wall_safety_strip_is_bottom_scoped_and_static()
     test_render_wall_page_rejects_invalid_roles()
     print("Wall dashboard tests OK")
