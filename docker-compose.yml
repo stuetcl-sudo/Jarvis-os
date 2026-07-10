@@ -1,7 +1,7 @@
 services:
   docker-socket-proxy:
     build: .
-    image: jarvis-os:local
+    image: jarvis-docker-socket-proxy:local
     container_name: jarvis-docker-socket-proxy
     command: ["uvicorn", "app.docker_socket_proxy:app", "--host", "0.0.0.0", "--port", "2375"]
     restart: unless-stopped
