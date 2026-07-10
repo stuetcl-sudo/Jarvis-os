@@ -153,13 +153,16 @@ def test_admin_role_visibility_ui_is_plain_and_safe():
 
 def test_home_assistant_safety_picker_is_admin_configured():
     for marker in [
+        "haInternetStatusEntity",
+        "internet_status_entity",
+        "createInternetStatusSelect",
+        "Vælg fx gatewayens state/status-sensor",
         "haSafetyDoorEntities",
         "haSafetyMotionEntities",
         "haSafetyCameraEntities",
         "safety_door_entities",
         "safety_motion_entities",
         "safety_camera_entities",
-        "Internetstatus bliver kontrolleret automatisk",
     ]:
         assert marker in CONNECTION_JAVASCRIPT
     assert "admin-safety-connections.js" in CORE_JAVASCRIPT
@@ -172,6 +175,9 @@ def test_admin_uses_inline_feedback_and_status_aware_actions():
     assert 'if (status === "approved") return ["run", "cancel"]' in JAVASCRIPT
     assert "window.confirm(" in JAVASCRIPT
     assert "backgroundRefreshShouldPause" in JAVASCRIPT
+    assert "Gem vurderingen for" in CORE_JAVASCRIPT
+    assert "Vil du ${action} denne automatiske regel?" in CORE_JAVASCRIPT
+    assert "Reglen stopper med at oprette nye automatiske forslag." in CORE_JAVASCRIPT
 
 
 def test_release_metadata_and_v010_admin_polish():
