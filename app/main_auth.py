@@ -32,10 +32,21 @@ app.include_router(family_visibility_router)
 app.include_router(screen_router)
 
 ROUTINE_WRITE_ACTIONS = {"complete", "back", "reset"}
+PUBLIC_API_PATHS = {"/api/health"}
 
 
 def wall_login_target(path):
     return f"/login?next={path}"
+
+
+def is_owner_only_read(method, path):
+    if method != "GET" or not path.startswith("/api/"):
+        return False
+    if path in PUBLIC_API_PATHS:
+        return False
+    if path.startswith("/api/auth/") or path.startswith("/api/family/") or path.startswith("/api/admin/"):
+        return False
+    return True
 
 
 def hidden_tasks_response():
@@ -80,6 +91,7 @@ async def enforce_local_authentication(request: Request, call_next):
     path = request.url.path
     owner_page = path in {"/admin", "/setup"}
     owner_api = path.startswith("/api/admin/")
+    owner_read = is_owner_only_read(request.method, path)
     routine_progress_write = (
         request.method == "POST"
         and path.startswith("/api/family/routines/")
@@ -112,8 +124,13 @@ async def enforce_local_authentication(request: Request, call_next):
         if request.method == "GET" and path == "/api/family/tasks" and family_feature_hidden(current_user, "tasks"):
             return JSONResponse(hidden_tasks_response())
 
-        if request.method == "GET" and path == "/api/family/safety-status" and family_feature_hidden(current_user, "safety"):
-            return JSONResponse(hidden_safety_response())
+        if request.method == "GET" and path == "/api/family/safety-status":
+            if not current_user:
+                return JSONResponse({"detail": "Authentication required"}, status_code=401)
+            if current_user.get("role") not in WALL_ROLES:
+                return JSONResponse({"detail": "Family role required"}, status_code=403)
+            if family_feature_hidden(current_user, "safety"):
+                return JSONResponse(hidden_safety_response())
 
         if request.method == "GET" and (path == "/wall" or path.startswith("/wall/")):
             if not current_user:
@@ -134,7 +151,7 @@ async def enforce_local_authentication(request: Request, call_next):
             if current_user["role"] != "owner":
                 return JSONResponse({"detail": "Owner role required"}, status_code=403)
 
-        if owner_api:
+        if owner_api or owner_read:
             if not current_user:
                 return JSONResponse({"detail": "Authentication required"}, status_code=401)
             if current_user["role"] != "owner":
