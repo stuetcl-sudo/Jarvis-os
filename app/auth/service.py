@@ -13,6 +13,7 @@ ALLOWED_ROLES = {"owner", "adult", "child", "wall_display"}
 SESSION_COOKIE_NAME = "jarvis_session"
 CREDENTIAL_MIN_LENGTH = 12
 CREDENTIAL_MAX_LENGTH = 128
+SESSION_TOUCH_INTERVAL = timedelta(minutes=5)
 GENERIC_LOGIN_ERROR = "Ugyldigt brugernavn eller adgangskode."
 GENERIC_RATE_LIMIT_ERROR = "For mange loginforsøg. Prøv igen senere."
 
@@ -132,6 +133,7 @@ def initialize_auth_tables():
 class AuthService:
     def initialize(self):
         initialize_auth_tables()
+        self.cleanup_expired_sessions()
 
     def owner_exists(self):
         initialize_auth_tables()
@@ -316,20 +318,19 @@ class AuthService:
         session_digest = hash_session_token(raw_value)
         conn = connect()
         try:
-            self.cleanup_expired_sessions(current, conn)
             row = conn.execute(
                 "SELECT s.*, u.username, u.display_name, u.role, u.disabled, u.created_at AS user_created_at, u.updated_at AS user_updated_at, u.last_login_at FROM auth_sessions s JOIN auth_users u ON u.user_id = s.user_id WHERE s.session_token_hash = ?",
                 (session_digest,),
             ).fetchone()
             if not row:
-                conn.commit()
                 return None
             if bool(row["disabled"]) or from_iso(row["expires_at"]) <= current:
                 conn.execute("DELETE FROM auth_sessions WHERE session_token_hash = ?", (session_digest,))
                 conn.commit()
                 return None
-            conn.execute("UPDATE auth_sessions SET last_seen_at = ? WHERE session_token_hash = ?", (to_iso(current), session_digest))
-            conn.commit()
+            if current - from_iso(row["last_seen_at"]) >= SESSION_TOUCH_INTERVAL:
+                conn.execute("UPDATE auth_sessions SET last_seen_at = ? WHERE session_token_hash = ?", (to_iso(current), session_digest))
+                conn.commit()
             return {
                 "user_id": row["user_id"],
                 "username": row["username"],
