@@ -129,6 +129,7 @@ PYTHONPATH=. "$PYTHON_BIN" tests/test_family_api_visibility.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_safety_status.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_api_read_access.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_session_touch.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_docker_socket_proxy.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_live_family_status_validation.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py
@@ -158,8 +159,8 @@ docker compose version
 echo "[4/10] Checking Docker Compose config"
 docker compose config >/dev/null || fail "docker compose config failed."
 
-echo "[5/10] Building and force-recreating Jarvis-os service"
-docker compose up -d --build --force-recreate jarvis-os || fail "docker compose up -d --build --force-recreate jarvis-os failed."
+echo "[5/10] Building and force-recreating Jarvis-os and its restricted Docker proxy"
+docker compose up -d --build --force-recreate jarvis-os docker-socket-proxy || fail "docker compose up -d --build --force-recreate jarvis-os docker-socket-proxy failed."
 
 echo "[6/10] Waiting for Jarvis-os at ${APP_URL}"
 start_time=$(date +%s)
