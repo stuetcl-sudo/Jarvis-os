@@ -1,4 +1,6 @@
-from urllib.parse import quote
+from copy import deepcopy
+from threading import Lock
+from time import monotonic
 
 import httpx
 from fastapi import APIRouter
@@ -10,6 +12,7 @@ SAFE_STATES = {"off", "closed", "idle", "standby"}
 UNKNOWN_STATES = {"unavailable", "unknown", "none", ""}
 CAMERA_PROBLEM_STATES = {"unavailable", "unknown", "none", "offline", ""}
 INTERNET_ONLINE_STATES = {"on", "connected", "online", "up", "ok", "running"}
+SAFETY_STATUS_CACHE_SECONDS = 10
 
 
 class SafetyStatusConfigurationError(ValueError):
@@ -185,39 +188,62 @@ def normalize_safety_status(settings, states):
     }
 
 
+def configured_entity_ids(settings):
+    return list(
+        dict.fromkeys(
+            ([settings["internet"]] if settings["internet"] else [])
+            + settings["doors"]
+            + settings["motion"]
+            + settings["cameras"]
+            + settings["temperature"]
+            + settings["humidity"]
+            + ([settings["electricity_price"]] if settings["electricity_price"] else [])
+        )
+    )
+
+
 class HomeAssistantSafetyStatusClient:
     def __init__(self, settings, client_factory=httpx.Client):
         self.settings = settings
         self.client_factory = client_factory
 
     def fetch(self):
+        entity_ids = configured_entity_ids(self.settings)
+        if not entity_ids:
+            return normalize_safety_status(self.settings, {})
         client = HomeAssistantClient(self.settings["connection"], self.client_factory)
-        states = {}
-        entity_ids = list(
-            dict.fromkeys(
-                ([self.settings["internet"]] if self.settings["internet"] else [])
-                + self.settings["doors"]
-                + self.settings["motion"]
-                + self.settings["cameras"]
-                + self.settings["temperature"]
-                + self.settings["humidity"]
-                + ([self.settings["electricity_price"]] if self.settings["electricity_price"] else [])
-            )
-        )
         try:
-            for entity_id in entity_ids:
-                states[entity_id] = client.get_json(f"/api/states/{quote(entity_id, safe='')}")
+            payload = client.get_json("/api/states")
         except HomeAssistantUnavailable as exc:
             raise SafetyStatusUnavailable("Home Assistant safety status is unavailable") from exc
+        if not isinstance(payload, list):
+            raise SafetyStatusUnavailable("Home Assistant returned invalid state data")
+        wanted = set(entity_ids)
+        states = {
+            item["entity_id"]: item
+            for item in payload
+            if isinstance(item, dict) and isinstance(item.get("entity_id"), str) and item["entity_id"] in wanted
+        }
         return normalize_safety_status(self.settings, states)
 
 
 class SafetyStatusService:
-    def __init__(self, settings_loader=load_safety_status_settings, client_factory=httpx.Client):
+    def __init__(
+        self,
+        settings_loader=load_safety_status_settings,
+        client_factory=httpx.Client,
+        cache_seconds=SAFETY_STATUS_CACHE_SECONDS,
+        clock=monotonic,
+    ):
         self.settings_loader = settings_loader
         self.client_factory = client_factory
+        self.cache_seconds = max(0, float(cache_seconds))
+        self.clock = clock
+        self._cache = None
+        self._cache_expires_at = 0.0
+        self._cache_lock = Lock()
 
-    def get_safety_status(self):
+    def _load_status(self):
         try:
             settings = self.settings_loader(db_path=config.DB_PATH)
         except TypeError:
@@ -230,6 +256,16 @@ class SafetyStatusService:
             return HomeAssistantSafetyStatusClient(settings, self.client_factory).fetch()
         except SafetyStatusUnavailable:
             return unavailable_status("Home Assistant svarer ikke")
+
+    def get_safety_status(self):
+        now = self.clock()
+        with self._cache_lock:
+            if self._cache is not None and now < self._cache_expires_at:
+                return deepcopy(self._cache)
+            result = self._load_status()
+            self._cache = deepcopy(result)
+            self._cache_expires_at = now + self.cache_seconds
+            return deepcopy(result)
 
 
 def unavailable_status(label):
