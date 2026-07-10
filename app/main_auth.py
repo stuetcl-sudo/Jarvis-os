@@ -34,6 +34,7 @@ app.include_router(family_visibility_router)
 app.include_router(screen_router)
 
 ROUTINE_WRITE_ACTIONS = {"complete", "back", "reset"}
+OWNER_DOCUMENTATION_PATHS = {"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"}
 
 
 def wall_login_target(path):
@@ -41,7 +42,11 @@ def wall_login_target(path):
 
 
 def is_owner_only_read(method, path):
-    if method != "GET" or not path.startswith("/api/"):
+    if method != "GET":
+        return False
+    if path in OWNER_DOCUMENTATION_PATHS:
+        return True
+    if not path.startswith("/api/"):
         return False
     if path.startswith("/api/auth/") or path.startswith("/api/family/") or path.startswith("/api/admin/"):
         return False
