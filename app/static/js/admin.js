@@ -266,14 +266,24 @@ async function classifyContainer(index, value = null, scope = "table") {
   const select = document.getElementById(classificationControlId("cls", index, scope));
   const protectedBox = document.getElementById(classificationControlId("prot", index, scope));
   const autoBox = document.getElementById(classificationControlId("auto", index, scope));
+  const classification = value || select?.value || container.classification || "unknown";
+  const protectedValue = protectedBox ? protectedBox.checked : Boolean(container.protected);
+  const autoStartValue = autoBox ? autoBox.checked : Boolean(container.auto_start_allowed);
+  const confirmation = [
+    `Gem vurderingen for ${container.name}?`,
+    `Betydning: ${classificationLabel(classification)}.`,
+    `Beskyttet: ${protectedValue ? "ja" : "nej"}.`,
+    `Automatisk start: ${autoStartValue ? "tilladt" : "ikke tilladt"}.`,
+  ].join("\n");
+  if (!window.confirm(confirmation)) return;
   try {
     await getJson(`/api/service-classifications/${encodeURIComponent(container.name)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        classification: value || select?.value || container.classification || "unknown",
-        protected: protectedBox ? protectedBox.checked : Boolean(container.protected),
-        auto_start_allowed: autoBox ? autoBox.checked : Boolean(container.auto_start_allowed),
+        classification,
+        protected: protectedValue,
+        auto_start_allowed: autoStartValue,
       }),
     });
     showNotice("Vurderingen er gemt.", "success");
@@ -284,6 +294,11 @@ async function classifyContainer(index, value = null, scope = "table") {
 }
 
 async function togglePolicy(policyId, enabled) {
+  const action = enabled ? "aktivere" : "deaktivere";
+  const consequence = enabled
+    ? "Reglen kan igen oprette automatiske forslag, når dens betingelser er opfyldt."
+    : "Reglen stopper med at oprette nye automatiske forslag.";
+  if (!window.confirm(`Vil du ${action} denne automatiske regel?\n${consequence}`)) return;
   try {
     await getJson(`/api/policies/${encodeURIComponent(policyId)}/${enabled ? "enable" : "disable"}`, { method: "POST" });
     showNotice(enabled ? "Reglen er aktiveret." : "Reglen er deaktiveret.", "success");
