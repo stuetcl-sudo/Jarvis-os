@@ -11,6 +11,8 @@ CONTAINER_INSPECT = re.compile(rf"^/containers/{CONTAINER_IDENTIFIER}/json$")
 CONTAINER_START = re.compile(rf"^/containers/{CONTAINER_IDENTIFIER}/start$")
 HOP_BY_HOP_HEADERS = {
     "connection",
+    "content-encoding",
+    "content-length",
     "keep-alive",
     "proxy-authenticate",
     "proxy-authorization",
@@ -18,7 +20,6 @@ HOP_BY_HOP_HEADERS = {
     "trailers",
     "transfer-encoding",
     "upgrade",
-    "content-length",
 }
 
 app = FastAPI(
@@ -58,6 +59,14 @@ def response_headers(headers):
     }
 
 
+def safe_nonnegative_int(value):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, parsed)
+
+
 def sanitized_container_list(payload):
     if not isinstance(payload, list):
         return None
@@ -87,7 +96,7 @@ def sanitized_container_inspect(payload):
     raw_config = payload.get("Config") if isinstance(payload.get("Config"), dict) else {}
     state = {
         "Status": str(raw_state.get("Status") or "unknown"),
-        "RestartCount": int(raw_state.get("RestartCount") or 0),
+        "RestartCount": safe_nonnegative_int(raw_state.get("RestartCount")),
     }
     if raw_health:
         state["Health"] = {"Status": str(raw_health.get("Status") or "unknown")}
@@ -122,7 +131,10 @@ async def docker_request(method, path, *, query=None, content=b""):
                 path,
                 params=query,
                 content=content,
-                headers={"Accept": "application/json"},
+                headers={
+                    "Accept": "application/json",
+                    "Accept-Encoding": "identity",
+                },
             )
     except httpx.HTTPError as exc:
         raise RuntimeError("Docker Engine is unavailable") from exc
