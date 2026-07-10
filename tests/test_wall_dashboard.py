@@ -154,17 +154,21 @@ def test_wall_mode_frontend_is_read_only_and_role_safe():
 
 
 def test_calendar_day_selection_does_not_resize_routine_card_on_wall():
-    wall_styles = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
-    compact = wall_styles.replace(" ", "").replace("\n", "")
-    assert 'data-calendar-days="1"' not in compact
-    assert 'data-calendar-days="3"' not in compact
-    assert 'data-calendar-days="5"' not in compact
-    assert 'data-calendar-days="7"' not in compact
-    assert "routine-card" in compact
-    assert "calendar-card" in compact
-    assert "grid-template-columns:repeat(4,minmax(0,1fr))" in compact
-    assert "min-width:921px" in compact
-    assert "max-width:1180px" in compact
+    mode = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
+    profiles = (ROOT / "app/static/css/wall-profiles.css").read_text(encoding="utf-8")
+    compact = (mode + profiles).replace(" ", "").replace("\n", "")
+
+    for day_count in [1, 3, 5, 7]:
+        selector = f'data-calendar-days="{day_count}"'
+        assert selector not in compact
+        assert f"calendar-days-{day_count}" in compact
+
+    assert 'body[data-wall-dashboard="true"].family-grid{grid-template-columns:repeat(12,minmax(0,1fr))' in compact
+    assert 'body[data-wall-dashboard="true"].routine-card{grid-column:span6' in compact
+    assert 'body[data-wall-dashboard="true"].calendar-card{grid-column:span6' in compact
+    assert 'data-wall-screen-profile="tablet"].family-grid{grid-template-columns:repeat(2,minmax(0,1fr))' in compact
+    assert 'data-wall-screen-profile="tablet"].routine-card' in compact
+    assert 'data-wall-screen-profile="tablet"].calendar-card' in compact
 
 
 def test_wall_safety_strip_is_bottom_scoped_and_static():
