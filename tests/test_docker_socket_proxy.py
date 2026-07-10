@@ -65,7 +65,7 @@ def test_main_application_has_no_direct_docker_socket_mount():
     proxy_section, jarvis_section = compose.split("  jarvis-os:", 1)
     assert "/var/run/docker.sock:/var/run/docker.sock:ro" in proxy_section
     assert "/var/run/docker.sock" not in jarvis_section
-    assert "DOCKER_HOST: http://docker-socket-proxy:2375" in jarvis_section
+    assert "DOCKER_HOST: tcp://docker-socket-proxy:2375" in jarvis_section
     assert "read_only: true" in proxy_section
     assert "read_only: true" in jarvis_section
     assert "cap_drop:" in proxy_section
