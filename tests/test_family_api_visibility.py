@@ -55,6 +55,13 @@ def hide_all_child_family_features():
     )
 
 
+def test_anonymous_cannot_read_household_safety_status():
+    with api_visibility_environment() as client:
+        response = client.get("/api/family/safety-status")
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Authentication required"}
+
+
 def test_hidden_family_features_return_hidden_payloads_for_child():
     with api_visibility_environment() as client:
         hide_all_child_family_features()
@@ -119,6 +126,7 @@ def test_owner_is_not_limited_by_family_visibility_rules():
 
 
 if __name__ == "__main__":
+    test_anonymous_cannot_read_household_safety_status()
     test_hidden_family_features_return_hidden_payloads_for_child()
     test_hidden_tasks_cannot_be_changed_even_with_csrf()
     test_owner_is_not_limited_by_family_visibility_rules()
