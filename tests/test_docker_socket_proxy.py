@@ -2,7 +2,13 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app.docker_socket_proxy import allowed_docker_request, app, normalize_docker_path
+from app.docker_socket_proxy import (
+    allowed_docker_request,
+    app,
+    normalize_docker_path,
+    sanitized_container_inspect,
+    sanitized_container_list,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -50,6 +56,75 @@ def test_destructive_and_general_docker_operations_are_denied():
         assert not allowed_docker_request(method, path), (method, path)
 
 
+def test_container_list_removes_network_mount_and_label_metadata():
+    result = sanitized_container_list(
+        [
+            {
+                "Id": "abc123",
+                "Names": ["/example-service"],
+                "Image": "example/image:latest",
+                "ImageID": "sha256:example",
+                "Created": 123,
+                "State": "running",
+                "Status": "Up",
+                "Labels": {"private": "value"},
+                "Mounts": [{"Source": "/private/path"}],
+                "Ports": [{"PublicPort": 12345}],
+                "NetworkSettings": {"Networks": {"private": {"IPAddress": "192.0.2.5"}}},
+            }
+        ]
+    )
+    assert result == [
+        {
+            "Id": "abc123",
+            "Names": ["/example-service"],
+            "Image": "example/image:latest",
+            "ImageID": "sha256:example",
+            "Created": 123,
+            "State": "running",
+            "Status": "Up",
+        }
+    ]
+
+
+def test_container_inspect_removes_environment_mounts_and_host_configuration():
+    result = sanitized_container_inspect(
+        {
+            "Id": "abc123",
+            "Name": "/example-service",
+            "Created": "2026-07-10T12:00:00Z",
+            "Config": {
+                "Image": "example/image:latest",
+                "Env": ["SECRET_VALUE=hidden"],
+                "Labels": {"private": "value"},
+            },
+            "State": {
+                "Status": "running",
+                "RestartCount": 2,
+                "Health": {"Status": "healthy", "Log": [{"Output": "private"}]},
+            },
+            "HostConfig": {"Binds": ["/private:/data"]},
+            "Mounts": [{"Source": "/private"}],
+            "NetworkSettings": {"IPAddress": "192.0.2.5"},
+        }
+    )
+    assert result == {
+        "Id": "abc123",
+        "Name": "/example-service",
+        "Created": "2026-07-10T12:00:00Z",
+        "Config": {"Image": "example/image:latest"},
+        "State": {
+            "Status": "running",
+            "RestartCount": 2,
+            "Health": {"Status": "healthy"},
+        },
+    }
+    assert "Env" not in result["Config"]
+    assert "HostConfig" not in result
+    assert "Mounts" not in result
+    assert "NetworkSettings" not in result
+
+
 def test_proxy_rejects_forbidden_request_before_docker_socket_access():
     client = TestClient(app)
     try:
@@ -76,6 +151,8 @@ def test():
     test_versioned_docker_paths_are_normalized()
     test_only_required_docker_operations_are_allowed()
     test_destructive_and_general_docker_operations_are_denied()
+    test_container_list_removes_network_mount_and_label_metadata()
+    test_container_inspect_removes_environment_mounts_and_host_configuration()
     test_proxy_rejects_forbidden_request_before_docker_socket_access()
     test_main_application_has_no_direct_docker_socket_mount()
     print("Docker socket proxy tests OK")
