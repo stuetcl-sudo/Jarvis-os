@@ -60,14 +60,19 @@ def load_entity_settings(db_path=None):
 
 
 def save_entity_settings(values, db_path=None):
-    saved = {}
+    if not isinstance(values, dict):
+        raise ValueError("Home Assistant-indstillinger skal være et objekt")
+
     for field, (key, allowed_types) in SINGLE_FIELDS.items():
-        entity_id = _validate_entity_id(values.get(field, ""), allowed_types)
+        if field not in values:
+            continue
+        entity_id = _validate_entity_id(values.get(field), allowed_types)
         settings_store.set_setting(key, entity_id, db_path=db_path)
-        saved[field] = entity_id
 
     for field, (key, allowed_types) in LIST_FIELDS.items():
-        raw_items = values.get(field, []) or []
+        if field not in values:
+            continue
+        raw_items = values.get(field) or []
         if not isinstance(raw_items, list):
             raise ValueError(f"{field} skal være en liste")
         clean_items = []
@@ -76,5 +81,5 @@ def save_entity_settings(values, db_path=None):
             if entity_id and entity_id not in clean_items:
                 clean_items.append(entity_id)
         settings_store.set_setting(key, json.dumps(clean_items), db_path=db_path)
-        saved[field] = clean_items
-    return saved
+
+    return load_entity_settings(db_path=db_path)
