@@ -1,9 +1,17 @@
 @media (orientation: landscape) and (min-width: 860px) {
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid {
+    align-items: stretch !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .calendar-card,
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .meal-card {
+    height: 100% !important;
+    align-self: stretch !important;
+  }
+
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .calendar-card {
-    height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
-    align-self: stretch !important;
     overflow: hidden !important;
   }
 
