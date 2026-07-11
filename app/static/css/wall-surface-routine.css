@@ -1,5 +1,6 @@
 @media (orientation: landscape) and (min-width: 860px) {
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card {
+    position: relative !important;
     height: clamp(310px, 38vh, 340px) !important;
     min-height: 310px !important;
     padding: 16px !important;
@@ -22,6 +23,8 @@
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card > .card-heading {
     grid-column: 2 !important;
     grid-row: 1 !important;
+    min-width: 0 !important;
+    padding-right: 148px !important;
     align-self: center !important;
   }
 
@@ -37,9 +40,9 @@
     min-height: 0 !important;
     margin-top: 8px !important;
     display: grid !important;
-    grid-template-columns: 148px minmax(0, 1fr) !important;
+    grid-template-columns: 128px minmax(0, 1fr) !important;
     grid-template-rows: auto minmax(0, 1fr) !important;
-    gap: 9px 16px !important;
+    gap: 9px 14px !important;
     overflow: hidden !important;
   }
 
@@ -83,45 +86,64 @@
   }
 
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-pictogram {
-    width: 72px !important;
-    height: 72px !important;
-    max-width: 72px !important;
-    max-height: 72px !important;
+    width: 68px !important;
+    height: 68px !important;
+    max-width: 68px !important;
+    max-height: 68px !important;
   }
 
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-copy {
     grid-column: 2 !important;
     grid-row: 1 / span 2 !important;
+    position: static !important;
     width: 100% !important;
     min-width: 0 !important;
     min-height: 0 !important;
     height: 100% !important;
     display: grid !important;
-    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto !important;
-    gap: 2px !important;
+    grid-template-rows: minmax(0, 1fr) auto auto auto !important;
+    gap: 3px !important;
     overflow: hidden !important;
   }
 
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-label,
-  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-progress,
-  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-time,
-  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-message {
-    min-width: 0 !important;
-    font-size: 14px !important;
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-progress {
+    position: absolute !important;
+    right: 16px !important;
+    z-index: 2 !important;
+    width: 138px !important;
+    max-width: 138px !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    color: var(--muted) !important;
+    font-size: 12px !important;
+    font-weight: 760 !important;
     line-height: 1.15 !important;
+    text-align: right !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-label {
+    top: 17px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-progress {
+    top: 36px !important;
   }
 
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-title {
+    grid-row: 1 !important;
     align-self: center !important;
     width: 100% !important;
     max-width: 100% !important;
     max-height: 2.12em !important;
-    margin: 5px 0 !important;
+    margin: 2px 0 5px !important;
     display: -webkit-box !important;
     -webkit-box-orient: vertical !important;
     -webkit-line-clamp: 2 !important;
     overflow: hidden !important;
-    font-size: clamp(25px, 2.45vw, 34px) !important;
+    font-size: clamp(28px, 2.8vw, 38px) !important;
     line-height: 1.06 !important;
     letter-spacing: -0.025em !important;
     overflow-wrap: normal !important;
@@ -131,10 +153,22 @@
 
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-time,
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-message {
+    min-width: 0 !important;
     margin: 0 !important;
+    font-size: 13px !important;
+    line-height: 1.15 !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-time {
+    grid-row: 2 !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-message {
+    grid-row: 3 !important;
   }
 
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card .routine-actions {
+    grid-row: 4 !important;
     align-self: end !important;
     width: 100% !important;
     margin-top: 7px !important;
