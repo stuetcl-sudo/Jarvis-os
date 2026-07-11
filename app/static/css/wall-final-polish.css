@@ -1,3 +1,5 @@
+@import url("/static/css/wall-surface-routine.css");
+
 body[data-wall-dashboard="true"] .family-footer {
   display: none !important;
 }
