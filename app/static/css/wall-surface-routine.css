@@ -1,14 +1,24 @@
 @media (orientation: landscape) and (min-width: 860px) {
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .routine-card {
     position: relative !important;
-    height: clamp(310px, 38vh, 340px) !important;
-    min-height: 310px !important;
+    height: clamp(340px, 38vh, 365px) !important;
+    min-height: 340px !important;
+    max-height: 365px !important;
+    align-self: stretch !important;
     padding: 16px !important;
     display: grid !important;
     grid-template-columns: 48px minmax(0, 1fr) !important;
     grid-template-rows: auto minmax(0, 1fr) !important;
     column-gap: 12px !important;
     row-gap: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .weather-card {
+    height: clamp(340px, 38vh, 365px) !important;
+    min-height: 340px !important;
+    max-height: 365px !important;
+    align-self: stretch !important;
     overflow: hidden !important;
   }
 
