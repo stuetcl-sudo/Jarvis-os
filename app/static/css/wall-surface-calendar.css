@@ -1,8 +1,9 @@
 @media (orientation: landscape) and (min-width: 860px) {
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid .calendar-card {
-    height: clamp(350px, 43vh, 400px) !important;
-    min-height: 350px !important;
-    max-height: 400px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    align-self: stretch !important;
     overflow: hidden !important;
   }
 
