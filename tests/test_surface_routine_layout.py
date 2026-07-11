@@ -11,13 +11,18 @@ def test_surface_routine_layout_is_fixed_and_text_safe():
 
     assert '@importurl("/static/css/wall-surface-routine.css")' in polish.replace(" ", "").replace("\n", "")
     assert 'data-wall-screen-profile="surface"].family-grid.routine-card{' in compact
+    assert "position:relative!important" in compact
     assert "height:clamp(310px,38vh,340px)!important" in compact
-    assert "grid-template-columns:148pxminmax(0,1fr)!important" in compact
+    assert "grid-template-columns:128pxminmax(0,1fr)!important" in compact
     assert ".routine-panel{display:contents!important" in compact
     assert ".routine-copy{" in compact
-    assert "grid-template-rows:autoautominmax(0,1fr)autoautoauto!important" in compact
+    assert "grid-template-rows:minmax(0,1fr)autoautoauto!important" in compact
+    assert ".routine-label,.routine-progress{position:absolute!important" in compact
+    assert "right:16px!important" in compact
+    assert ".routine-label{top:17px!important" in compact
+    assert ".routine-progress{top:36px!important" in compact
     assert "-webkit-line-clamp:2!important" in compact
-    assert "font-size:clamp(25px,2.45vw,34px)!important" in compact
+    assert "font-size:clamp(28px,2.8vw,38px)!important" in compact
     assert "grid-template-columns:minmax(92px,0.8fr)minmax(132px,1.2fr)!important" in compact
     assert "grid-template-columns:repeat(7,minmax(0,auto))!important" in compact
 
