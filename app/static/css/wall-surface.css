@@ -161,3 +161,150 @@
     margin-top: 0 !important;
   }
 }
+
+/* Profile-specific rules remain active even when Windows display scaling or
+   browser chrome changes the reported viewport height. */
+@media (orientation: landscape) and (min-width: 860px) {
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: auto auto !important;
+    align-items: center !important;
+    gap: 6px 10px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-safety-strip {
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    gap: 5px !important;
+    padding: 5px !important;
+    border-radius: 22px !important;
+    overflow: hidden !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-safety-item {
+    min-width: 0 !important;
+    min-height: 30px !important;
+    padding: 4px 8px !important;
+    gap: 4px !important;
+    flex: 0 1 auto !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-safety-icon {
+    font-size: 14px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-display-actions {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    justify-self: end !important;
+    min-height: 34px !important;
+    gap: 6px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-display-actions a,
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-display-actions button,
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .wall-top-bars .wall-home-status {
+    min-height: 34px !important;
+    padding: 5px 9px !important;
+    font-size: 12px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .routine-card {
+    min-height: 300px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .routine-card-content {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .routine-panel {
+    display: grid !important;
+    grid-template-columns: minmax(140px, 0.72fr) minmax(0, 1.28fr) !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+    min-height: 190px !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .routine-pictogram-frame {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 108px !important;
+    max-height: 120px !important;
+    align-self: start !important;
+    justify-self: stretch !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .routine-copy {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 190px !important;
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    overflow: visible !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .routine-title {
+    max-width: 100% !important;
+    max-height: 2.15em !important;
+    margin: 4px 0 0 !important;
+    overflow: hidden !important;
+    font-size: clamp(26px, 3vw, 40px) !important;
+    line-height: 1.05 !important;
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .routine-time {
+    margin: 2px 0 0 !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .routine-actions {
+    width: 100% !important;
+    margin-top: auto !important;
+    display: grid !important;
+    grid-template-columns: minmax(92px, 0.72fr) minmax(128px, 1.28fr) !important;
+    gap: 9px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .routine-actions button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 38px !important;
+    padding: 7px 10px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] #weatherCardIcon {
+    font-size: 0 !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] #weatherCardIcon::before {
+    content: "☁";
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] #weatherSymbol[aria-label="Tåge"] {
+    font-size: 0 !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] #weatherSymbol[aria-label="Tåge"]::before {
+    content: "☁";
+    font-size: 36px;
+    line-height: 1;
+  }
+}
