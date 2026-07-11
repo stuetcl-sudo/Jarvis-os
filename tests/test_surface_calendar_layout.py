@@ -16,6 +16,8 @@ def test_surface_calendar_is_fixed_height_and_uses_two_columns():
     assert ".calendar-card-content{" in compact
     assert "overflow:hidden!important" in compact
     assert ".calendar-events:not([hidden]){" in compact
+    assert "align-content:stretch!important" in compact
+    assert "grid-auto-rows:minmax(min-content,1fr)!important" in compact
     assert "overflow-y:auto!important" in compact
     assert "overflow-x:hidden!important" in compact
     assert "scrollbar-gutter:stable!important" in compact
@@ -23,6 +25,12 @@ def test_surface_calendar_is_fixed_height_and_uses_two_columns():
     for days in (3, 5, 7):
         assert f'data-calendar-days="{days}"].calendar-events' in compact
     assert "grid-template-columns:repeat(2,minmax(0,1fr))!important" in compact
+    assert 'data-calendar-days="3"].calendar-day-group:nth-child(3){' in compact
+    assert "grid-column:1/-1!important" in compact
+    assert ".calendar-day-group{" in compact
+    assert "flex-direction:column!important" in compact
+    assert ".calendar-day-events{" in compact
+    assert "overflow-y:auto!important" in compact
 
 
 if __name__ == "__main__":
