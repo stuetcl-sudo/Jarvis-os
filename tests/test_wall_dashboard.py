@@ -204,6 +204,19 @@ def test_surface_profile_keeps_status_on_one_row_and_balances_task_lists():
     assert 'data-wall-screen-profile="surface"].family-task-list{height:100%!important' in compact
 
 
+def test_surface_task_inputs_have_readable_text_and_placeholder():
+    polish = (ROOT / "app/static/css/wall-final-polish.css").read_text(encoding="utf-8")
+    compact = polish.replace(" ", "").replace("\n", "")
+
+    assert 'data-wall-screen-profile="surface"].family-task-addinput{' in compact
+    assert "background:#f8fafc!important" in compact
+    assert "color:#0f172a!important" in compact
+    assert "caret-color:#0f172a!important" in compact
+    assert 'data-wall-screen-profile="surface"].family-task-addinput::placeholder{' in compact
+    assert "color:#64748b!important" in compact
+    assert "opacity:1!important" in compact
+
+
 def test_wall_safety_strip_is_bottom_scoped_and_static():
     template = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
     wall_styles = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
@@ -241,6 +254,7 @@ if __name__ == "__main__":
     test_calendar_day_selection_does_not_resize_routine_card_on_wall()
     test_final_wall_polish_fills_last_row_and_repairs_mobile_top_bars()
     test_surface_profile_keeps_status_on_one_row_and_balances_task_lists()
+    test_surface_task_inputs_have_readable_text_and_placeholder()
     test_wall_safety_strip_is_bottom_scoped_and_static()
     test_render_wall_page_rejects_invalid_roles()
     print("Wall dashboard tests OK")
