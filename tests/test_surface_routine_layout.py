@@ -7,9 +7,13 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_surface_routine_layout_is_fixed_and_text_safe():
     polish = (ROOT / "app/static/css/wall-final-polish.css").read_text(encoding="utf-8")
     routine = (ROOT / "app/static/css/wall-surface-routine.css").read_text(encoding="utf-8")
+    fullscreen = (ROOT / "app/static/js/wall-fullscreen.js").read_text(encoding="utf-8")
     compact = routine.replace(" ", "").replace("\n", "")
 
     assert '@importurl("/static/css/wall-surface-routine.css")' in polish.replace(" ", "").replace("\n", "")
+    assert '"wall-surface": "surface"' in fullscreen
+    assert "document.body.dataset.wallScreenProfile = profile" in fullscreen
+    assert "applyConfiguredProfile();" in fullscreen
     assert 'data-wall-screen-profile="surface"].family-grid.routine-card{' in compact
     assert "position:relative!important" in compact
     assert "height:clamp(310px,38vh,340px)!important" in compact
