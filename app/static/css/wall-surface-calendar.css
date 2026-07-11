@@ -50,7 +50,8 @@
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-events:not([hidden]) {
     min-height: 0 !important;
     flex: 1 1 auto !important;
-    align-content: start !important;
+    align-content: stretch !important;
+    grid-auto-rows: minmax(min-content, 1fr) !important;
     gap: 8px !important;
     padding: 0 6px 6px 0 !important;
     overflow-x: hidden !important;
@@ -70,10 +71,17 @@
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"][data-calendar-days="3"] .calendar-day-group:nth-child(3) {
+    grid-column: 1 / -1 !important;
+  }
+
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-day-group {
     min-height: 0 !important;
     padding: 10px !important;
     border-radius: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
     scroll-snap-align: none !important;
   }
 
@@ -91,8 +99,11 @@
   }
 
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-day-events {
+    min-height: 0 !important;
     margin-top: 7px !important;
     gap: 6px !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
   }
 
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-day-events .calendar-event {
@@ -121,15 +132,18 @@
 
   body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-day-empty {
     min-height: 68px !important;
+    height: 100% !important;
     padding: 10px !important;
     font-size: 12px !important;
   }
 
-  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-events::-webkit-scrollbar {
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-events::-webkit-scrollbar,
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-day-events::-webkit-scrollbar {
     width: 8px;
   }
 
-  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-events::-webkit-scrollbar-thumb {
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-events::-webkit-scrollbar-thumb,
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-day-events::-webkit-scrollbar-thumb {
     border-radius: 999px;
     background: rgba(148, 163, 184, 0.42);
   }
