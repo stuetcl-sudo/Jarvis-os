@@ -1,4 +1,23 @@
 (() => {
+  if (document.body.dataset.wallDashboard !== "true") return;
+
+  const profileMap = {
+    "wall-large": "wide",
+    "wall-surface": "surface",
+    "wall-ipad": "ipad",
+    "wall-tablet": "tablet",
+    "wall-square": "square",
+    mobile: "mobile",
+  };
+
+  function applyConfiguredProfile() {
+    const preferred = document.body.dataset.wallPreferredProfile || "";
+    const profile = profileMap[preferred] || "";
+    if (profile) document.body.dataset.wallScreenProfile = profile;
+  }
+
+  applyConfiguredProfile();
+
   const button = document.getElementById("wallFullscreen");
   if (!button) return;
 
