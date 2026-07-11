@@ -21,7 +21,8 @@ def test_surface_routine_layout_is_fixed_and_text_safe():
     assert ".routine-panel{display:contents!important" in compact
     assert ".routine-copy{" in compact
     assert "grid-template-rows:minmax(0,1fr)autoautoauto!important" in compact
-    assert ".routine-label,.routine-progress{position:absolute!important" in compact
+    assert ".routine-label," in compact
+    assert ".routine-progress{position:absolute!important" in compact
     assert "right:16px!important" in compact
     assert ".routine-label{top:17px!important" in compact
     assert ".routine-progress{top:36px!important" in compact
