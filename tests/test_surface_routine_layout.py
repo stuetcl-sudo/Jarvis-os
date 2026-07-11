@@ -15,8 +15,12 @@ def test_surface_routine_layout_is_fixed_and_text_safe():
     assert "document.body.dataset.wallScreenProfile = profile" in fullscreen
     assert "applyConfiguredProfile();" in fullscreen
     assert 'data-wall-screen-profile="surface"].family-grid.routine-card{' in compact
+    assert 'data-wall-screen-profile="surface"].family-grid.weather-card{' in compact
     assert "position:relative!important" in compact
-    assert "height:clamp(310px,38vh,340px)!important" in compact
+    assert compact.count("height:clamp(340px,38vh,365px)!important") >= 2
+    assert compact.count("min-height:340px!important") >= 2
+    assert compact.count("max-height:365px!important") >= 2
+    assert compact.count("align-self:stretch!important") >= 2
     assert "grid-template-columns:128pxminmax(0,1fr)!important" in compact
     assert ".routine-panel{display:contents!important" in compact
     assert ".routine-copy{" in compact
