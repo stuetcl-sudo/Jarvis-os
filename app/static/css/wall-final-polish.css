@@ -1,4 +1,5 @@
 @import url("/static/css/wall-surface-routine.css");
+@import url("/static/css/wall-surface-calendar.css");
 
 body[data-wall-dashboard="true"] .family-footer {
   display: none !important;
