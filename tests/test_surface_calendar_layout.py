@@ -10,13 +10,15 @@ def test_surface_calendar_matches_meal_row_and_uses_two_columns():
     compact = calendar.replace(" ", "").replace("\n", "")
 
     assert '@importurl("/static/css/wall-surface-calendar.css")' in polish.replace(" ", "").replace("\n", "")
+    assert 'data-wall-screen-profile="surface"].family-grid{align-items:stretch!important' in compact
+    assert 'data-wall-screen-profile="surface"].family-grid.calendar-card,' in compact
+    assert 'data-wall-screen-profile="surface"].family-grid.meal-card{' in compact
+    assert "height:100%!important" in compact
+    assert "align-self:stretch!important" in compact
     assert 'data-wall-screen-profile="surface"].family-grid.calendar-card{' in compact
-    assert "height:auto!important" in compact
     assert "min-height:0!important" in compact
     assert "max-height:none!important" in compact
-    assert "align-self:stretch!important" in compact
     assert ".calendar-card-content{" in compact
-    assert "height:100%!important" in compact
     assert "overflow:hidden!important" in compact
     assert ".calendar-events:not([hidden]){" in compact
     assert "align-content:stretch!important" in compact
