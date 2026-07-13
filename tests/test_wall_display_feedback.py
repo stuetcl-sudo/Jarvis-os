@@ -12,7 +12,7 @@ def test_wall_display_uses_more_compact_type_and_cards():
     assert 'body[data-wall-dashboard="true"] .family-header h1' in stylesheet
     assert 'font-size: clamp(42px, 5.4vw, 74px)' in stylesheet
     assert 'body[data-wall-dashboard="true"] .family-card' in stylesheet
-    assert 'min-height: 235px' in stylesheet
+    assert 'min-height: 320px' in stylesheet
 
 
 def test_wall_display_shopping_list_is_limited_and_two_column():
