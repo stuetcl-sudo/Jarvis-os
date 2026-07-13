@@ -159,16 +159,22 @@ def test_family_javascript_keeps_existing_read_only_get_requests():
     assert "localStorage" not in javascript
     assert "sessionStorage" not in javascript
     assert "Authorization" not in javascript
-    fetch_calls = re.findall(
-        r'fetch\(\s*["\']([^"\']+)["\']\s*(?:,\s*\{([^{}]*)\})?\s*\)',
+
+    assert "async function refreshSource(url, onSuccess, onFailure)" in javascript
+    helper_match = re.search(
+        r'fetch\(\s*url\s*,\s*\{([^{}]*)\}\s*\)',
         javascript,
     )
-    assert [endpoint for endpoint, _ in fetch_calls] == [
+    assert helper_match
+    options = helper_match.group(1)
+    assert re.search(r'\bcredentials\s*:\s*["\']same-origin["\']', options)
+    assert not re.search(r'\bmethod\s*:', options, re.IGNORECASE)
+
+    for endpoint in [
         "/api/mission", "/api/family/weather", "/api/family/calendar", "/api/health",
-    ]
-    for _, options in fetch_calls:
-        assert re.search(r'\bcredentials\s*:\s*["\']same-origin["\']', options)
-        assert not re.search(r'\bmethod\s*:', options, re.IGNORECASE)
+    ]:
+        assert f'refreshSource("{endpoint}",' in javascript
+    assert javascript.count('credentials: "same-origin"') == 1
 
 
 def test_validation_script_checks_protected_live_v010_deployment():
