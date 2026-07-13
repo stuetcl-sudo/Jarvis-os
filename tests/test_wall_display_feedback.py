@@ -33,8 +33,10 @@ def test_wall_display_uv_is_guidance_and_weather_refreshes_faster():
 
     assert "UV_REFRESH_INTERVAL_MS = 120000" in source
     assert "uv_max_index" in source
-    assert "UV i dag" in source
-    assert "Solcreme ikke nødvendig" in source
+    assert 'label: "UV nu"' in source
+    assert 'label: "UV max"' in source
+    assert 'label: "Lav UV"' in source
+    assert "Tag solcreme på" in source
     assert "isWallDisplay() && value < 0.5" not in source
     assert "DEFAULT_UV_MAX_ENTITY" in weather
     assert 'env_positive_int("WEATHER_CACHE_SECONDS", 120)' in config
