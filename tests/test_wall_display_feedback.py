@@ -15,15 +15,15 @@ def test_wall_display_uses_more_compact_type_and_cards():
     assert 'min-height: 320px' in stylesheet
 
 
-def test_wall_display_shopping_list_is_limited_and_two_column():
+def test_wall_display_task_lists_are_limited_and_surface_balanced():
     source = (ROOT / "app/static/js/family-tasks.js").read_text(encoding="utf-8")
-    stylesheet = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
+    stylesheet = (ROOT / "app/static/css/wall-surface.css").read_text(encoding="utf-8")
 
     assert "WALL_SHOPPING_PREVIEW_LIMIT = 5" in source
     assert "items.slice(0, WALL_SHOPPING_PREVIEW_LIMIT)" in source
     assert "family-task-list-shopping-list" in source
     assert "family-task-more" in source
-    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in stylesheet
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr))" in stylesheet
 
 
 def test_wall_display_uv_is_guidance_and_weather_refreshes_faster():
@@ -73,7 +73,7 @@ def test_family_sources_fail_independently():
 
 def test():
     test_wall_display_uses_more_compact_type_and_cards()
-    test_wall_display_shopping_list_is_limited_and_two_column()
+    test_wall_display_task_lists_are_limited_and_surface_balanced()
     test_wall_display_uv_is_guidance_and_weather_refreshes_faster()
     test_wall_screen_profiles_are_loaded_and_adaptive()
     test_family_sources_fail_independently()
