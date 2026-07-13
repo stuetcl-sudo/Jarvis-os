@@ -59,11 +59,24 @@ def test_wall_screen_profiles_are_loaded_and_adaptive():
     assert "word-break: normal" in stylesheet
 
 
+def test_family_sources_fail_independently():
+    source = (ROOT / "app/static/js/family.js").read_text(encoding="utf-8")
+
+    assert "async function refreshSource(url, onSuccess, onFailure)" in source
+    assert "Promise.allSettled([" in source
+    assert "Promise.all([" not in source
+    assert 'refreshSource("/api/mission", renderMission, renderUnavailable)' in source
+    assert 'refreshSource("/api/family/weather", renderWeather' in source
+    assert 'refreshSource("/api/family/calendar", renderCalendar' in source
+    assert 'refreshSource("/api/health", renderHealth' in source
+
+
 def test():
     test_wall_display_uses_more_compact_type_and_cards()
     test_wall_display_shopping_list_is_limited_and_two_column()
     test_wall_display_uv_is_guidance_and_weather_refreshes_faster()
     test_wall_screen_profiles_are_loaded_and_adaptive()
+    test_family_sources_fail_independently()
     print("Wall display feedback tests OK")
 
 
