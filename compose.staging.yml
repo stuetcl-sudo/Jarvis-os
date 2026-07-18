@@ -1,0 +1,32 @@
+name: jarvis-staging
+
+services:
+  jarvis-os:
+    build: .
+    image: jarvis-os:staging
+    container_name: jarvis-os-staging
+    command: ["uvicorn", "app.main_auth:app", "--host", "0.0.0.0", "--port", "8088"]
+    restart: "no"
+    ports:
+      - "127.0.0.1:8098:8088"
+    env_file:
+      - .env.staging
+    volumes:
+      - jarvis_staging_data:/data
+    networks:
+      - jarvis_staging_network
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  jarvis_staging_data:
+    name: jarvis_staging_data
+
+networks:
+  jarvis_staging_network:
+    name: jarvis_staging_network
