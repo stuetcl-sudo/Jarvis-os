@@ -109,7 +109,7 @@ def navigation_for(role):
         return '<nav class="family-navigation" aria-label="Bruger"><a class="family-nav-link subtle" href="/login">Log ind</a></nav>'
     links = ['<a class="family-nav-link subtle" href="/login">Skift bruger</a>']
     if role == "owner":
-        links.append('<a class="family-nav-link primary" href="/admin">Mission Control</a>')
+        links.append('<a class="family-nav-link primary" href="/admin">Administration</a>')
     return '<nav class="family-navigation" aria-label="Bruger">' + "".join(links) + "</nav>"
 
 

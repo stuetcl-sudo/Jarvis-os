@@ -81,7 +81,8 @@ def test_owner_family_view_is_personalized_and_may_be_technical():
         assert "Familiens overblik" in text
         assert display_name not in text
         assert '&lt;Ejer &amp; &quot;Hjem&quot;&gt;' in text
-        assert 'href="/admin">Mission Control</a>' in text
+        assert 'href="/admin">Administration</a>' in text
+        assert "Mission Control" not in text
         assert 'href="/login">Skift bruger</a>' in text
         assert 'data-family-section="technical-status"' in text
         assert "<dt>CPU</dt>" in text and "<dt>Hukommelse</dt>" in text and "<dt>Disk</dt>" in text

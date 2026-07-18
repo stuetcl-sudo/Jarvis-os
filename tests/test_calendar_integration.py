@@ -409,14 +409,9 @@ def test_frontend_calendar_is_safe_and_role_aware():
     template = (ROOT / "app/static/index.html").read_text()
 
     assert 'data-family-card="calendar"' in template
-    fetch_match = re.search(
-        r'fetch\(\s*["\'](/api/family/calendar)["\']\s*,\s*\{([^{}]*)\}\s*\)',
-        javascript,
-    )
-    assert fetch_match
-    options = fetch_match.group(2)
-    assert re.search(r'\bcredentials\s*:\s*["\']same-origin["\']', options)
-    assert not re.search(r'\bmethod\s*:', options, re.IGNORECASE)
+    assert 'refreshSource("/api/family/calendar", renderCalendar' in javascript
+    assert 'fetch(url, { credentials: "same-origin" })' in javascript
+    assert "method:" not in javascript
     assert "textContent" in javascript
     assert "innerHTML" not in javascript
     assert "localStorage" not in javascript

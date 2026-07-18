@@ -481,23 +481,22 @@ async function requireOkJson(response) {
   return response.json();
 }
 
-async function refresh() {
+async function refreshSource(url, onSuccess, onFailure) {
   try {
-    const [mission, weather, calendar, health] = await Promise.all([
-      fetch("/api/mission", { credentials: "same-origin" }).then(requireOkJson),
-      fetch("/api/family/weather", { credentials: "same-origin" }).then(requireOkJson),
-      fetch("/api/family/calendar", { credentials: "same-origin" }).then(requireOkJson),
-      fetch("/api/health", { credentials: "same-origin" }).then(requireOkJson),
-    ]);
-    renderMission(mission);
-    renderWeather(weather);
-    renderCalendar(calendar);
-    renderHealth(health);
+    const data = await fetch(url, { credentials: "same-origin" }).then(requireOkJson);
+    onSuccess(data);
   } catch (error) {
-    renderUnavailable();
-    renderWeatherState("Kunne ikke hente vejr");
-    renderCalendarState("Kunne ikke hente kalender");
+    onFailure(error);
   }
+}
+
+async function refresh() {
+  await Promise.allSettled([
+    refreshSource("/api/mission", renderMission, renderUnavailable),
+    refreshSource("/api/family/weather", renderWeather, () => renderWeatherState("Vejret kan ikke hentes lige nu")),
+    refreshSource("/api/family/calendar", renderCalendar, () => renderCalendarState("Kalenderen kan ikke hentes lige nu")),
+    refreshSource("/api/health", renderHealth, () => {}),
+  ]);
 }
 
 updateClock();

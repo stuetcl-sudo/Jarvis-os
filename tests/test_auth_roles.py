@@ -348,9 +348,10 @@ def test_actor_csrf_redirect_and_frontend_contract():
         "/api/family/calendar",
         "/api/health",
     ]:
-        expected = f'fetch("{endpoint}", {{ credentials: "same-origin" }})'
+        expected = f'refreshSource("{endpoint}",'
         assert expected in family_js
-    assert family_js.count('credentials: "same-origin"') == 4
+    assert 'fetch(url, { credentials: "same-origin" })' in family_js
+    assert family_js.count('credentials: "same-origin"') == 1
 
     assert "csrf_token" in admin_js + family_js
     assert "X-CSRF-Token" in admin_js + family_js

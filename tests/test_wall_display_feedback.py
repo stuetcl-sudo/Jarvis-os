@@ -12,18 +12,18 @@ def test_wall_display_uses_more_compact_type_and_cards():
     assert 'body[data-wall-dashboard="true"] .family-header h1' in stylesheet
     assert 'font-size: clamp(42px, 5.4vw, 74px)' in stylesheet
     assert 'body[data-wall-dashboard="true"] .family-card' in stylesheet
-    assert 'min-height: 235px' in stylesheet
+    assert 'min-height: 320px' in stylesheet
 
 
-def test_wall_display_shopping_list_is_limited_and_two_column():
+def test_wall_display_task_lists_are_limited_and_surface_balanced():
     source = (ROOT / "app/static/js/family-tasks.js").read_text(encoding="utf-8")
-    stylesheet = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
+    stylesheet = (ROOT / "app/static/css/wall-surface.css").read_text(encoding="utf-8")
 
     assert "WALL_SHOPPING_PREVIEW_LIMIT = 5" in source
     assert "items.slice(0, WALL_SHOPPING_PREVIEW_LIMIT)" in source
     assert "family-task-list-shopping-list" in source
     assert "family-task-more" in source
-    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in stylesheet
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr))" in stylesheet
 
 
 def test_wall_display_uv_is_guidance_and_weather_refreshes_faster():
@@ -33,8 +33,10 @@ def test_wall_display_uv_is_guidance_and_weather_refreshes_faster():
 
     assert "UV_REFRESH_INTERVAL_MS = 120000" in source
     assert "uv_max_index" in source
-    assert "UV i dag" in source
-    assert "Solcreme ikke nødvendig" in source
+    assert 'label: "UV nu"' in source
+    assert 'label: "UV max"' in source
+    assert 'label: "Lav UV"' in source
+    assert "Tag solcreme på" in source
     assert "isWallDisplay() && value < 0.5" not in source
     assert "DEFAULT_UV_MAX_ENTITY" in weather
     assert 'env_positive_int("WEATHER_CACHE_SECONDS", 120)' in config
@@ -59,11 +61,24 @@ def test_wall_screen_profiles_are_loaded_and_adaptive():
     assert "word-break: normal" in stylesheet
 
 
+def test_family_sources_fail_independently():
+    source = (ROOT / "app/static/js/family.js").read_text(encoding="utf-8")
+
+    assert "async function refreshSource(url, onSuccess, onFailure)" in source
+    assert "Promise.allSettled([" in source
+    assert "Promise.all([" not in source
+    assert 'refreshSource("/api/mission", renderMission, renderUnavailable)' in source
+    assert 'refreshSource("/api/family/weather", renderWeather' in source
+    assert 'refreshSource("/api/family/calendar", renderCalendar' in source
+    assert 'refreshSource("/api/health", renderHealth' in source
+
+
 def test():
     test_wall_display_uses_more_compact_type_and_cards()
-    test_wall_display_shopping_list_is_limited_and_two_column()
+    test_wall_display_task_lists_are_limited_and_surface_balanced()
     test_wall_display_uv_is_guidance_and_weather_refreshes_faster()
     test_wall_screen_profiles_are_loaded_and_adaptive()
+    test_family_sources_fail_independently()
     print("Wall display feedback tests OK")
 
 

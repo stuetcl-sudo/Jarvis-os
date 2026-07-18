@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_NAMES = (
     "login.js",
@@ -88,10 +89,11 @@ def test_same_origin_credentials_are_explicit_for_each_frontend():
         "/api/family/calendar",
         "/api/health",
     ]
+    assert 'fetch(url, { credentials: "same-origin" })' in family
+    assert family.count('credentials: "same-origin"') == 1
     for endpoint in family_endpoints:
-        expected = f'fetch("{endpoint}", {{ credentials: "same-origin" }})'
+        expected = f'refreshSource("{endpoint}",'
         assert expected in family
-    assert family.count('credentials: "same-origin"') == len(family_endpoints)
 
     wall_read_endpoints = [
         "/api/family/weather",
