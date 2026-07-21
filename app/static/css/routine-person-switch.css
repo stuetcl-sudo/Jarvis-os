@@ -1,8 +1,19 @@
+.routine-card-content {
+  position: relative;
+}
+
 .routine-person-switch {
-  margin-top: 14px;
+  position: absolute;
+  top: 0;
+  left: 132px;
+  right: 0;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
   gap: 8px;
+  min-height: 44px;
 }
 
 .routine-person-switch[hidden] {
@@ -34,8 +45,9 @@
 }
 
 body[data-wall-dashboard="true"] .routine-person-switch {
-  margin-top: 8px;
+  left: 116px;
   gap: 6px;
+  min-height: 38px;
 }
 
 body[data-wall-dashboard="true"] .routine-person-switch button {
@@ -48,6 +60,15 @@ body[data-family-role="child"] .routine-person-switch button {
   min-height: 48px;
   padding-inline: 18px;
   font-size: 17px;
+}
+
+@media (max-width: 820px) {
+  .routine-person-switch,
+  body[data-wall-dashboard="true"] .routine-person-switch {
+    position: static;
+    margin-top: 10px;
+    min-height: 0;
+  }
 }
 
 @media (max-width: 640px) {
