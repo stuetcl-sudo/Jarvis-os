@@ -64,6 +64,7 @@
               <h3 class="routine-title" id="routineTitle">Henter næste trin…</h3>
               <p class="routine-time" id="routineTime"></p>
               <p class="routine-message" id="routineMessage" role="status"></p>
+              <p class="family-data-notice" id="routineStaleNotice" role="status" hidden></p>
               <div class="routine-actions">
                 <button type="button" id="routineBack">Tilbage</button>
                 <button type="button" class="routine-complete" id="routineComplete">Færdig</button>
@@ -95,7 +96,7 @@
             <ul class="calendar-legend" id="calendarLegend" aria-label="Fælles kalendere"></ul>
             <ol class="calendar-events" id="calendarEvents" aria-label="Familiens kommende aftaler"></ol>
             <p class="calendar-empty" id="calendarEmpty" hidden>Ingen aftaler i den valgte periode</p>
-            <p class="calendar-notice" id="calendarNotice" hidden></p>
+            <p class="calendar-notice family-data-notice" id="calendarNotice" role="status" hidden></p>
           </div>
         </div>
       </article>
@@ -125,7 +126,7 @@
             </dl>
             <p class="weather-child-summary" id="weatherChildRain" hidden></p>
             <ol class="weather-forecast" id="weatherForecast" aria-label="Vejrudsigt for de næste dage"></ol>
-            <p class="weather-stale" id="weatherStale" hidden>Viser senest hentede vejrdata</p>
+            <p class="weather-stale family-data-notice" id="weatherStale" role="status" hidden>Viser senest hentede vejrdata</p>
           </div>
         </div>
       </article>
@@ -140,7 +141,7 @@
           <div class="meal-plan-data" id="mealPlanData" hidden>
             <div class="meal-plan-today"><span>I dag</span><strong id="mealPlanToday">Ikke planlagt</strong></div>
             <ol class="meal-plan-days" id="mealPlanDays" aria-label="Madplan for de næste dage"></ol>
-            <p class="meal-plan-notice" id="mealPlanNotice" hidden></p>
+            <p class="meal-plan-notice family-data-notice" id="mealPlanNotice" role="status" hidden></p>
           </div>
         </div>
       </article>
@@ -152,7 +153,7 @@
           <p class="disconnected" id="familyTasksState">Henter opgaver og lektier…</p>
           <div class="family-tasks-data" id="familyTasksData" hidden>
             <div class="family-task-lists" id="familyTaskLists"></div>
-            <p class="family-tasks-notice" id="familyTasksNotice" hidden></p>
+            <p class="family-tasks-notice family-data-notice" id="familyTasksNotice" role="status" hidden></p>
           </div>
         </div>
       </article>

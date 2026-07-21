@@ -82,7 +82,7 @@ def test_routine_card_keeps_last_loaded_state_on_refresh_failure():
     source = (ROOT / "app/static/js/routines.js").read_text(encoding="utf-8")
 
     assert "if (routineState) {" in source
-    assert 'setRoutineText("routineMessage", "Viser senest hentede rutine")' in source
+    assert 'setRoutineStale("Viser senest hentede rutine")' in source
     assert "else if (card)" in source
 
 

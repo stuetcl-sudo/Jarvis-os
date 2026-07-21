@@ -31,6 +31,13 @@ function setRoutineText(id, value) {
   if (element) element.textContent = value;
 }
 
+function setRoutineStale(message) {
+  const notice = routineElement("routineStaleNotice");
+  if (!notice) return;
+  notice.textContent = message;
+  notice.hidden = !message;
+}
+
 function isWallDashboard() {
   return document.body.dataset.wallDashboard === "true";
 }
@@ -82,6 +89,7 @@ function renderRoutine() {
   }
 
   card.hidden = false;
+  setRoutineStale("");
   document.querySelectorAll("[data-routine-select]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.routineSelect === activeRoutineId));
   });
@@ -135,7 +143,7 @@ function renderRoutine() {
 
 async function loadRoutineCsrfToken() {
   if (routineCsrfToken) return routineCsrfToken;
-  const response = await fetch("/api/auth/me");
+  const response = await fetch("/api/auth/me", { credentials: "same-origin" });
   if (!response.ok) throw new Error("Login kræves");
   const profile = await response.json();
   routineCsrfToken = profile.csrf_token || null;
@@ -150,7 +158,7 @@ async function loadRoutines() {
     return;
   }
   try {
-    const response = await fetch("/api/family/routines");
+    const response = await fetch("/api/family/routines", { credentials: "same-origin" });
     if (!response.ok) throw new Error("Rutinen kunne ikke hentes");
     routineState = await response.json();
     if (!activeRoutineId) activeRoutineId = routineState.recommended;
@@ -158,7 +166,7 @@ async function loadRoutines() {
   } catch (error) {
     if (routineState) {
       renderRoutine();
-      setRoutineText("routineMessage", "Viser senest hentede rutine");
+      setRoutineStale("Viser senest hentede rutine");
     } else if (card) {
       card.hidden = true;
     }
@@ -180,6 +188,7 @@ async function changeRoutine(action) {
     const endpoint = routineEndpoints[activeRoutineId][action];
     const options = {
       method: "POST",
+      credentials: "same-origin",
       headers: { "X-CSRF-Token": csrfToken, "Content-Type": "application/json" },
     };
     if (action !== "reset") options.body = JSON.stringify({ expected_index: routine.current_index });
