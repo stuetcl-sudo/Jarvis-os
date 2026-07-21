@@ -453,3 +453,77 @@ body[data-family-role="wall_display"] .family-footer { font-size: 15px; }
 .family-data-notice[hidden] {
   display: none !important;
 }
+
+/* v0.17.5 final dark surface consistency */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-raised: #152033;
+    --surface-muted: rgba(255, 255, 255, 0.045);
+  }
+
+  input,
+  textarea,
+  select {
+    background: #152033;
+    color: var(--text);
+    border-color: rgba(255, 255, 255, 0.13);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #929daf;
+    opacity: 1;
+  }
+
+  .calendar-event,
+  .calendar-day-group,
+  .meal-plan-today,
+  .meal-plan-day,
+  .family-task-list,
+  .family-task-item,
+  .family-task-add,
+  .routine-panel,
+  .routine-task,
+  .routine-task-preview,
+  .weather-current,
+  .weather-forecast,
+  .weather-forecast-item {
+    background: #111b2d;
+    color: var(--text);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .family-task-actions button,
+  .calendar-range-controls button,
+  .routine-actions button,
+  .routine-reset,
+  .wall-display-actions button,
+  .wall-display-actions a {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--text);
+    border-color: rgba(255, 255, 255, 0.13);
+  }
+
+  .calendar-range-controls button[aria-pressed="true"],
+  .routine-switch button[aria-pressed="true"],
+  .routine-editor-switch button[aria-pressed="true"] {
+    background: var(--accent);
+    color: #07111f;
+  }
+
+  .family-task-summary,
+  .calendar-event-title,
+  .meal-plan-today strong,
+  .meal-plan-day strong {
+    color: var(--text);
+  }
+
+  .family-task-due,
+  .family-task-description,
+  .calendar-event-when,
+  .calendar-event-status,
+  .meal-plan-when {
+    color: var(--muted);
+  }
+}

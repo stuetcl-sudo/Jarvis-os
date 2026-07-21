@@ -608,3 +608,77 @@ body[data-wall-dashboard="true"] .weather-forecast-rain {
     grid-column: auto;
   }
 }
+
+/* v0.17.5 final compact weather forecast */
+
+body[data-wall-dashboard="true"] .weather-card {
+  min-height: 320px;
+  overflow: hidden;
+}
+
+body[data-wall-dashboard="true"] .weather-card-content,
+body[data-wall-dashboard="true"] .weather-data {
+  min-height: 0;
+}
+
+body[data-wall-dashboard="true"] .weather-data {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+body[data-wall-dashboard="true"] .weather-current {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast {
+  flex: 0 0 auto;
+  min-height: 58px;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  background: var(--surface-muted);
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-item {
+  min-height: 44px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-item + .weather-forecast-item {
+  border-left: 1px solid var(--card-border);
+  border-radius: 0;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-day {
+  font-size: 13px;
+  line-height: 1;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-temperatures {
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-symbol {
+  font-size: 21px;
+}
+
+@media (max-width: 640px) {
+  body[data-wall-dashboard="true"] .weather-forecast {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-wall-dashboard="true"] .weather-forecast-item + .weather-forecast-item {
+    border-left: 0;
+    border-top: 1px solid var(--card-border);
+  }
+}
