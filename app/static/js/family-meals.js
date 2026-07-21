@@ -12,6 +12,23 @@
     if (data) data.hidden = true;
   }
 
+  function showMealPlanFailure() {
+    const state = document.getElementById("mealPlanState");
+    const data = document.getElementById("mealPlanData");
+    const notice = document.getElementById("mealPlanNotice");
+
+    if (data && !data.hidden) {
+      if (state) state.hidden = true;
+      if (notice) {
+        notice.textContent = "Viser senest hentede madplan";
+        notice.hidden = false;
+      }
+      return;
+    }
+
+    setState("Madplanen kan ikke hentes lige nu");
+  }
+
   function mealText(meals) {
     return Array.isArray(meals) && meals.length ? meals.join(" · ") : "Ikke planlagt";
   }
@@ -50,7 +67,7 @@
       return;
     }
     if (plan.status === "unavailable") {
-      setState("Madplanen kan ikke hentes lige nu");
+      showMealPlanFailure();
       return;
     }
 
@@ -81,7 +98,7 @@
       if (!response.ok) throw new Error("Madplanen kunne ikke hentes");
       renderMealPlan(await response.json());
     } catch (error) {
-      setState("Madplanen kan ikke hentes lige nu");
+      showMealPlanFailure();
     }
   }
 

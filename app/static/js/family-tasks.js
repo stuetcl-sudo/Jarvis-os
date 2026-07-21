@@ -23,6 +23,19 @@
     if (data) data.hidden = true;
   }
 
+  function showTaskRefreshFailure() {
+    const state = document.getElementById("familyTasksState");
+    const data = document.getElementById("familyTasksData");
+
+    if (data && !data.hidden) {
+      if (state) state.hidden = true;
+      setTaskNotice("Viser senest hentede familielister");
+      return;
+    }
+
+    setTaskState("Familiens lister kan ikke hentes lige nu");
+  }
+
   function setTaskNotice(message) {
     const notice = document.getElementById("familyTasksNotice");
     if (!notice) return;
@@ -293,7 +306,7 @@
       return;
     }
     if (tasks.status === "unavailable") {
-      setTaskState("Familiens lister kan ikke hentes lige nu");
+      showTaskRefreshFailure();
       return;
     }
 
@@ -322,7 +335,7 @@
       if (!response.ok) throw new Error("Familiens lister kunne ikke hentes");
       renderFamilyTasks(await response.json());
     } catch (error) {
-      setTaskState("Familiens lister kan ikke hentes lige nu");
+      showTaskRefreshFailure();
     }
   }
 

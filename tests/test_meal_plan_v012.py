@@ -108,6 +108,8 @@ def test_family_dashboard_loads_meal_plan_without_unsafe_dom_rendering():
     assert '/api/family/meal-plan' in MEAL_JS
     assert 'credentials: "same-origin"' in MEAL_JS
     assert "replaceChildren" in MEAL_JS
+    assert "function showMealPlanFailure()" in MEAL_JS
+    assert 'notice.textContent = "Viser senest hentede madplan"' in MEAL_JS
     for forbidden in ["innerHTML", "insertAdjacentHTML", "localStorage", "sessionStorage", "eval("]:
         assert forbidden not in MEAL_JS
     assert ".meal-plan-today" in MEAL_CSS

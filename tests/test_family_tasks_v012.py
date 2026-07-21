@@ -196,7 +196,9 @@ def test_permissions_allow_completion_for_family_but_editing_for_adults_only():
 def test_frontend_supports_shopping_add_edit_remove_and_safe_completion():
     assert 'data-family-card="tasks"' in INDEX
     assert '/static/js/family-tasks.js' in INDEX
-    assert 'placeholder = taskList.key === "shopping-list" ? "Tilføj en vare"' in TASKS_JS
+    assert 'input.placeholder = isShoppingList(taskList)' in TASKS_JS
+    assert '"Tilføj en vare"' in TASKS_JS
+    assert '"Tilføj et punkt"' in TASKS_JS
     assert 'method,' in TASKS_JS
     for method in ["POST", "PUT", "DELETE"]:
         assert f'"{method}"' in TASKS_JS
@@ -205,6 +207,8 @@ def test_frontend_supports_shopping_add_edit_remove_and_safe_completion():
     assert "window.prompt" in TASKS_JS
     assert "window.confirm" in TASKS_JS
     assert "replaceChildren" in TASKS_JS
+    assert "function showTaskRefreshFailure()" in TASKS_JS
+    assert 'setTaskNotice("Viser senest hentede familielister")' in TASKS_JS
     for forbidden in ["innerHTML", "insertAdjacentHTML", "localStorage", "sessionStorage", "eval("]:
         assert forbidden not in TASKS_JS
     assert ".family-task-add" in TASKS_CSS
@@ -213,10 +217,17 @@ def test_frontend_supports_shopping_add_edit_remove_and_safe_completion():
 
 
 def test_router_and_middleware_protect_controlled_family_writes():
-    assert "FAMILY_TASK_EDITOR_ROLES" in MAIN_AUTH
-    assert "family_task_complete" in MAIN_AUTH
-    assert "family_task_edit" in MAIN_AUTH
+    assert "family_task_write = (" in MAIN_AUTH
+    assert 'request.method in {"POST", "PUT", "DELETE"}' in MAIN_AUTH
+    assert 'path.startswith("/api/family/tasks/")' in MAIN_AUTH
+    assert 'family_feature_hidden(current_user, "tasks")' in MAIN_AUTH
     assert 'request.headers.get("X-CSRF-Token", "")' in MAIN_AUTH
+
+    assert "def _can_perform(current_user, action):" in TASKS_MODULE
+    assert "role_can_do(role, action)" in TASKS_MODULE
+    for action in ["task_complete", "task_add", "task_edit", "task_remove"]:
+        assert f'"{action}"' in TASKS_MODULE
+
     for route in [
         '@router.post("/api/family/tasks/{list_key}/complete")',
         '@router.post("/api/family/tasks/{list_key}/items")',
@@ -224,6 +235,7 @@ def test_router_and_middleware_protect_controlled_family_writes():
         '@router.delete("/api/family/tasks/{list_key}/items")',
     ]:
         assert route in TASKS_MODULE
+
     for service in ["todo/add_item", "todo/update_item", "todo/remove_item"]:
         assert f'"/api/services/{service}"' in TASKS_MODULE
 
