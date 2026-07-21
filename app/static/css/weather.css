@@ -269,3 +269,56 @@ body[data-family-role="wall_display"] .weather-stale {
     grid-template-columns: 1fr;
   }
 }
+
+/* v0.17.5 weather polish */
+
+.weather-current {
+  padding: 14px;
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent) 8%, transparent),
+      var(--surface-muted)
+    );
+}
+
+.weather-symbol {
+  box-shadow: inset 0 0 0 1px var(--card-border);
+}
+
+.weather-measurements {
+  gap: 8px;
+}
+
+.weather-measurements > div {
+  padding: 10px 12px;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.weather-forecast-item {
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.weather-uv {
+  border: 1px solid color-mix(in srgb, var(--warning) 25%, var(--card-border));
+}
+
+@media (max-width: 640px) {
+  .weather-current {
+    padding: 12px;
+  }
+
+  .weather-measurements {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .weather-forecast {
+    gap: 7px;
+  }
+}

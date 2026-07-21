@@ -195,3 +195,70 @@ body[data-family-role="wall_display"] .calendar-color-marker {
   .calendar-color-violet { background: #ac83e9; }
   .calendar-color-yellow { background: #e7c75c; }
 }
+
+/* v0.17.5 calendar polish */
+
+.calendar-card-content,
+.calendar-data {
+  min-width: 0;
+}
+
+.calendar-range-controls {
+  padding: 5px;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  background: var(--surface-muted);
+}
+
+.calendar-range-controls button {
+  border: 0;
+  background: transparent;
+}
+
+.calendar-range-controls button[aria-pressed="true"] {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.calendar-day-group {
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.calendar-day-heading {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.calendar-day-events {
+  padding: 8px;
+}
+
+.calendar-event {
+  border-radius: 14px;
+  background: var(--surface-raised);
+}
+
+.calendar-event + .calendar-event {
+  margin-top: 7px;
+}
+
+@media (max-width: 640px) {
+  .calendar-range-controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+
+  .calendar-range-controls > span {
+    grid-column: 1 / -1;
+  }
+
+  .calendar-range-controls button {
+    min-width: 0;
+    padding-inline: 7px;
+  }
+}

@@ -105,3 +105,47 @@ body[data-family-role="wall_display"] .meal-plan-when time {
     grid-template-columns: minmax(82px, auto) minmax(0, 1fr);
   }
 }
+
+/* v0.17.5 meal-plan polish */
+
+.meal-plan-today {
+  padding: 15px;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--card-border));
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent) 11%, transparent),
+      var(--surface-muted)
+    );
+}
+
+.meal-plan-today span {
+  color: var(--muted);
+  font-weight: 720;
+}
+
+.meal-plan-today strong {
+  line-height: 1.2;
+}
+
+.meal-plan-day {
+  border: 1px solid var(--card-border);
+  border-radius: 15px;
+  background: var(--surface-muted);
+}
+
+.meal-plan-when {
+  min-width: 90px;
+}
+
+@media (max-width: 640px) {
+  .meal-plan-day {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .meal-plan-when {
+    min-width: 0;
+  }
+}

@@ -230,3 +230,71 @@ body[data-family-role="wall_display"] .routine-actions button {
 @media (prefers-reduced-motion: reduce) {
   .routine-transition { animation: none; }
 }
+
+/* v0.17.5 routine polish */
+
+.routine-panel {
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  background: var(--surface-muted);
+}
+
+.routine-pictogram-frame {
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--card-border));
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--accent) 9%, transparent),
+      var(--surface-raised)
+    );
+}
+
+.routine-progress {
+  color: var(--accent);
+  font-weight: 780;
+}
+
+.routine-complete {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+.routine-complete:hover {
+  background: color-mix(in srgb, var(--accent) 88%, black);
+}
+
+.routine-switch {
+  padding: 4px;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.routine-switch button {
+  border-radius: 11px;
+}
+
+.routine-switch button[aria-pressed="true"] {
+  background: var(--surface-raised);
+  box-shadow: 0 4px 12px rgba(30, 50, 75, 0.1);
+}
+
+@media (max-width: 640px) {
+  .routine-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .routine-actions {
+    grid-template-columns: 1fr 1.35fr;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .routine-switch button[aria-pressed="true"],
+  .calendar-event,
+  .family-task-item,
+  .family-task-add {
+    box-shadow: none;
+  }
+}

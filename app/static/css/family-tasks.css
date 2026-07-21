@@ -276,3 +276,59 @@ body[data-family-role="wall_display"] .family-task-complete::before {
     grid-template-columns: 1fr;
   }
 }
+
+/* v0.17.5 family tasks polish */
+
+.family-task-list {
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  background: var(--surface-muted);
+}
+
+.family-task-list-heading {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.family-task-item {
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  background: var(--surface-raised);
+}
+
+.family-task-complete {
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent) 35%, var(--card-border));
+  background: var(--surface-muted);
+}
+
+.family-task-complete:not(:disabled):hover {
+  background: color-mix(in srgb, var(--good) 18%, var(--surface-muted));
+  border-color: var(--good);
+}
+
+.family-task-add {
+  padding: 7px;
+  border: 1px solid var(--card-border);
+  border-radius: 15px;
+  background: var(--surface-raised);
+}
+
+.family-task-add input {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .family-task-lists {
+    grid-template-columns: 1fr;
+  }
+
+  .family-task-item {
+    padding: 11px;
+  }
+}
