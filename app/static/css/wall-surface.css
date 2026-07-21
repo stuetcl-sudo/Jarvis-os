@@ -812,3 +812,65 @@ body[data-wall-dashboard="true"] .weather-forecast-rain {
   line-height: 1.1;
   align-self: end;
 }
+
+/* Move wall UV badge to the right of the current weather summary */
+
+body[data-wall-dashboard="true"] .weather-current {
+  grid-template-columns: 82px minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  column-gap: 18px;
+}
+
+body[data-wall-dashboard="true"] .weather-symbol {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+body[data-wall-dashboard="true"] .weather-temperature {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+body[data-wall-dashboard="true"] .weather-condition {
+  grid-column: 2;
+  grid-row: 2;
+  margin-top: 0 !important;
+}
+
+body[data-wall-dashboard="true"] .weather-uv {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  align-self: center;
+  justify-self: end;
+  margin-top: 0 !important;
+  max-width: 290px;
+}
+
+@media (max-width: 920px) {
+  body[data-wall-dashboard="true"] .weather-current {
+    grid-template-columns: 72px minmax(0, 1fr) !important;
+  }
+
+  body[data-wall-dashboard="true"] .weather-symbol {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  body[data-wall-dashboard="true"] .weather-temperature {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  body[data-wall-dashboard="true"] .weather-condition {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  body[data-wall-dashboard="true"] .weather-uv {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: start;
+    margin-top: 8px !important;
+    max-width: 100%;
+  }
+}
