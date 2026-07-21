@@ -441,3 +441,15 @@ body[data-family-role="wall_display"] .family-footer { font-size: 15px; }
     }
   }
 }
+
+/* v0.17.5 wall visual hotfix */
+
+/*
+ * Author styles using display:flex can override the browser's default
+ * [hidden] rule. Keep loading, stale and disconnected states genuinely hidden.
+ */
+[hidden],
+.disconnected[hidden],
+.family-data-notice[hidden] {
+  display: none !important;
+}

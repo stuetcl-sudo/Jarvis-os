@@ -446,3 +446,34 @@ body[data-wall-dashboard="true"] .wall-safety-text {
     flex: 1 1 140px;
   }
 }
+
+/* v0.17.5 compact wall status hotfix */
+
+body[data-wall-dashboard="true"] .wall-safety-strip {
+  width: fit-content;
+  max-width: calc(100% - 20px);
+  margin-left: 0;
+  margin-right: auto;
+  padding: 5px;
+  gap: 5px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--card) 90%, transparent);
+}
+
+body[data-wall-dashboard="true"] .wall-safety-item {
+  min-height: 34px;
+  padding: 5px 9px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+body[data-wall-dashboard="true"] .wall-safety-icon {
+  font-size: 15px;
+}
+
+@media (max-width: 920px) {
+  body[data-wall-dashboard="true"] .wall-safety-strip {
+    width: 100%;
+    max-width: 100%;
+  }
+}
