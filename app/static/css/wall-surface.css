@@ -793,3 +793,22 @@ body[data-wall-dashboard="true"] .weather-forecast-rain {
   line-height: 1;
   white-space: nowrap;
 }
+
+/* Keep wall rain chance fully visible */
+
+body[data-wall-dashboard="true"] .weather-forecast {
+  min-height: 68px;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-item {
+  min-height: 56px !important;
+  padding: 6px 9px 7px !important;
+  grid-template-rows: auto auto auto;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-rain {
+  margin-top: 1px;
+  font-size: 11px !important;
+  line-height: 1.1;
+  align-self: end;
+}
