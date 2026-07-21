@@ -874,3 +874,97 @@ body[data-wall-dashboard="true"] .weather-uv {
     max-width: 100%;
   }
 }
+
+/* Put wall UV in its own box beside the temperature */
+
+body[data-wall-dashboard="true"] .weather-current {
+  grid-template-columns: 82px minmax(0, 1fr) 220px !important;
+  grid-template-rows: auto auto;
+  align-items: center !important;
+  column-gap: 18px;
+  row-gap: 6px;
+}
+
+body[data-wall-dashboard="true"] .weather-symbol {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+body[data-wall-dashboard="true"] .weather-temperature {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+body[data-wall-dashboard="true"] .weather-condition {
+  grid-column: 2;
+  grid-row: 2;
+  margin-top: 0 !important;
+}
+
+body[data-wall-dashboard="true"] .weather-uv {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  align-self: center;
+  justify-self: end;
+  margin-top: 0 !important;
+  width: 220px;
+  max-width: 220px;
+  min-height: 88px;
+  padding: 12px 14px !important;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, var(--card-border));
+  background: color-mix(in srgb, var(--warning) 10%, #111b2d);
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto;
+  gap: 6px;
+  align-content: center;
+}
+
+body[data-wall-dashboard="true"] .weather-uv strong {
+  display: block;
+  font-size: 18px !important;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+body[data-wall-dashboard="true"] .weather-uv span {
+  display: block;
+  min-width: 0;
+  padding-left: 0 !important;
+  border-left: 0 !important;
+  font-size: 14px !important;
+  line-height: 1.2;
+}
+
+@media (max-width: 920px) {
+  body[data-wall-dashboard="true"] .weather-current {
+    grid-template-columns: 72px minmax(0, 1fr) !important;
+    grid-template-rows: auto auto auto;
+  }
+
+  body[data-wall-dashboard="true"] .weather-symbol {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  body[data-wall-dashboard="true"] .weather-temperature {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  body[data-wall-dashboard="true"] .weather-condition {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  body[data-wall-dashboard="true"] .weather-uv {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: start;
+    width: min(100%, 260px);
+    max-width: min(100%, 260px);
+    min-height: 0;
+    margin-top: 4px !important;
+  }
+}
