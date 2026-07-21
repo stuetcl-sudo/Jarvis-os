@@ -3,10 +3,11 @@
   z-index: 4;
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 10px;
+  width: 100%;
   max-width: 100%;
-  padding-inline: 8px;
+  padding-inline: 10px;
   box-sizing: border-box;
   pointer-events: auto;
 }
@@ -24,16 +25,14 @@
   display: flex;
   align-items: center;
   flex: 0 1 auto;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 6px;
-  min-width: 0;
+  min-width: max-content;
   max-width: 100%;
   min-height: 44px;
   margin: 0;
   padding: 4px;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scrollbar-width: thin;
+  overflow: visible;
   border: 1px solid var(--card-border);
   border-radius: 16px;
   background: var(--surface-muted);
@@ -77,16 +76,16 @@
 body[data-wall-dashboard="true"] .routine-toolbar {
   flex-direction: row;
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 8px;
-  padding-inline: 10px;
+  padding-inline: 12px;
 }
 
 body[data-wall-dashboard="true"] .routine-person-switch {
   flex-direction: row;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 4px;
-  min-width: 0;
+  min-width: max-content;
   min-height: 38px;
   padding: 3px;
   border-radius: 14px;
@@ -110,12 +109,11 @@ body[data-family-role="child"] .routine-person-switch button {
   body[data-wall-dashboard="true"] .routine-toolbar {
     align-items: flex-start;
     flex-wrap: wrap;
-    padding-inline: 4px;
+    padding-inline: 6px;
   }
 
   .routine-person-switch,
   body[data-wall-dashboard="true"] .routine-person-switch {
-    flex-wrap: nowrap;
     min-width: 0;
     max-width: 100%;
   }
@@ -133,7 +131,6 @@ body[data-family-role="child"] .routine-person-switch button {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
-    overflow-x: visible;
   }
 
   .routine-person-switch button {
