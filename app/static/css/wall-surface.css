@@ -326,3 +326,41 @@
     line-height: 1;
   }
 }
+
+/* v0.17.4 Surface card balance */
+@media (orientation: landscape) and (min-width: 860px) and (max-width: 1600px) {
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-grid {
+    align-items: stretch !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-card,
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .meal-card {
+    min-height: 250px !important;
+    height: 100% !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-card-content,
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .meal-card-content,
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-tasks-content {
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .calendar-data,
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .meal-plan-data,
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-tasks-data {
+    min-height: 0 !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-tasks-card {
+    min-height: 210px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-task-empty {
+    min-height: 64px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-footer {
+    display: none !important;
+  }
+}
