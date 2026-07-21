@@ -16,7 +16,13 @@
   flex: 0 0 auto;
   position: relative;
   z-index: 5;
+  min-width: max-content;
+  overflow: visible;
   pointer-events: auto;
+}
+
+.routine-toolbar .routine-switch button {
+  white-space: nowrap;
 }
 
 .routine-person-switch {
@@ -24,8 +30,8 @@
   z-index: 5;
   display: flex;
   align-items: center;
-  flex: 0 1 auto;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   gap: 6px;
   min-width: max-content;
   max-width: 100%;
@@ -56,6 +62,7 @@
   color: var(--muted);
   font: inherit;
   font-weight: 760;
+  white-space: nowrap;
   cursor: pointer;
   pointer-events: auto;
   touch-action: manipulation;
@@ -76,14 +83,15 @@
 body[data-wall-dashboard="true"] .routine-toolbar {
   flex-direction: row;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   padding-inline: 12px;
+  overflow: visible;
 }
 
 body[data-wall-dashboard="true"] .routine-person-switch {
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
   min-width: max-content;
   min-height: 38px;
@@ -105,35 +113,32 @@ body[data-family-role="child"] .routine-person-switch button {
 }
 
 @media (max-width: 820px) {
-  .routine-toolbar,
-  body[data-wall-dashboard="true"] .routine-toolbar {
+  .routine-toolbar:not(body[data-wall-dashboard="true"] .routine-toolbar) {
     align-items: flex-start;
     flex-wrap: wrap;
     padding-inline: 6px;
   }
 
-  .routine-person-switch,
-  body[data-wall-dashboard="true"] .routine-person-switch {
+  .routine-person-switch:not(body[data-wall-dashboard="true"] .routine-person-switch) {
     min-width: 0;
     max-width: 100%;
   }
 }
 
 @media (max-width: 640px) {
-  .routine-toolbar,
-  body[data-wall-dashboard="true"] .routine-toolbar {
+  body:not([data-wall-dashboard="true"]) .routine-toolbar {
     display: grid;
     grid-template-columns: 1fr;
   }
 
-  .routine-person-switch,
-  body[data-wall-dashboard="true"] .routine-person-switch {
+  body:not([data-wall-dashboard="true"]) .routine-person-switch {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
+    min-width: 0;
   }
 
-  .routine-person-switch button {
+  body:not([data-wall-dashboard="true"]) .routine-person-switch button {
     width: 100%;
   }
 }
