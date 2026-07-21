@@ -47,7 +47,7 @@ function ensureRoutinePersonStyles() {
   if (document.querySelector('link[data-routine-person-styles="true"]')) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = "/static/css/routine-person-switch.css?v=v0.18";
+  link.href = "/static/css/routine-person-switch.css?v=v0.18.1";
   link.dataset.routinePersonStyles = "true";
   document.head.append(link);
 }
@@ -86,9 +86,8 @@ function routineFor(id) {
 }
 
 function renderRoutinePeople() {
-  const content = document.querySelector(".routine-card-content");
-  const panel = routineElement("routinePanel");
-  if (!content || !panel) return;
+  const toolbar = document.querySelector(".routine-toolbar");
+  if (!toolbar) return;
 
   let selector = routineElement("routinePersonSwitch");
   if (!selector) {
@@ -97,7 +96,8 @@ function renderRoutinePeople() {
     selector.className = "routine-person-switch";
     selector.setAttribute("role", "group");
     selector.setAttribute("aria-label", "Vælg person");
-    content.insertBefore(selector, panel);
+    const editorAction = toolbar.querySelector("#routineEditButton");
+    toolbar.insertBefore(selector, editorAction || null);
   }
 
   const people = Array.isArray(routineState?.persons) ? routineState.persons : [];
