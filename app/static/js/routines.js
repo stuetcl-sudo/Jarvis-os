@@ -156,7 +156,12 @@ async function loadRoutines() {
     if (!activeRoutineId) activeRoutineId = routineState.recommended;
     renderRoutine();
   } catch (error) {
-    if (card) card.hidden = true;
+    if (routineState) {
+      renderRoutine();
+      setRoutineText("routineMessage", "Viser senest hentede rutine");
+    } else if (card) {
+      card.hidden = true;
+    }
   }
 }
 

@@ -78,12 +78,21 @@ def test_family_sources_fail_independently():
     assert 'notice.textContent = "Viser senest hentede kalenderdata"' in source
 
 
+def test_routine_card_keeps_last_loaded_state_on_refresh_failure():
+    source = (ROOT / "app/static/js/routines.js").read_text(encoding="utf-8")
+
+    assert "if (routineState) {" in source
+    assert 'setRoutineText("routineMessage", "Viser senest hentede rutine")' in source
+    assert "else if (card)" in source
+
+
 def test():
     test_wall_display_uses_more_compact_type_and_cards()
     test_wall_display_task_lists_are_limited_and_surface_balanced()
     test_wall_display_uv_is_guidance_and_weather_refreshes_faster()
     test_wall_screen_profiles_are_loaded_and_adaptive()
     test_family_sources_fail_independently()
+    test_routine_card_keeps_last_loaded_state_on_refresh_failure()
     print("Wall display feedback tests OK")
 
 
