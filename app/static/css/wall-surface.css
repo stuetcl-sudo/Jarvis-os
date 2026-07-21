@@ -2,8 +2,8 @@
 
 @media (orientation: landscape) and (min-width: 860px) and (max-width: 1600px) and (min-height: 560px) and (max-height: 1100px) {
   body[data-wall-dashboard="true"] .family-shell {
-    width: min(100% - 22px, 1220px) !important;
-    padding-top: max(12px, env(safe-area-inset-top)) !important;
+    width: min(100% - 16px, 1328px) !important;
+    padding-top: max(10px, env(safe-area-inset-top)) !important;
   }
 
   body[data-wall-dashboard="true"] .family-header {
@@ -67,7 +67,25 @@
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     grid-auto-flow: row !important;
     align-items: start !important;
-    gap: 12px !important;
+    gap: 10px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-card {
+    padding: 18px !important;
+    border-radius: 24px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .card-icon {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 14px !important;
+    font-size: 25px !important;
+  }
+
+  body[data-wall-dashboard="true"][data-wall-screen-profile="surface"] .family-data-notice {
+    margin-top: 8px !important;
+    padding: 6px 9px !important;
+    font-size: 12px !important;
   }
 
   body[data-wall-dashboard="true"] .routine-card,
