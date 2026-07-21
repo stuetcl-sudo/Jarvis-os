@@ -477,3 +477,134 @@ body[data-wall-dashboard="true"] .wall-safety-icon {
     max-width: 100%;
   }
 }
+
+/* v0.17.5 redesigned Surface weather card */
+
+body[data-wall-dashboard="true"] .weather-card {
+  min-height: 310px;
+}
+
+body[data-wall-dashboard="true"] .weather-data {
+  height: 100%;
+  margin-top: 14px;
+  display: grid;
+  grid-template-rows: auto auto;
+  align-content: space-between;
+  gap: 12px;
+}
+
+body[data-wall-dashboard="true"] .weather-current {
+  min-height: 150px;
+  padding: 18px 20px;
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  border-radius: 22px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent) 9%, transparent),
+      var(--surface-muted)
+    );
+}
+
+body[data-wall-dashboard="true"] .weather-symbol {
+  width: 82px;
+  height: 82px;
+  border-radius: 24px;
+  font-size: 48px;
+}
+
+body[data-wall-dashboard="true"] .weather-temperature {
+  font-size: clamp(52px, 5vw, 68px);
+  line-height: 0.92;
+}
+
+body[data-wall-dashboard="true"] .weather-condition {
+  margin-top: 7px;
+  font-size: 21px;
+  line-height: 1.1;
+}
+
+body[data-wall-dashboard="true"] .weather-uv {
+  max-width: 100%;
+  margin-top: 11px;
+  padding: 8px 12px;
+  gap: 7px;
+  font-size: 15px;
+  line-height: 1.2;
+  white-space: normal;
+  border-radius: 13px;
+}
+
+body[data-wall-dashboard="true"] .weather-uv strong {
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+body[data-wall-dashboard="true"] .weather-uv span {
+  min-width: 0;
+  padding-left: 7px;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-item {
+  min-height: 66px;
+  padding: 9px 11px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 8px;
+  border-radius: 15px;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-day {
+  font-size: 14px;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-symbol {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  font-size: 25px;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-temperatures {
+  font-size: 14px;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-rain {
+  display: none;
+}
+
+@media (max-width: 920px) {
+  body[data-wall-dashboard="true"] .weather-current {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  body[data-wall-dashboard="true"] .weather-symbol {
+    width: 72px;
+    height: 72px;
+    font-size: 42px;
+  }
+}
+
+@media (max-width: 640px) {
+  body[data-wall-dashboard="true"] .weather-forecast {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-wall-dashboard="true"] .weather-forecast-item {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  body[data-wall-dashboard="true"] .weather-forecast-symbol {
+    grid-row: auto;
+    grid-column: auto;
+  }
+}
