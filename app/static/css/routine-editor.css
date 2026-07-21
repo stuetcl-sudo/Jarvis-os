@@ -1,1 +1,129 @@
 .routine-toolbar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:center}.routine-edit-action{min-height:44px;border:1px solid var(--card-border);border-radius:14px;padding:10px 16px;background:var(--card);color:var(--text);font:inherit;font-weight:760;cursor:pointer}.routine-editor{width:min(980px,calc(100% - 24px));max-height:calc(100vh - 24px);padding:0;border:0;border-radius:24px;background:var(--card);color:var(--text);box-shadow:0 24px 80px rgba(0,0,0,.28)}.routine-editor::backdrop{background:rgba(10,15,25,.62)}.routine-editor-shell{padding:22px;overflow:auto;max-height:calc(100vh - 24px)}.routine-editor-header,.routine-editor-footer{display:flex;align-items:center;gap:12px}.routine-editor-header{justify-content:space-between}.routine-editor-header h2{margin:4px 0 0}.routine-editor-header button,.routine-editor-switch button,.routine-editor-add,.routine-editor-footer button,.routine-task button{min-height:44px;min-width:44px;border:1px solid var(--card-border);border-radius:12px;background:var(--soft);color:var(--text);font:inherit;font-weight:720;cursor:pointer}.routine-editor-header button{font-size:26px}.routine-editor-switch{display:flex;gap:8px;margin:18px 0}.routine-editor-switch button[aria-pressed=true]{background:var(--text);color:var(--card)}.routine-editor-label{display:grid;gap:7px;font-weight:720}.routine-editor-label input,.routine-task input{min-height:44px;border:1px solid var(--card-border);border-radius:12px;padding:10px 12px;background:var(--card);color:var(--text);font:inherit}.routine-editor-message{min-height:24px;color:var(--muted);font-weight:680}.routine-editor-list{display:grid;gap:14px;padding:0;list-style:none}.routine-task{padding:16px;border:1px solid var(--card-border);border-radius:18px;background:var(--soft);display:grid;gap:14px}.routine-task[draggable=true]{cursor:grab}.routine-task-top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center}.routine-task-preview{width:64px;height:64px;border-radius:16px;background:var(--card);display:grid;place-items:center}.routine-task-preview svg,.routine-picker-option svg{width:44px;height:44px}.routine-task-actions{display:flex;gap:6px;flex-wrap:wrap}.routine-task-grid{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:12px}.routine-weekdays{display:flex;flex-wrap:wrap;gap:8px}.routine-weekdays label{min-height:44px;padding:8px 10px;border:1px solid var(--card-border);border-radius:12px;display:flex;align-items:center;gap:7px;background:var(--card)}.routine-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px}.routine-picker-option{min-height:88px;padding:8px;display:grid;place-items:center;gap:5px;text-align:center}.routine-picker-option[aria-pressed=true]{outline:3px solid var(--accent,#4b70d4)}.routine-picker-option span{font-size:12px}.routine-editor-add{width:100%;margin-top:14px}.routine-editor-footer{margin-top:20px;flex-wrap:wrap}.routine-editor-footer span{flex:1}.routine-editor-footer .primary{background:#3f7a55;color:#fff;border-color:#3f7a55}.routine-editor-footer .danger{color:#9b2f2f}.routine-editor button:disabled{opacity:.55;cursor:wait}@media(max-width:680px){.routine-editor-shell{padding:16px}.routine-task-top,.routine-task-grid{grid-template-columns:1fr}.routine-task-preview{width:84px;height:84px}.routine-editor-footer span{display:none}.routine-editor-footer button{flex:1 1 140px}}
+/* v0.17.5 final routine-editor polish */
+
+.routine-editor {
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card) 96%, var(--page));
+  backdrop-filter: blur(24px) saturate(1.15);
+  -webkit-backdrop-filter: blur(24px) saturate(1.15);
+}
+
+.routine-editor::backdrop {
+  background: rgba(10, 15, 25, 0.68);
+  backdrop-filter: blur(5px);
+}
+
+.routine-editor-header {
+  position: sticky;
+  top: -22px;
+  z-index: 4;
+  margin: -22px -22px 18px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card) 94%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.routine-editor-header button {
+  border-radius: 50%;
+}
+
+.routine-editor-switch {
+  padding: 5px;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  background: var(--surface-muted);
+}
+
+.routine-editor-switch button {
+  flex: 1;
+  border-color: transparent;
+}
+
+.routine-editor-switch button[aria-pressed="true"] {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 5px 15px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.routine-editor-label input,
+.routine-task input {
+  background: var(--surface-raised);
+}
+
+.routine-task {
+  border-radius: 20px;
+  background: var(--surface-muted);
+}
+
+.routine-task-preview {
+  border: 1px solid var(--card-border);
+  background: var(--surface-raised);
+}
+
+.routine-weekdays label {
+  transition:
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.routine-weekdays label:has(input:checked) {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--card-border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-raised));
+}
+
+.routine-picker-option[aria-pressed="true"] {
+  outline: 0;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, var(--surface-raised));
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.routine-editor-footer {
+  position: sticky;
+  bottom: -22px;
+  z-index: 4;
+  margin: 20px -22px -22px;
+  padding: 16px 22px 20px;
+  border-top: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card) 94%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.routine-editor-footer .primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+@media (max-width: 680px) {
+  .routine-editor {
+    width: calc(100% - 12px);
+    max-height: calc(100dvh - 12px);
+    border-radius: 20px;
+  }
+
+  .routine-editor-shell {
+    max-height: calc(100dvh - 12px);
+  }
+
+  .routine-editor-header {
+    top: -16px;
+    margin: -16px -16px 16px;
+    padding: 16px;
+  }
+
+  .routine-editor-footer {
+    bottom: -16px;
+    margin: 18px -16px -16px;
+    padding: 14px 16px 16px;
+  }
+
+  .routine-editor-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .routine-editor-footer .danger {
+    flex-basis: 100%;
+  }
+}

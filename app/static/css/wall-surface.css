@@ -364,3 +364,85 @@
     display: none !important;
   }
 }
+
+/* v0.17.5 final Surface and safety-strip polish */
+
+body[data-wall-dashboard="true"] .family-header-side {
+  min-width: min(430px, 42vw);
+}
+
+body[data-wall-dashboard="true"] .wall-display-actions {
+  justify-content: flex-end;
+}
+
+body[data-wall-dashboard="true"] .wall-safety-strip {
+  justify-content: center;
+  padding: 7px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--card) 94%, transparent);
+}
+
+body[data-wall-dashboard="true"] .wall-safety-item {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 15px;
+  background: var(--surface-muted);
+}
+
+body[data-wall-dashboard="true"] .wall-safety-item.ok {
+  border-color: color-mix(in srgb, var(--good) 28%, var(--card-border));
+}
+
+body[data-wall-dashboard="true"] .wall-safety-item.warning {
+  border-color: color-mix(in srgb, var(--warning) 34%, var(--card-border));
+}
+
+body[data-wall-dashboard="true"] .wall-safety-item.critical {
+  border-color: color-mix(in srgb, var(--critical) 36%, var(--card-border));
+}
+
+body[data-wall-dashboard="true"] .wall-safety-item.unknown {
+  color: var(--muted);
+}
+
+body[data-wall-dashboard="true"] .wall-safety-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 920px) {
+  body[data-wall-dashboard="true"] .family-header {
+    align-items: flex-start;
+  }
+
+  body[data-wall-dashboard="true"] .family-header-side {
+    min-width: 0;
+  }
+
+  body[data-wall-dashboard="true"] .wall-safety-strip {
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  body[data-wall-dashboard="true"] .wall-safety-strip::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  body[data-wall-dashboard="true"] .family-header-side {
+    justify-items: start;
+  }
+
+  body[data-wall-dashboard="true"] .wall-display-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  body[data-wall-dashboard="true"] .wall-display-actions a,
+  body[data-wall-dashboard="true"] .wall-display-actions button {
+    flex: 1 1 140px;
+  }
+}
