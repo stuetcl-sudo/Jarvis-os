@@ -1,12 +1,22 @@
-# Jarvis-os v0.13
+# Jarvis-os v0.17.3
 
 Jarvis-os is a local, private home dashboard with family views, local authentication, calendar, weather, routines, Home Assistant family content, Docker monitoring, system health and a safety-first Action Engine.
 
 The product direction for v1.0 is a flexible home dashboard that works without AI. Jarvis AI remains an optional future module rather than a requirement for the dashboard.
 
-Current release: `0.13.0`.
+Current development version: `0.17.3`.
 
-## What is new in v0.13
+## What is new in v0.17.3
+
+v0.17.3 improves dashboard reliability and development safety.
+
+- Weather, calendar, meal plans, family lists and routines keep the last successfully displayed data during temporary refresh failures.
+- Clear stale-data messages replace disappearing dashboard cards.
+- Isolated staging runs on `127.0.0.1:8098`.
+- Staging has its own database, volume and network.
+- Staging does not use the Docker socket, production `.env` or production secrets.
+
+## Earlier dashboard milestone: v0.13
 
 v0.13 expands the family dashboard with practical list editing, clearer UV guidance and a more flexible shared wall layout.
 

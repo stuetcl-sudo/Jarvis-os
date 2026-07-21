@@ -130,7 +130,7 @@ def family_tasks_configuration():
 
 
 APP_NAME = os.getenv("APP_NAME", "Jarvis-os")
-VERSION = "0.13.0"
+VERSION = "0.17.3"
 SAFE_MODE = env_bool("SAFE_MODE", True)
 RUN_INTERVAL_SECONDS = env_positive_int("RUN_INTERVAL_SECONDS", 15)
 DRY_RUN = env_bool("DRY_RUN", True)
