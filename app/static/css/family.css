@@ -228,3 +228,216 @@ body[data-family-role="wall_display"] .family-footer { font-size: 15px; }
       var(--page);
   }
 }
+
+/* v0.17.5 unified family design foundation */
+
+:root {
+  --surface-raised: rgba(255, 255, 255, 0.9);
+  --surface-muted: rgba(55, 75, 105, 0.055);
+  --focus-ring: color-mix(in srgb, var(--accent) 42%, transparent);
+  --card-radius: 26px;
+  --control-radius: 14px;
+  --control-height: 44px;
+}
+
+.family-card,
+.status-tile {
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.family-card {
+  border-radius: var(--card-radius);
+}
+
+.family-card > :not(.card-icon):not(.card-heading) {
+  grid-column: 1 / -1;
+}
+
+.card-heading h2 {
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.card-eyebrow {
+  letter-spacing: 0.025em;
+}
+
+.disconnected {
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px dashed color-mix(in srgb, var(--muted) 28%, transparent);
+  border-radius: 14px;
+  background: var(--surface-muted);
+  display: flex;
+  align-items: center;
+}
+
+.disconnected::before {
+  flex: 0 0 auto;
+}
+
+.family-data-notice {
+  border: 1px solid color-mix(in srgb, var(--warning) 22%, transparent);
+}
+
+.family-nav-link,
+.wall-display-actions a,
+.wall-display-actions button,
+.routine-actions button,
+.routine-reset,
+.calendar-range-controls button,
+.family-task-actions button,
+.family-task-add button {
+  min-height: var(--control-height);
+  border-radius: var(--control-radius);
+  touch-action: manipulation;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    transform 120ms ease;
+}
+
+.family-nav-link:hover,
+.wall-display-actions a:hover,
+.wall-display-actions button:hover,
+.routine-actions button:hover,
+.routine-reset:hover,
+.calendar-range-controls button:hover,
+.family-task-actions button:hover,
+.family-task-add button:hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--soft));
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--card-border));
+}
+
+.family-nav-link:active,
+.wall-display-actions a:active,
+.wall-display-actions button:active,
+.routine-actions button:active,
+.routine-reset:active,
+.calendar-range-controls button:active,
+.family-task-actions button:active,
+.family-task-add button:active {
+  transform: scale(0.98);
+}
+
+:where(
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  [tabindex]
+):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.calendar-empty,
+.family-task-empty,
+.meal-plan-empty {
+  color: var(--muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .family-card:hover {
+    border-color: color-mix(in srgb, var(--accent) 18%, var(--card-border));
+    box-shadow: 0 20px 58px rgba(50, 75, 105, 0.16);
+  }
+}
+
+@media (max-width: 640px) {
+  .family-header {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .family-header-side {
+    width: 100%;
+    justify-items: start;
+  }
+
+  .family-clock {
+    font-size: clamp(44px, 18vw, 68px);
+  }
+
+  .family-header h1 {
+    font-size: clamp(38px, 13vw, 56px);
+  }
+
+  .family-subtitle {
+    max-width: 34ch;
+    font-size: 16px;
+  }
+
+  .family-card,
+  body[data-family-role="wall_display"] .family-card {
+    min-height: 0;
+    padding: 20px;
+  }
+
+  .card-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    font-size: 24px;
+  }
+
+  .card-heading h2 {
+    font-size: clamp(22px, 7vw, 28px);
+  }
+
+  .status-strip {
+    gap: 10px;
+  }
+
+  .status-tile {
+    min-height: 78px;
+    padding: 15px;
+  }
+
+  .family-footer {
+    padding-top: 18px;
+  }
+
+  .family-nav-link {
+    width: 100%;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-raised: rgba(39, 44, 54, 0.92);
+    --surface-muted: rgba(255, 255, 255, 0.045);
+    --good: #55c987;
+    --warning: #f0b84a;
+    --critical: #ef7070;
+  }
+
+  .family-card,
+  .status-tile {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .disconnected {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .family-data-notice {
+    background: color-mix(in srgb, var(--warning) 15%, transparent);
+    color: color-mix(in srgb, var(--warning) 82%, white);
+  }
+
+  .family-nav-link.primary {
+    color: #07111f;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .family-card:hover {
+      box-shadow: 0 22px 64px rgba(0, 0, 0, 0.38);
+    }
+  }
+}
