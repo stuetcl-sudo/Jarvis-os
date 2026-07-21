@@ -608,3 +608,176 @@ body[data-wall-dashboard="true"] .weather-forecast-rain {
     grid-column: auto;
   }
 }
+
+/* v0.17.5 definitive Surface wall overrides */
+
+/* Wall-dashboardet er altid mørkt, uanset Windows/browser-tema. */
+body[data-wall-dashboard="true"] {
+  --surface-raised: #152033;
+  --surface-muted: rgba(255, 255, 255, 0.045);
+}
+
+/* Undgå at datoen bliver klippet øverst. */
+body[data-wall-dashboard="true"] .family-shell {
+  padding-top: max(34px, env(safe-area-inset-top)) !important;
+}
+
+body[data-wall-dashboard="true"] .family-header {
+  padding-top: 8px;
+}
+
+/* Statuslinjen skal kun fylde efter indholdet. */
+body[data-wall-dashboard="true"] .wall-safety-strip {
+  width: fit-content !important;
+  max-width: 100% !important;
+  margin: 0 0 14px !important;
+  padding: 0 !important;
+  gap: 6px;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+body[data-wall-dashboard="true"] .wall-safety-item {
+  min-height: 32px;
+  padding: 5px 9px;
+  border-radius: 11px;
+  background: #263343 !important;
+  color: #f1f4f8;
+}
+
+/* Kalender: fjern alle hvide aftalefelter. */
+body[data-wall-dashboard="true"] .calendar-day-group,
+body[data-wall-dashboard="true"] .calendar-day-events,
+body[data-wall-dashboard="true"] .calendar-event,
+body[data-wall-dashboard="true"] .calendar-empty {
+  background: #111b2d !important;
+  color: #f1f4f8 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+body[data-wall-dashboard="true"] .calendar-event-title,
+body[data-wall-dashboard="true"] .calendar-event-calendar {
+  color: #f1f4f8 !important;
+}
+
+body[data-wall-dashboard="true"] .calendar-event-when,
+body[data-wall-dashboard="true"] .calendar-event-status,
+body[data-wall-dashboard="true"] .calendar-empty {
+  color: #a1a9b7 !important;
+}
+
+body[data-wall-dashboard="true"] .calendar-day-group {
+  min-height: 0 !important;
+}
+
+body[data-wall-dashboard="true"] .calendar-empty {
+  min-height: 54px !important;
+  padding: 14px !important;
+  display: grid;
+  place-items: center;
+}
+
+/* Opgaver: mørke kort og tydelig tekst uanset systemtema. */
+body[data-wall-dashboard="true"] .family-task-list {
+  min-height: 0 !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+body[data-wall-dashboard="true"] .family-task-item,
+body[data-wall-dashboard="true"] .family-task-add {
+  background: #111b2d !important;
+  color: #f1f4f8 !important;
+  border-color: rgba(255, 255, 255, 0.13) !important;
+}
+
+body[data-wall-dashboard="true"] .family-task-summary {
+  color: #f1f4f8 !important;
+}
+
+body[data-wall-dashboard="true"] .family-task-due,
+body[data-wall-dashboard="true"] .family-task-description,
+body[data-wall-dashboard="true"] .family-task-empty {
+  color: #a1a9b7 !important;
+}
+
+body[data-wall-dashboard="true"] .family-task-add input {
+  background: #182438 !important;
+  color: #f1f4f8 !important;
+}
+
+body[data-wall-dashboard="true"] .family-task-add input::placeholder {
+  color: #929daf !important;
+  opacity: 1;
+}
+
+body[data-wall-dashboard="true"] .family-task-actions button {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #f1f4f8 !important;
+  border-color: rgba(255, 255, 255, 0.13) !important;
+}
+
+body[data-wall-dashboard="true"] .family-tasks-card {
+  min-height: 0 !important;
+}
+
+body[data-wall-dashboard="true"] .family-task-empty {
+  min-height: 48px;
+  padding: 10px;
+}
+
+/* Vejr: giv prognosen reel plads og undgå afskæring. */
+body[data-wall-dashboard="true"] .weather-card {
+  min-height: 350px !important;
+  overflow: visible !important;
+}
+
+body[data-wall-dashboard="true"] .weather-data {
+  height: auto !important;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(150px, auto) 58px;
+  gap: 12px;
+}
+
+body[data-wall-dashboard="true"] .weather-current {
+  min-height: 150px;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast {
+  min-height: 58px;
+  margin: 0 !important;
+  padding: 5px;
+  overflow: hidden;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-item {
+  min-height: 46px !important;
+  padding: 6px 9px !important;
+  background: transparent !important;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-day,
+body[data-wall-dashboard="true"] .weather-forecast-temperatures {
+  font-size: 13px !important;
+  line-height: 1.1;
+}
+
+body[data-wall-dashboard="true"] .weather-forecast-symbol {
+  font-size: 21px !important;
+}
+
+/* Tablet/mindre wall-visninger. */
+@media (max-width: 920px) {
+  body[data-wall-dashboard="true"] .wall-safety-strip {
+    width: 100% !important;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  body[data-wall-dashboard="true"] .family-task-lists {
+    grid-template-columns: 1fr;
+  }
+}
