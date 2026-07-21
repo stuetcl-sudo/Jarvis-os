@@ -19,6 +19,7 @@ const routinePictograms = new Set([
 
 let routineState = null;
 let activeRoutineId = null;
+let activePersonId = null;
 let routineCsrfToken = null;
 let routineRequestPending = false;
 
@@ -42,6 +43,15 @@ function isWallDashboard() {
   return document.body.dataset.wallDashboard === "true";
 }
 
+function ensureRoutinePersonStyles() {
+  if (document.querySelector('link[data-routine-person-styles="true"]')) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "/static/css/routine-person-switch.css?v=v0.18";
+  link.dataset.routinePersonStyles = "true";
+  document.head.append(link);
+}
+
 function syncRoutinePictogramButton() {
   const frame = document.querySelector(".routine-pictogram-frame");
   const completeButton = routineElement("routineComplete");
@@ -56,7 +66,7 @@ function syncRoutinePictogramButton() {
 
 function setRoutineBusy(busy) {
   routineRequestPending = busy;
-  document.querySelectorAll("[data-routine-select], #routineBack, #routineComplete, #routineReset").forEach((button) => {
+  document.querySelectorAll("[data-routine-select], [data-routine-person], #routineBack, #routineComplete, #routineReset").forEach((button) => {
     button.disabled = busy;
   });
   syncRoutinePictogramButton();
@@ -75,6 +85,46 @@ function routineFor(id) {
   return routineState.routines[id] || null;
 }
 
+function renderRoutinePeople() {
+  const content = document.querySelector(".routine-card-content");
+  const panel = routineElement("routinePanel");
+  if (!content || !panel) return;
+
+  let selector = routineElement("routinePersonSwitch");
+  if (!selector) {
+    selector = document.createElement("div");
+    selector.id = "routinePersonSwitch";
+    selector.className = "routine-person-switch";
+    selector.setAttribute("role", "group");
+    selector.setAttribute("aria-label", "Vælg person");
+    content.insertBefore(selector, panel);
+  }
+
+  const people = Array.isArray(routineState?.persons) ? routineState.persons : [];
+  selector.replaceChildren();
+  selector.hidden = people.length < 2;
+  people.forEach((person) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.routinePerson = person.user_id;
+    button.textContent = person.display_name || "Person";
+    button.setAttribute("aria-pressed", String(person.user_id === activePersonId));
+    button.disabled = routineRequestPending;
+    button.addEventListener("click", async () => {
+      if (routineRequestPending || person.user_id === activePersonId) return;
+      activePersonId = person.user_id;
+      setRoutineBusy(true);
+      setRoutineText("routineMessage", "Skifter person…");
+      try {
+        await loadRoutines();
+      } finally {
+        setRoutineBusy(false);
+      }
+    });
+    selector.append(button);
+  });
+}
+
 function renderRoutine() {
   const card = document.querySelector('[data-family-card="routine"]');
   if (!card || !routineState || routineState.status !== "ok") {
@@ -90,6 +140,7 @@ function renderRoutine() {
 
   card.hidden = false;
   setRoutineStale("");
+  renderRoutinePeople();
   document.querySelectorAll("[data-routine-select]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.routineSelect === activeRoutineId));
   });
@@ -158,9 +209,11 @@ async function loadRoutines() {
     return;
   }
   try {
-    const response = await fetch("/api/family/routines", { credentials: "same-origin" });
+    const query = activePersonId ? `?person_id=${encodeURIComponent(activePersonId)}` : "";
+    const response = await fetch(`/api/family/routines${query}`, { credentials: "same-origin" });
     if (!response.ok) throw new Error("Rutinen kunne ikke hentes");
     routineState = await response.json();
+    activePersonId = routineState.selected_person_id || null;
     if (!activeRoutineId) activeRoutineId = routineState.recommended;
     renderRoutine();
   } catch (error) {
@@ -176,7 +229,7 @@ async function loadRoutines() {
 async function changeRoutine(action) {
   if (routineRequestPending || !routineIds.has(activeRoutineId)) return;
   const routine = routineFor(activeRoutineId);
-  if (!routine) return;
+  if (!routine || !activePersonId) return;
   if (action === "reset" && (document.body.dataset.familyRole === "owner" || document.body.dataset.familyRole === "adult")) {
     if (!window.confirm("Vil du starte denne rutine forfra?")) return;
   }
@@ -186,15 +239,17 @@ async function changeRoutine(action) {
   try {
     const csrfToken = await loadRoutineCsrfToken();
     const endpoint = routineEndpoints[activeRoutineId][action];
-    const options = {
+    const payload = { person_id: activePersonId };
+    if (action !== "reset") payload.expected_index = routine.current_index;
+    const response = await fetch(endpoint, {
       method: "POST",
       credentials: "same-origin",
       headers: { "X-CSRF-Token": csrfToken, "Content-Type": "application/json" },
-    };
-    if (action !== "reset") options.body = JSON.stringify({ expected_index: routine.current_index });
-    const response = await fetch(endpoint, options);
+      body: JSON.stringify(payload),
+    });
     if (!response.ok) throw new Error("Rutinen kunne ikke gemmes");
     routineState = await response.json();
+    activePersonId = routineState.selected_person_id || activePersonId;
     renderRoutine();
   } catch (error) {
     setRoutineText("routineMessage", "Prøv igen om lidt.");
@@ -212,6 +267,7 @@ function completeRoutineFromPictogram() {
 }
 
 function initializeRoutineControls() {
+  ensureRoutinePersonStyles();
   document.querySelectorAll("[data-routine-select]").forEach((button) => {
     button.addEventListener("click", () => {
       const selected = button.dataset.routineSelect;
