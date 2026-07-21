@@ -23,7 +23,7 @@
   <link rel="stylesheet" href="/static/css/wall-safety-polish.css" />
   <link rel="stylesheet" href="/static/css/wall-profiles.css" />
   <link rel="stylesheet" href="/static/css/wall-compact.css" />
-  <link rel="stylesheet" href="/static/css/wall-surface.css?v=v0.17.5-wall-uv-box" />
+  <link rel="stylesheet" href="/static/css/wall-surface.css?v=v0.17.5-wall-uv-structure" />
 </head>
 <body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false" data-family-label="Fælles overblik" data-family-subtitle="Her er et roligt overblik over hjemmet.">
   <main class="family-shell">
@@ -109,14 +109,14 @@
           <div class="weather-data" id="weatherData" hidden>
             <div class="weather-current">
               <span class="weather-symbol" id="weatherSymbol" role="img" aria-label="Vejrsymbol">☁️</span>
-              <div>
+              <div class="weather-summary">
                 <strong class="weather-temperature" id="weatherTemperature">–</strong>
                 <p class="weather-condition" id="weatherCondition">Ukendt vejr</p>
-                <p class="weather-uv" id="weatherUv" hidden>
-                  <strong id="weatherUvValue">UV –</strong>
-                  <span id="weatherUvLabel">Ukendt</span>
-                </p>
               </div>
+              <p class="weather-uv" id="weatherUv" hidden>
+                <strong id="weatherUvValue">UV –</strong>
+                <span id="weatherUvLabel">Ukendt</span>
+              </p>
             </div>
             <dl class="weather-measurements" id="weatherMeasurements">
               <div data-weather-detail="apparent"><dt>Føles som</dt><dd id="weatherApparent">–</dd></div>
