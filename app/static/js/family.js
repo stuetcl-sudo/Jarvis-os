@@ -229,13 +229,30 @@ function renderWeatherState(message) {
   if (data) data.hidden = true;
 }
 
+function renderWeatherFailure() {
+  const state = document.getElementById("weatherState");
+  const data = document.getElementById("weatherData");
+  const stale = document.getElementById("weatherStale");
+
+  if (data && !data.hidden) {
+    if (state) state.hidden = true;
+    if (stale) {
+      stale.textContent = "Viser senest hentede vejrdata";
+      stale.hidden = false;
+    }
+    return;
+  }
+
+  renderWeatherState("Vejret kan ikke hentes lige nu");
+}
+
 function renderWeather(weather) {
   if (weather.status === "not_configured") {
     renderWeatherState("Ikke tilsluttet endnu");
     return;
   }
   if (weather.status === "unavailable") {
-    renderWeatherState("Vejret kan ikke hentes lige nu");
+    renderWeatherFailure();
     return;
   }
 
@@ -401,6 +418,23 @@ function renderCalendarState(message) {
   if (data) data.hidden = true;
 }
 
+function renderCalendarFailure() {
+  const state = document.getElementById("calendarState");
+  const data = document.getElementById("calendarData");
+  const notice = document.getElementById("calendarNotice");
+
+  if (data && !data.hidden) {
+    if (state) state.hidden = true;
+    if (notice) {
+      notice.textContent = "Viser senest hentede kalenderdata";
+      notice.hidden = false;
+    }
+    return;
+  }
+
+  renderCalendarState("Kalenderen kan ikke hentes lige nu");
+}
+
 function renderAnonymousCalendar(calendar) {
   const eventsCandidate = calendar.events || [];
   const events = Array.isArray(eventsCandidate) ? eventsCandidate : [];
@@ -452,7 +486,7 @@ function renderCalendar(calendar) {
     return;
   }
   if (calendar.status === "unavailable") {
-    renderCalendarState("Kalenderen kan ikke hentes lige nu");
+    renderCalendarFailure();
     return;
   }
 
@@ -493,8 +527,8 @@ async function refreshSource(url, onSuccess, onFailure) {
 async function refresh() {
   await Promise.allSettled([
     refreshSource("/api/mission", renderMission, renderUnavailable),
-    refreshSource("/api/family/weather", renderWeather, () => renderWeatherState("Vejret kan ikke hentes lige nu")),
-    refreshSource("/api/family/calendar", renderCalendar, () => renderCalendarState("Kalenderen kan ikke hentes lige nu")),
+    refreshSource("/api/family/weather", renderWeather, renderWeatherFailure),
+    refreshSource("/api/family/calendar", renderCalendar, renderCalendarFailure),
     refreshSource("/api/health", renderHealth, () => {}),
   ]);
 }

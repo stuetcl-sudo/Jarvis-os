@@ -68,9 +68,14 @@ def test_family_sources_fail_independently():
     assert "Promise.allSettled([" in source
     assert "Promise.all([" not in source
     assert 'refreshSource("/api/mission", renderMission, renderUnavailable)' in source
-    assert 'refreshSource("/api/family/weather", renderWeather' in source
-    assert 'refreshSource("/api/family/calendar", renderCalendar' in source
+    assert 'refreshSource("/api/family/weather", renderWeather, renderWeatherFailure)' in source
+    assert 'refreshSource("/api/family/calendar", renderCalendar, renderCalendarFailure)' in source
     assert 'refreshSource("/api/health", renderHealth' in source
+
+    assert "function renderWeatherFailure()" in source
+    assert 'stale.textContent = "Viser senest hentede vejrdata"' in source
+    assert "function renderCalendarFailure()" in source
+    assert 'notice.textContent = "Viser senest hentede kalenderdata"' in source
 
 
 def test():
