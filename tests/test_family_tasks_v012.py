@@ -1,7 +1,10 @@
 import os
 from pathlib import Path
+import sqlite3
+import tempfile
 
 from app import config
+from app.family_task_assignments import FamilyTaskAssignmentStore
 from app.family_tasks import (
     EDITOR_ROLES,
     FamilyTasksService,
@@ -101,6 +104,108 @@ def task_payloads():
     return result
 
 
+def create_assignment_test_database(path):
+    connection = sqlite3.connect(path)
+    connection.execute(
+        """
+        CREATE TABLE auth_users (
+            user_id TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            role TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            disabled INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            last_login_at TEXT
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO auth_users (
+            user_id,
+            username,
+            display_name,
+            role,
+            password_hash,
+            disabled,
+            created_at,
+            updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+        """,
+        (
+            "person-dennis",
+            "dennis",
+            "Dennis",
+            "owner",
+            "test",
+            "2026-07-22T00:00:00+00:00",
+            "2026-07-22T00:00:00+00:00",
+        ),
+    )
+    connection.commit()
+    connection.close()
+
+
+def test_task_assignment_store_defaults_to_family_and_isolated_by_task():
+    with tempfile.TemporaryDirectory() as folder:
+        db_path = Path(folder) / "jarvis.db"
+        create_assignment_test_database(db_path)
+        store = FamilyTaskAssignmentStore(db_path)
+
+        assert store.get("familieopgaver", "task-1") is None
+
+        store.set("familieopgaver", "task-1", "person-dennis")
+
+        assert store.get("familieopgaver", "task-1") == "person-dennis"
+        assert store.get("familieopgaver", "task-2") is None
+        assert store.get("lektier", "task-1") is None
+
+        store.set("familieopgaver", "task-1", None)
+
+        assert store.get("familieopgaver", "task-1") is None
+
+
+def test_task_assignment_store_reads_many_and_prunes_missing_tasks():
+    with tempfile.TemporaryDirectory() as folder:
+        db_path = Path(folder) / "jarvis.db"
+        create_assignment_test_database(db_path)
+        store = FamilyTaskAssignmentStore(db_path)
+
+        store.set("familieopgaver", "task-1", "person-dennis")
+        store.set("familieopgaver", "task-2", None)
+        store.set("lektier", "task-3", "person-dennis")
+
+        assignments = store.get_many(
+            [
+                ("familieopgaver", "task-1"),
+                ("familieopgaver", "task-2"),
+                ("missing", "task-4"),
+            ]
+        )
+
+        assert assignments == {
+            ("familieopgaver", "task-1"): "person-dennis",
+            ("familieopgaver", "task-2"): None,
+        }
+
+        removed = store.prune(
+            {
+                ("familieopgaver", "task-1"),
+                ("familieopgaver", "task-2"),
+            }
+        )
+
+        assert removed == 1
+        assert store.get("lektier", "task-3") is None
+
+        store.delete("familieopgaver", "task-1")
+        assert store.get("familieopgaver", "task-1") is None
+
+
+
 def test_default_task_entities_include_shopping_list():
     previous = os.environ.pop("HOME_ASSISTANT_TASK_LISTS", None)
     try:
@@ -169,6 +274,103 @@ def test_client_uses_only_controlled_todo_service_calls():
     }
 
 
+class FakeAssignmentStore:
+    def __init__(self, assignments=None):
+        self.assignments = assignments or {}
+
+    def get_many(self, task_keys):
+        return {
+            key: self.assignments[key]
+            for key in task_keys
+            if key in self.assignments
+        }
+
+
+def family_people():
+    return [
+        {
+            "user_id": "person-liam",
+            "display_name": "Liam",
+            "role": "child",
+        },
+        {
+            "user_id": "person-dennis",
+            "display_name": "Dennis",
+            "role": "owner",
+        },
+    ]
+
+
+def test_task_api_adds_people_counts_and_family_defaults():
+    FakeHttpClient.payloads = task_payloads()
+
+    service = FamilyTasksService(
+        settings_loader=FakeSettingsLoader(settings()),
+        client_factory=FakeHttpClient,
+        monotonic=lambda: 1.0,
+        assignment_store=FakeAssignmentStore(
+            {
+                ("familieopgaver", "family-1"): "person-dennis",
+                ("lektier", "homework-1"): "disabled-or-missing-person",
+            }
+        ),
+        people_loader=family_people,
+    )
+
+    result = service.get_tasks({"role": "owner"})
+
+    assert result["status"] == "ok"
+    assert result["people"] == [
+        {
+            "user_id": None,
+            "display_name": "Familien",
+            "role": "family",
+            "count": 2,
+        },
+        {
+            "user_id": "person-liam",
+            "display_name": "Liam",
+            "role": "child",
+            "count": 0,
+        },
+        {
+            "user_id": "person-dennis",
+            "display_name": "Dennis",
+            "role": "owner",
+            "count": 1,
+        },
+    ]
+
+    items = {
+        (task_list["key"], item["uid"]): item
+        for task_list in result["lists"]
+        for item in task_list["items"]
+    }
+
+    assert items[("familieopgaver", "family-1")]["assignee_id"] == "person-dennis"
+    assert items[("lektier", "homework-1")]["assignee_id"] is None
+    assert items[("shopping-list", "shopping-1")]["assignee_id"] is None
+
+
+def test_task_api_hides_people_from_anonymous_users():
+    FakeHttpClient.payloads = task_payloads()
+
+    service = FamilyTasksService(
+        settings_loader=FakeSettingsLoader(settings()),
+        client_factory=FakeHttpClient,
+        monotonic=lambda: 1.0,
+        assignment_store=FakeAssignmentStore(),
+        people_loader=family_people,
+    )
+
+    result = service.get_tasks(None)
+
+    assert result["status"] == "authentication_required"
+    assert result["people"] == []
+    assert result["lists"] == []
+
+
+
 def test_permissions_allow_completion_for_family_but_editing_for_adults_only():
     assert EDITOR_ROLES == {"owner", "adult"}
     FakeHttpClient.payloads = task_payloads()
@@ -176,6 +378,8 @@ def test_permissions_allow_completion_for_family_but_editing_for_adults_only():
         settings_loader=FakeSettingsLoader(settings()),
         client_factory=FakeHttpClient,
         monotonic=lambda: 1.0,
+        assignment_store=FakeAssignmentStore(),
+        people_loader=family_people,
     )
     anonymous = service.get_tasks(None)
     assert anonymous["status"] == "authentication_required"
@@ -214,6 +418,20 @@ def test_frontend_supports_shopping_add_edit_remove_and_safe_completion():
     assert ".family-task-add" in TASKS_CSS
     assert ".family-task-actions" in TASKS_CSS
     assert ".family-task-list-shopping-list" in TASKS_CSS
+    assert 'id="familyTaskPersonSwitch"' in INDEX
+    assert "function renderTaskPersonSwitch(tasks)" in TASKS_JS
+    assert "function filteredTaskLists(tasks)" in TASKS_JS
+    assert "activeTaskAssigneeId" in TASKS_JS
+    assert 'count.textContent = String(Number(person.count) || 0)' in TASKS_JS
+    assert "har ingen åbne opgaver" in TASKS_JS
+    assert ".family-task-person-switch" in TASKS_CSS
+    assert '.family-task-person-button[aria-pressed="true"]' in TASKS_CSS
+    assert "async function assignFamilyTask(" in TASKS_JS
+    assert "function createTaskAssigneeSelect(" in TASKS_JS
+    assert '"PUT",' in TASKS_JS
+    assert '"assignment",' in TASKS_JS
+    assert 'labelText.textContent = "Tildel til"' in TASKS_JS
+    assert ".family-task-assignee" in TASKS_CSS
 
 
 def test_router_and_middleware_protect_controlled_family_writes():
@@ -242,10 +460,14 @@ def test_router_and_middleware_protect_controlled_family_writes():
 
 if __name__ == "__main__":
     for test in [
+        test_task_assignment_store_defaults_to_family_and_isolated_by_task,
+        test_task_assignment_store_reads_many_and_prunes_missing_tasks,
         test_default_task_entities_include_shopping_list,
         test_task_source_parser_accepts_three_plain_todo_entities,
         test_client_reads_all_lists_and_filters_completed_items,
         test_client_uses_only_controlled_todo_service_calls,
+        test_task_api_adds_people_counts_and_family_defaults,
+        test_task_api_hides_people_from_anonymous_users,
         test_permissions_allow_completion_for_family_but_editing_for_adults_only,
         test_frontend_supports_shopping_add_edit_remove_and_safe_completion,
         test_router_and_middleware_protect_controlled_family_writes,

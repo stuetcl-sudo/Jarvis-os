@@ -227,6 +227,14 @@ def render_wall_page(current_user, screen_slug="wall"):
     if not screen or not screen.get("is_active"):
         raise LookupError("screen not found")
 
+    assigned_user_id = screen.get("wall_user_id")
+    if (
+        role == "wall_display"
+        and assigned_user_id
+        and current_user.get("user_id") != assigned_user_id
+    ):
+        raise PermissionError("wall screen is assigned to another user")
+
     shared_display = {"role": "wall_display", "display_name": ""}
     page = render_family_page(shared_display, wall_actions=wall_actions_for(role, screen))
     page = move_wall_top_bars_above_cards(page)

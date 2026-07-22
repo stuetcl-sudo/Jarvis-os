@@ -170,6 +170,11 @@ async def enforce_local_authentication(request: Request, call_next):
             screen_slug = "wall" if path == "/wall" else path.split("/", 2)[2]
             try:
                 return HTMLResponse(render_wall_page(current_user, screen_slug))
+            except PermissionError:
+                return JSONResponse(
+                    {"detail": "This wall account is not assigned to this screen"},
+                    status_code=403,
+                )
             except LookupError:
                 return JSONResponse({"detail": "Screen not found"}, status_code=404)
             except ValueError:

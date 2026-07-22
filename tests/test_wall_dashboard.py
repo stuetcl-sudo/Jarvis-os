@@ -122,6 +122,21 @@ def test_named_wall_screen_access_policy_and_missing_screen():
         assert client.get("/api/admin/screens").status_code == 403
 
 
+
+def test_admin_screen_ui_supports_separate_wall_accounts():
+    source = (ROOT / "app/static/js/admin-screens.js").read_text(
+        encoding="utf-8",
+    )
+    routes = (ROOT / "app/screen_routes.py").read_text(
+        encoding="utf-8",
+    )
+
+    assert 'select.id = "screenWallUser"' in source
+    assert '"Fast vægkonto"' in source
+    assert "wall_user_id:" in source
+    assert '"wall_users": wall_users' in routes
+
+
 def test_wall_family_assets_are_available():
     with wall_environment() as client:
         login(client, "wall_display")
@@ -249,6 +264,7 @@ if __name__ == "__main__":
     test_wall_reuses_family_dashboard_as_shared_display()
     test_named_wall_screens_store_visibility_options_and_render_them()
     test_named_wall_screen_access_policy_and_missing_screen()
+    test_admin_screen_ui_supports_separate_wall_accounts()
     test_wall_family_assets_are_available()
     test_wall_mode_frontend_is_read_only_and_role_safe()
     test_calendar_day_selection_does_not_resize_routine_card_on_wall()

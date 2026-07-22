@@ -30,6 +30,7 @@ def test_default_wall_layout_uses_equal_module_sizes():
             "home": "small",
         }
         assert wall["display_options"] == {"show_admin_link": False, "show_safety_status": True}
+        assert wall["wall_user_id"] is None
 
 
 def test_screen_registry_persists_module_size_layout_and_display_options():
@@ -41,6 +42,7 @@ def test_screen_registry_persists_module_size_layout_and_display_options():
             ["calendar", "weather", "meal"],
             module_layout={"calendar": "full", "weather": "small", "meal": "medium"},
             display_options={"show_admin_link": True, "show_safety_status": False},
+            wall_user_id="wall-user-stuen",
         )
         assert created["module_layout"] == {"calendar": "full", "weather": "small", "meal": "medium"}
         assert created["display_options"] == {"show_admin_link": True, "show_safety_status": False}
@@ -49,6 +51,57 @@ def test_screen_registry_persists_module_size_layout_and_display_options():
         assert reloaded["module_layout"] == created["module_layout"]
         assert reloaded["display_options"] == created["display_options"]
         assert reloaded["modules"] == ["calendar", "weather", "meal"]
+        assert reloaded["wall_user_id"] == "wall-user-stuen"
+
+
+def test_wall_screen_binding_isolated_between_wall_users():
+    with screen_environment():
+        upsert_screen(
+            "Wall 1",
+            "wall-1",
+            "wall-surface",
+            ["weather"],
+            wall_user_id="wall-user-1",
+        )
+        upsert_screen(
+            "Wall 2",
+            "wall-2",
+            "wall-tablet",
+            ["calendar"],
+            wall_user_id="wall-user-2",
+        )
+
+        first = render_wall_page(
+            {
+                "user_id": "wall-user-1",
+                "role": "wall_display",
+            },
+            "wall-1",
+        )
+        assert 'data-wall-screen-name="Wall 1"' in first
+
+        try:
+            render_wall_page(
+                {
+                    "user_id": "wall-user-1",
+                    "role": "wall_display",
+                },
+                "wall-2",
+            )
+        except PermissionError:
+            pass
+        else:
+            raise AssertionError("Wall user could open another assigned screen")
+
+        owner = render_wall_page(
+            {
+                "user_id": "owner-1",
+                "role": "owner",
+            },
+            "wall-2",
+        )
+        assert 'data-wall-screen-name="Wall 2"' in owner
+
 
 
 def test_screen_registry_rejects_invalid_module_size():
@@ -92,6 +145,7 @@ if __name__ == "__main__":
     for test in [
         test_default_wall_layout_uses_equal_module_sizes,
         test_screen_registry_persists_module_size_layout_and_display_options,
+        test_wall_screen_binding_isolated_between_wall_users,
         test_screen_registry_rejects_invalid_module_size,
         test_wall_page_applies_configured_module_size_css_and_status_badge,
     ]:

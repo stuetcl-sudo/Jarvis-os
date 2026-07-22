@@ -12,6 +12,8 @@
   const WALL_SHOPPING_PREVIEW_LIMIT = 5;
   const pendingTasks = new Set();
   let taskCsrfToken = null;
+  let activeTaskAssigneeId = null;
+  let latestFamilyTasks = null;
 
   function setTaskState(message) {
     const state = document.getElementById("familyTasksState");
@@ -132,10 +134,77 @@
     }
   }
 
-  function createTaskActions(item, listKey, permissions) {
+  async function assignFamilyTask(listKey, item, assigneeId, select) {
+    const uid = String(item?.uid || "").trim();
+    const safeListKey = String(listKey || "").trim();
+    if (!uid || !safeListKey) return;
+
+    const previousAssigneeId = normalizedAssigneeId(item.assignee_id);
+    select.disabled = true;
+    select.setAttribute("aria-busy", "true");
+
+    try {
+      await taskWrite(
+        safeListKey,
+        "PUT",
+        "assignment",
+        {
+          item: uid,
+          assignee_id: normalizedAssigneeId(assigneeId),
+        },
+        "Gemmer tildelingen…",
+      );
+    } catch (error) {
+      select.value = previousAssigneeId || "";
+      setTaskNotice("Kunne ikke gemme tildelingen. Prøv igen.");
+    } finally {
+      if (select.isConnected) {
+        select.disabled = false;
+        select.removeAttribute("aria-busy");
+      }
+    }
+  }
+
+  function createTaskAssigneeSelect(item, listKey, people) {
+    const label = document.createElement("label");
+    const labelText = document.createElement("span");
+    const select = document.createElement("select");
+
+    label.className = "family-task-assignee";
+    labelText.textContent = "Tildel til";
+    select.setAttribute(
+      "aria-label",
+      `Tildel ${item.summary || "opgaven"} til`,
+    );
+
+    people.forEach((person) => {
+      const option = document.createElement("option");
+      const personId = normalizedAssigneeId(person.user_id);
+
+      option.value = personId || "";
+      option.textContent = taskPersonLabel(person);
+      option.selected =
+        personId === normalizedAssigneeId(item.assignee_id);
+
+      select.append(option);
+    });
+
+    select.addEventListener("change", () => {
+      assignFamilyTask(listKey, item, select.value, select);
+    });
+
+    label.append(labelText, select);
+    return label;
+  }
+
+  function createTaskActions(item, listKey, permissions, people) {
     const actions = document.createElement("div");
     actions.className = "family-task-actions";
     if (!permissions.canEdit && !permissions.canRemove) return actions;
+
+    if (permissions.canEdit && people.length > 0) {
+      actions.append(createTaskAssigneeSelect(item, listKey, people));
+    }
 
     if (permissions.canEdit) {
       const edit = document.createElement("button");
@@ -157,7 +226,7 @@
     return actions;
   }
 
-  function createTaskItem(item, listKey, permissions) {
+  function createTaskItem(item, listKey, permissions, people) {
     const row = document.createElement("li");
     row.className = "family-task-item";
 
@@ -188,7 +257,7 @@
       description.textContent = item.description;
       copy.append(description);
     }
-    copy.append(createTaskActions(item, listKey, permissions));
+    copy.append(createTaskActions(item, listKey, permissions, people));
     row.append(complete, copy);
     return row;
   }
@@ -248,6 +317,94 @@
     return `${total} ${total === 1 ? "punkt" : "punkter"}`;
   }
 
+  function normalizedAssigneeId(value) {
+    const identifier = String(value || "").trim();
+    return identifier || null;
+  }
+
+  function taskPersonLabel(person) {
+    return person?.display_name || "Familien";
+  }
+
+  function selectedTaskPerson(tasks) {
+    const people = Array.isArray(tasks?.people) ? tasks.people : [];
+    return people.find(
+      (person) => normalizedAssigneeId(person.user_id) === activeTaskAssigneeId,
+    ) || people[0] || {
+      user_id: null,
+      display_name: "Familien",
+      count: 0,
+    };
+  }
+
+  function syncActiveTaskPerson(tasks) {
+    const people = Array.isArray(tasks?.people) ? tasks.people : [];
+    const selectionExists = people.some(
+      (person) => normalizedAssigneeId(person.user_id) === activeTaskAssigneeId,
+    );
+
+    if (!selectionExists) {
+      activeTaskAssigneeId = normalizedAssigneeId(people[0]?.user_id);
+    }
+  }
+
+  function renderTaskPersonSwitch(tasks) {
+    const container = document.getElementById("familyTaskPersonSwitch");
+    if (!container) return;
+
+    const people = Array.isArray(tasks?.people) ? tasks.people : [];
+    syncActiveTaskPerson(tasks);
+    container.replaceChildren();
+
+    people.forEach((person) => {
+      const personId = normalizedAssigneeId(person.user_id);
+      const selected = personId === activeTaskAssigneeId;
+      const button = document.createElement("button");
+      const name = document.createElement("span");
+      const count = document.createElement("strong");
+
+      button.type = "button";
+      button.className = "family-task-person-button";
+      button.setAttribute("aria-pressed", selected ? "true" : "false");
+      button.setAttribute(
+        "aria-label",
+        `${taskPersonLabel(person)}, ${Number(person.count) || 0} åbne opgaver`,
+      );
+
+      name.textContent = taskPersonLabel(person);
+      count.textContent = String(Number(person.count) || 0);
+
+      button.append(name, count);
+      button.addEventListener("click", () => {
+        activeTaskAssigneeId = personId;
+        if (latestFamilyTasks) renderFamilyTasks(latestFamilyTasks);
+      });
+      container.append(button);
+    });
+
+    container.hidden = people.length === 0;
+  }
+
+  function filteredTaskLists(tasks) {
+    const lists = Array.isArray(tasks?.lists) ? tasks.lists : [];
+
+    return lists.map((taskList) => ({
+      ...taskList,
+      items: (Array.isArray(taskList.items) ? taskList.items : []).filter(
+        (item) => normalizedAssigneeId(item.assignee_id) === activeTaskAssigneeId,
+      ),
+    }));
+  }
+
+  function createTaskFilterEmpty(tasks) {
+    const empty = document.createElement("p");
+    const person = selectedTaskPerson(tasks);
+
+    empty.className = "family-task-filter-empty";
+    empty.textContent = `${taskPersonLabel(person)} har ingen åbne opgaver`;
+    return empty;
+  }
+
   function taskPermissions(tasks) {
     return {
       canAdd: Boolean(tasks.can_add),
@@ -257,7 +414,7 @@
     };
   }
 
-  function createTaskList(taskList, permissions) {
+  function createTaskList(taskList, permissions, allowAdd, people) {
     const section = document.createElement("section");
     section.className = `family-task-list family-task-list-${taskList.key || "general"}`;
     if (isShoppingList(taskList)) section.classList.add("family-task-list-shopping-list");
@@ -281,7 +438,9 @@
       empty.textContent = "Ingen åbne punkter";
       items.append(empty);
     } else {
-      visibleItems.forEach((item) => items.append(createTaskItem(item, taskList.key, permissions)));
+      visibleItems.forEach((item) => {
+        items.append(createTaskItem(item, taskList.key, permissions, people));
+      });
       if (visibleItems.length < total) {
         const more = document.createElement("li");
         more.className = "family-task-more";
@@ -291,12 +450,14 @@
     }
 
     section.append(heading);
-    if (permissions.canAdd) section.append(createAddForm(taskList));
+    if (permissions.canAdd && allowAdd) section.append(createAddForm(taskList));
     section.append(items);
     return section;
   }
 
   function renderFamilyTasks(tasks) {
+    latestFamilyTasks = tasks;
+
     if (tasks.status === "authentication_required") {
       setTaskState("Log ind for at se familiens lister");
       return;
@@ -316,10 +477,36 @@
     if (data) data.hidden = false;
 
     const permissions = taskPermissions(tasks);
+    const people = Array.isArray(tasks.people) ? tasks.people : [];
     const lists = document.getElementById("familyTaskLists");
+    renderTaskPersonSwitch(tasks);
+
     if (lists) {
       lists.replaceChildren();
-      (tasks.lists || []).forEach((taskList) => lists.append(createTaskList(taskList, permissions)));
+
+      const filteredLists = filteredTaskLists(tasks);
+      const visibleTotal = filteredLists.reduce(
+        (total, taskList) => total + taskList.items.length,
+        0,
+      );
+      const familySelected = activeTaskAssigneeId === null;
+
+      if (visibleTotal === 0 && !familySelected) {
+        lists.append(createTaskFilterEmpty(tasks));
+      } else {
+        filteredLists.forEach((taskList) => {
+          if (familySelected || taskList.items.length > 0) {
+            lists.append(
+              createTaskList(
+                taskList,
+                permissions,
+                familySelected,
+                people,
+              ),
+            );
+          }
+        });
+      }
     }
 
     const messages = {

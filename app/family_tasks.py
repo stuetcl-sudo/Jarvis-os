@@ -11,6 +11,8 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app import config
+from app.family_people import list_family_people
+from app.family_task_assignments import FamilyTaskAssignmentStore
 from app.family_visibility import role_can_do
 from app.home_assistant import (
     HomeAssistantClient,
@@ -49,6 +51,11 @@ class UpdateTaskRequest(BaseModel):
 
 class RemoveTaskRequest(BaseModel):
     item: str = Field(min_length=1, max_length=MAX_ITEM_ID_LENGTH)
+
+
+class AssignTaskRequest(BaseModel):
+    item: str = Field(min_length=1, max_length=MAX_ITEM_ID_LENGTH)
+    assignee_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -287,6 +294,7 @@ def _public_snapshot(snapshot, current_user):
     return {
         "status": "authentication_required",
         "lists": [],
+        "people": [],
         "total": 0,
         "unavailable_lists": 0,
         "stale": False,
@@ -312,10 +320,14 @@ class FamilyTasksService:
         settings_loader=load_family_tasks_settings,
         client_factory=httpx.Client,
         monotonic=time.monotonic,
+        assignment_store=None,
+        people_loader=list_family_people,
     ):
         self.settings_loader = settings_loader
         self.client_factory = client_factory
         self.monotonic = monotonic
+        self.assignment_store = assignment_store or FamilyTaskAssignmentStore()
+        self.people_loader = people_loader
         self._lock = threading.Lock()
         self._cached = None
         self._cached_at = None
@@ -327,13 +339,65 @@ class FamilyTasksService:
             self._cached_at = None
             self._signature = None
 
+    def _decorate_assignments(self, snapshot):
+        result = copy.deepcopy(snapshot)
+        people = self.people_loader()
+        person_ids = {
+            person["user_id"]
+            for person in people
+            if person.get("user_id")
+        }
+
+        task_keys = []
+        for task_list in result.get("lists", []):
+            list_key = task_list.get("key")
+            for item in task_list.get("items", []):
+                task_keys.append((list_key, item.get("uid")))
+
+        assignments = self.assignment_store.get_many(task_keys)
+        counts = {None: 0}
+        counts.update({person_id: 0 for person_id in person_ids})
+
+        for task_list in result.get("lists", []):
+            list_key = task_list.get("key")
+            for item in task_list.get("items", []):
+                task_key = (list_key, item.get("uid"))
+                assignee_id = assignments.get(task_key)
+                if assignee_id not in person_ids:
+                    assignee_id = None
+                item["assignee_id"] = assignee_id
+                counts[assignee_id] = counts.get(assignee_id, 0) + 1
+
+        result["people"] = [
+            {
+                "user_id": None,
+                "display_name": "Familien",
+                "role": "family",
+                "count": counts.get(None, 0),
+            },
+            *[
+                {
+                    **person,
+                    "count": counts.get(person["user_id"], 0),
+                }
+                for person in people
+            ],
+        ]
+        return result
+
+    def _public_tasks(self, snapshot, current_user):
+        return _public_snapshot(
+            self._decorate_assignments(snapshot),
+            current_user,
+        )
+
     def get_tasks(self, current_user=None):
         try:
             settings = self.settings_loader()
         except FamilyTasksConfigurationError:
-            return _public_snapshot(_empty_snapshot("unavailable"), current_user)
+            return self._public_tasks(_empty_snapshot("unavailable"), current_user)
         if settings is None:
-            return _public_snapshot(_empty_snapshot("not_configured"), current_user)
+            return self._public_tasks(_empty_snapshot("not_configured"), current_user)
 
         signature = settings.signature()
         now = self.monotonic()
@@ -345,7 +409,7 @@ class FamilyTasksService:
             if self._cached is not None and self._cached_at is not None:
                 age = max(0.0, now - self._cached_at)
                 if age < settings.cache_seconds:
-                    return _public_snapshot(self._cached, current_user)
+                    return self._public_tasks(self._cached, current_user)
 
             lists, failures = HomeAssistantTasksClient(settings, self.client_factory).fetch()
             if failures < len(settings.sources):
@@ -353,7 +417,7 @@ class FamilyTasksService:
                 snapshot = _snapshot(status, lists, failures)
                 self._cached = copy.deepcopy(snapshot)
                 self._cached_at = now
-                return _public_snapshot(snapshot, current_user)
+                return self._public_tasks(snapshot, current_user)
 
             if self._cached is not None and self._cached_at is not None:
                 age = max(0.0, now - self._cached_at)
@@ -362,9 +426,9 @@ class FamilyTasksService:
                     stale["status"] = "stale"
                     stale["stale"] = True
                     stale["unavailable_lists"] = len(settings.sources)
-                    return _public_snapshot(stale, current_user)
+                    return self._public_tasks(stale, current_user)
 
-            return _public_snapshot(
+            return self._public_tasks(
                 _empty_snapshot("unavailable", settings.sources, len(settings.sources)),
                 current_user,
             )
@@ -384,6 +448,7 @@ class FamilyTasksService:
         settings, source = self._settings_and_source(list_key)
         cleaned_uid = _required_text(item_uid, MAX_ITEM_ID_LENGTH, "Task item is invalid")
         HomeAssistantTasksClient(settings, self.client_factory).complete(source, cleaned_uid)
+        self.assignment_store.delete(list_key, cleaned_uid)
         self.clear_cache()
         return self.get_tasks(current_user)
 
@@ -417,12 +482,43 @@ class FamilyTasksService:
         self.clear_cache()
         return self.get_tasks(current_user)
 
+    def assign_task(self, list_key, item_uid, assignee_id, current_user=None):
+        if not _can_perform(current_user, "task_edit"):
+            raise PermissionError("Task assignment is not allowed")
+
+        settings, source = self._settings_and_source(list_key)
+        del settings, source
+
+        cleaned_uid = _required_text(
+            item_uid,
+            MAX_ITEM_ID_LENGTH,
+            "Task item is invalid",
+        )
+        cleaned_assignee_id = str(assignee_id or "").strip() or None
+
+        if cleaned_assignee_id is not None:
+            valid_person_ids = {
+                person["user_id"]
+                for person in self.people_loader()
+                if person.get("user_id")
+            }
+            if cleaned_assignee_id not in valid_person_ids:
+                raise KeyError("Task assignee was not found")
+
+        self.assignment_store.set(
+            list_key,
+            cleaned_uid,
+            cleaned_assignee_id,
+        )
+        return self.get_tasks(current_user)
+
     def remove_task(self, list_key, item_uid, current_user=None):
         if not _can_perform(current_user, "task_remove"):
             raise PermissionError("Task removal is not allowed")
         settings, source = self._settings_and_source(list_key)
         cleaned_uid = _required_text(item_uid, MAX_ITEM_ID_LENGTH, "Task item is invalid")
         HomeAssistantTasksClient(settings, self.client_factory).remove(source, cleaned_uid)
+        self.assignment_store.delete(list_key, cleaned_uid)
         self.clear_cache()
         return self.get_tasks(current_user)
 
@@ -483,6 +579,24 @@ def update_family_task(list_key: str, payload: UpdateTaskRequest, request: Reque
             payload.item,
             payload.summary,
             payload.description,
+            current_user,
+        )
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.put("/api/family/tasks/{list_key}/assignment")
+def assign_family_task(
+    list_key: str,
+    payload: AssignTaskRequest,
+    request: Request,
+):
+    current_user = getattr(request.state, "current_user", None)
+    try:
+        return family_tasks_service.assign_task(
+            list_key,
+            payload.item,
+            payload.assignee_id,
             current_user,
         )
     except Exception as exc:
