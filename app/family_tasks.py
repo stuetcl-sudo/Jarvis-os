@@ -53,6 +53,11 @@ class RemoveTaskRequest(BaseModel):
     item: str = Field(min_length=1, max_length=MAX_ITEM_ID_LENGTH)
 
 
+class AssignTaskRequest(BaseModel):
+    item: str = Field(min_length=1, max_length=MAX_ITEM_ID_LENGTH)
+    assignee_id: str | None = None
+
+
 @dataclass(frozen=True)
 class TaskSource:
     entity_id: str = field(repr=False)
@@ -443,6 +448,7 @@ class FamilyTasksService:
         settings, source = self._settings_and_source(list_key)
         cleaned_uid = _required_text(item_uid, MAX_ITEM_ID_LENGTH, "Task item is invalid")
         HomeAssistantTasksClient(settings, self.client_factory).complete(source, cleaned_uid)
+        self.assignment_store.delete(list_key, cleaned_uid)
         self.clear_cache()
         return self.get_tasks(current_user)
 
@@ -476,12 +482,43 @@ class FamilyTasksService:
         self.clear_cache()
         return self.get_tasks(current_user)
 
+    def assign_task(self, list_key, item_uid, assignee_id, current_user=None):
+        if not _can_perform(current_user, "task_edit"):
+            raise PermissionError("Task assignment is not allowed")
+
+        settings, source = self._settings_and_source(list_key)
+        del settings, source
+
+        cleaned_uid = _required_text(
+            item_uid,
+            MAX_ITEM_ID_LENGTH,
+            "Task item is invalid",
+        )
+        cleaned_assignee_id = str(assignee_id or "").strip() or None
+
+        if cleaned_assignee_id is not None:
+            valid_person_ids = {
+                person["user_id"]
+                for person in self.people_loader()
+                if person.get("user_id")
+            }
+            if cleaned_assignee_id not in valid_person_ids:
+                raise KeyError("Task assignee was not found")
+
+        self.assignment_store.set(
+            list_key,
+            cleaned_uid,
+            cleaned_assignee_id,
+        )
+        return self.get_tasks(current_user)
+
     def remove_task(self, list_key, item_uid, current_user=None):
         if not _can_perform(current_user, "task_remove"):
             raise PermissionError("Task removal is not allowed")
         settings, source = self._settings_and_source(list_key)
         cleaned_uid = _required_text(item_uid, MAX_ITEM_ID_LENGTH, "Task item is invalid")
         HomeAssistantTasksClient(settings, self.client_factory).remove(source, cleaned_uid)
+        self.assignment_store.delete(list_key, cleaned_uid)
         self.clear_cache()
         return self.get_tasks(current_user)
 
@@ -542,6 +579,24 @@ def update_family_task(list_key: str, payload: UpdateTaskRequest, request: Reque
             payload.item,
             payload.summary,
             payload.description,
+            current_user,
+        )
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.put("/api/family/tasks/{list_key}/assignment")
+def assign_family_task(
+    list_key: str,
+    payload: AssignTaskRequest,
+    request: Request,
+):
+    current_user = getattr(request.state, "current_user", None)
+    try:
+        return family_tasks_service.assign_task(
+            list_key,
+            payload.item,
+            payload.assignee_id,
             current_user,
         )
     except Exception as exc:
