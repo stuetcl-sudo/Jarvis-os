@@ -26,8 +26,12 @@ from app.routine_definitions import (
 ROUTINE_ROLES = {"owner", "adult", "child", "wall_display"}
 DEFAULT_STATE_PATH = Path("/data/family_routines.json")
 MORNING_TASKS = DEFAULT_DEFINITIONS["morning"].tasks
-EVENING_BASE_TASKS = tuple(task for task in DEFAULT_DEFINITIONS["evening"].tasks if task.id != "evening_bath")
-BATH_TASK = next(task for task in DEFAULT_DEFINITIONS["evening"].tasks if task.id == "evening_bath")
+EVENING_BASE_TASKS = tuple(
+    task for task in DEFAULT_DEFINITIONS["evening"].tasks if task.id != "evening_bath"
+)
+BATH_TASK = next(
+    task for task in DEFAULT_DEFINITIONS["evening"].tasks if task.id == "evening_bath"
+)
 STATE_VERSION = 2
 
 
@@ -52,8 +56,8 @@ def local_now(now=None):
     return current.astimezone(tz)
 
 
-def routine_tasks(routine_id, local_date):
-    return tasks_for_date(definition_store.get(routine_id), local_date)
+def routine_tasks(routine_id, local_date, person_id=None):
+    return tasks_for_date(definition_store.get(routine_id, person_id), local_date)
 
 
 def _default_progress(date_text):
@@ -67,7 +71,10 @@ def _default_progress(date_text):
 
 
 def _default_person_state(date_text):
-    return {"morning": _default_progress(date_text), "evening": _default_progress(date_text)}
+    return {
+        "morning": _default_progress(date_text),
+        "evening": _default_progress(date_text),
+    }
 
 
 def _safe_progress(candidate, date_text):
@@ -76,14 +83,23 @@ def _safe_progress(candidate, date_text):
         return result
     index = candidate.get("current_index")
     completed_ids = candidate.get("completed_task_ids")
-    if not isinstance(index, int) or isinstance(index, bool) or index < 0 or not isinstance(completed_ids, list):
+    if (
+        not isinstance(index, int)
+        or isinstance(index, bool)
+        or index < 0
+        or not isinstance(completed_ids, list)
+    ):
         return result
     return {
         "date": date_text,
         "current_index": index,
         "completed_task_ids": [item for item in completed_ids if isinstance(item, str)],
-        "completed_at": candidate.get("completed_at") if isinstance(candidate.get("completed_at"), str) else None,
-        "updated_at": candidate.get("updated_at") if isinstance(candidate.get("updated_at"), str) else None,
+        "completed_at": candidate.get("completed_at")
+        if isinstance(candidate.get("completed_at"), str)
+        else None,
+        "updated_at": candidate.get("updated_at")
+        if isinstance(candidate.get("updated_at"), str)
+        else None,
     }
 
 
@@ -98,7 +114,11 @@ def _safe_legacy_state(raw, date_text):
 
 def _safe_versioned_state(raw, date_text, migration_person_id=None):
     state = {"version": STATE_VERSION, "date": date_text, "persons": {}}
-    if isinstance(raw, dict) and raw.get("version") == STATE_VERSION and raw.get("date") == date_text:
+    if (
+        isinstance(raw, dict)
+        and raw.get("version") == STATE_VERSION
+        and raw.get("date") == date_text
+    ):
         raw_persons = raw.get("persons")
         if isinstance(raw_persons, dict):
             for raw_person_id, raw_progress in raw_persons.items():
@@ -110,14 +130,18 @@ def _safe_versioned_state(raw, date_text, migration_person_id=None):
                     for routine_id in ("morning", "evening")
                 }
         return state
-    if migration_person_id and isinstance(raw, dict) and any(key in raw for key in ROUTINE_IDS):
+    if migration_person_id and isinstance(raw, dict) and any(
+        key in raw for key in ROUTINE_IDS
+    ):
         state["persons"][migration_person_id] = _safe_legacy_state(raw, date_text)
     return state
 
 
 def _reconcile_progress(progress, tasks):
     valid_ids = {task.id for task in tasks}
-    remaining = [task_id for task_id in progress["completed_task_ids"] if task_id in valid_ids]
+    remaining = [
+        task_id for task_id in progress["completed_task_ids"] if task_id in valid_ids
+    ]
     prefix = []
     for task in tasks:
         if remaining and task.id == remaining[0]:
@@ -135,7 +159,11 @@ def _clean_person_id(person_id):
     if person_id is None:
         return None
     cleaned = str(person_id).strip()
-    if not cleaned or len(cleaned) > 128 or any(ord(character) < 33 for character in cleaned):
+    if (
+        not cleaned
+        or len(cleaned) > 128
+        or any(ord(character) < 33 for character in cleaned)
+    ):
         raise ValueError("person_id is invalid")
     return cleaned
 
@@ -161,7 +189,11 @@ class RoutineStore:
 
     def _write_unlocked(self, state):
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        descriptor, temporary_name = tempfile.mkstemp(prefix="family_routines_", suffix=".tmp", dir=self.path.parent)
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix="family_routines_",
+            suffix=".tmp",
+            dir=self.path.parent,
+        )
         try:
             with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
                 json.dump(state, handle, ensure_ascii=False, separators=(",", ":"))
@@ -173,8 +205,11 @@ class RoutineStore:
             if os.path.exists(temporary_name):
                 os.unlink(temporary_name)
 
-    def _tasks(self, routine_id, local_date):
-        return tasks_for_date(self.definitions.get(routine_id), local_date)
+    def _tasks(self, routine_id, local_date, person_id=None):
+        return tasks_for_date(
+            self.definitions.get(routine_id, person_id),
+            local_date,
+        )
 
     def snapshot(self, now=None, person_id=None):
         person_id = _clean_person_id(person_id)
@@ -182,42 +217,62 @@ class RoutineStore:
         date_text = current.date().isoformat()
         with self._lock:
             state = self._read_unlocked(date_text, person_id)
-            if person_id is None:
-                progress_state = state
-            else:
-                progress_state = state["persons"].setdefault(person_id, _default_person_state(date_text))
+            progress_state = (
+                state
+                if person_id is None
+                else state["persons"].setdefault(
+                    person_id,
+                    _default_person_state(date_text),
+                )
+            )
             for routine_id in ROUTINE_IDS:
-                _reconcile_progress(progress_state[routine_id], self._tasks(routine_id, current.date()))
+                _reconcile_progress(
+                    progress_state[routine_id],
+                    self._tasks(routine_id, current.date(), person_id),
+                )
             self._write_unlocked(state)
-            return self._response(progress_state, current)
+            return self._response(progress_state, current, person_id)
 
-    def change(self, routine_id, action, expected_index=None, now=None, person_id=None):
+    def change(
+        self,
+        routine_id,
+        action,
+        expected_index=None,
+        now=None,
+        person_id=None,
+    ):
         if routine_id not in ROUTINE_IDS:
             raise KeyError(routine_id)
         person_id = _clean_person_id(person_id)
         current = local_now(now or self.now_provider())
         date_text = current.date().isoformat()
         timestamp = current.isoformat(timespec="seconds")
-        tasks = self._tasks(routine_id, current.date())
+        tasks = self._tasks(routine_id, current.date(), person_id)
         with self._lock:
             state = self._read_unlocked(date_text, person_id)
-            if person_id is None:
-                progress_state = state
-            else:
-                progress_state = state["persons"].setdefault(person_id, _default_person_state(date_text))
+            progress_state = (
+                state
+                if person_id is None
+                else state["persons"].setdefault(
+                    person_id,
+                    _default_person_state(date_text),
+                )
+            )
             progress = _reconcile_progress(progress_state[routine_id], tasks)
             index = progress["current_index"]
             if action == "complete":
                 if expected_index is not None and expected_index != index:
-                    return self._response(progress_state, current)
+                    return self._response(progress_state, current, person_id)
                 if index < len(tasks):
                     progress["completed_task_ids"].append(tasks[index].id)
                     progress["current_index"] = index + 1
-                    progress["completed_at"] = timestamp if index + 1 >= len(tasks) else None
+                    progress["completed_at"] = (
+                        timestamp if index + 1 >= len(tasks) else None
+                    )
                     progress["updated_at"] = timestamp
             elif action == "back":
                 if expected_index is not None and expected_index != index:
-                    return self._response(progress_state, current)
+                    return self._response(progress_state, current, person_id)
                 if index > 0:
                     progress["completed_task_ids"] = progress["completed_task_ids"][:-1]
                     progress["current_index"] = index - 1
@@ -229,35 +284,58 @@ class RoutineStore:
             else:
                 raise ValueError(action)
             self._write_unlocked(state)
-            return self._response(progress_state, current)
+            return self._response(progress_state, current, person_id)
 
-    def reconcile_definition(self, routine_id, reset=False, now=None):
+    def reconcile_definition(
+        self,
+        routine_id,
+        reset=False,
+        now=None,
+        person_id=None,
+    ):
         if routine_id not in ROUTINE_IDS:
             raise KeyError(routine_id)
+        person_id = _clean_person_id(person_id)
         current = local_now(now or self.now_provider())
         date_text = current.date().isoformat()
         with self._lock:
             raw = self._load_raw_unlocked()
             if isinstance(raw, dict) and raw.get("version") == STATE_VERSION:
                 state = _safe_versioned_state(raw, date_text)
-                for progress_state in state["persons"].values():
+                target_states = (
+                    [
+                        state["persons"].setdefault(
+                            person_id,
+                            _default_person_state(date_text),
+                        )
+                    ]
+                    if person_id
+                    else list(state["persons"].values())
+                )
+                for progress_state in target_states:
                     if reset:
                         progress_state[routine_id] = _default_progress(date_text)
                     else:
-                        _reconcile_progress(progress_state[routine_id], self._tasks(routine_id, current.date()))
+                        _reconcile_progress(
+                            progress_state[routine_id],
+                            self._tasks(routine_id, current.date(), person_id),
+                        )
                 self._write_unlocked(state)
                 return None
             state = _safe_legacy_state(raw, date_text)
             if reset:
                 state[routine_id] = _default_progress(date_text)
             else:
-                _reconcile_progress(state[routine_id], self._tasks(routine_id, current.date()))
+                _reconcile_progress(
+                    state[routine_id],
+                    self._tasks(routine_id, current.date(), person_id),
+                )
             self._write_unlocked(state)
-            return self._response(state, current)
+            return self._response(state, current, person_id)
 
-    def _response(self, progress_state, current):
+    def _response(self, progress_state, current, person_id=None):
         routines = {}
-        definitions = self.definitions.all()
+        definitions = self.definitions.all(person_id)
         for routine_id in ("morning", "evening"):
             tasks = tasks_for_date(definitions[routine_id], current.date())
             progress = _reconcile_progress(progress_state[routine_id], tasks)
@@ -270,14 +348,20 @@ class RoutineStore:
                 "current_index": index,
                 "total": len(tasks),
                 "completed": completed,
-                "current_task": None if current_task is None else {
+                "current_task": None
+                if current_task is None
+                else {
                     "id": current_task.id,
                     "title": current_task.title,
                     "pictogram": current_task.pictogram,
                     "time": current_task.time,
                 },
             }
-        return {"status": "ok", "recommended": "morning" if current.hour < 12 else "evening", "routines": routines}
+        return {
+            "status": "ok",
+            "recommended": "morning" if current.hour < 12 else "evening",
+            "routines": routines,
+        }
 
 
 definition_store = RoutineDefinitionStore()
@@ -287,7 +371,11 @@ router = APIRouter()
 
 def _current_user(request):
     user = getattr(request.state, "current_user", None)
-    return user if isinstance(user, dict) and user.get("role") in ROUTINE_ROLES else None
+    return (
+        user
+        if isinstance(user, dict) and user.get("role") in ROUTINE_ROLES
+        else None
+    )
 
 
 def _editor_user(request):
@@ -295,13 +383,21 @@ def _editor_user(request):
     return user if user and user.get("role") in EDITOR_ROLES else None
 
 
-def _definitions_response():
-    definitions = definition_store.all()
+def _definitions_response(person_id=None):
+    definitions = definition_store.all(person_id)
     return {
         "status": "ok",
-        "routines": {routine_id: definition_to_dict(definitions[routine_id]) for routine_id in ("morning", "evening")},
-        "pictograms": [{"key": key, "label": label} for key, label in PICTOGRAM_LABELS.items()],
-        "weekdays": [{"key": key, "label": label} for key, label in WEEKDAY_LABELS],
+        "routines": {
+            routine_id: definition_to_dict(definitions[routine_id])
+            for routine_id in ("morning", "evening")
+        },
+        "pictograms": [
+            {"key": key, "label": label}
+            for key, label in PICTOGRAM_LABELS.items()
+        ],
+        "weekdays": [
+            {"key": key, "label": label} for key, label in WEEKDAY_LABELS
+        ],
     }
 
 
@@ -315,7 +411,11 @@ def _select_person(current_user, requested_person_id=None):
         if selected not in by_id:
             raise HTTPException(status_code=404, detail="Person not found")
         return people, selected
-    own_id = str(current_user.get("user_id") or "").strip() if isinstance(current_user, dict) else ""
+    own_id = (
+        str(current_user.get("user_id") or "").strip()
+        if isinstance(current_user, dict)
+        else ""
+    )
     if own_id in by_id:
         return people, own_id
     return people, people[0]["user_id"]
@@ -343,16 +443,28 @@ def family_routines(request: Request, person_id: str | None = None):
             "recommended": "morning",
             "routines": {},
         }
-    return _person_response(routine_store.snapshot(person_id=selected_person_id), people, selected_person_id)
+    return _person_response(
+        routine_store.snapshot(person_id=selected_person_id),
+        people,
+        selected_person_id,
+    )
 
 
 @router.get("/api/family/routines/definitions")
-def routine_definitions(request: Request):
-    if _current_user(request) is None:
+def routine_definitions(request: Request, person_id: str | None = None):
+    current_user = _current_user(request)
+    if current_user is None:
         raise HTTPException(status_code=401, detail="Authentication required")
     if _editor_user(request) is None:
         raise HTTPException(status_code=403, detail="Adult role required")
-    return _definitions_response()
+    people, selected_person_id = _select_person(current_user, person_id)
+    if selected_person_id is None:
+        raise HTTPException(status_code=409, detail="No family persons configured")
+    return _person_response(
+        _definitions_response(selected_person_id),
+        people,
+        selected_person_id,
+    )
 
 
 def _change(request, routine_id, action, payload=None):
@@ -386,36 +498,81 @@ def back_routine(request: Request, routine_id: str, payload: ProgressPayload):
 
 
 @router.post("/api/family/routines/{routine_id}/reset")
-def reset_routine(request: Request, routine_id: str, payload: ProgressPayload | None = None):
+def reset_routine(
+    request: Request,
+    routine_id: str,
+    payload: ProgressPayload | None = None,
+):
     return _change(request, routine_id, "reset", payload)
 
 
 @router.put("/api/family/routines/definitions/{routine_id}")
-def update_routine_definition(request: Request, routine_id: str, payload: dict):
+def update_routine_definition(
+    request: Request,
+    routine_id: str,
+    payload: dict,
+    person_id: str | None = None,
+):
     if routine_id not in ROUTINE_IDS:
         raise HTTPException(status_code=404, detail="Routine not found")
+    current_user = _current_user(request)
     if _editor_user(request) is None:
         raise HTTPException(status_code=403, detail="Adult role required")
+    people, selected_person_id = _select_person(current_user, person_id)
+    if selected_person_id is None:
+        raise HTTPException(status_code=409, detail="No family persons configured")
     try:
-        definition_store.update(routine_id, payload)
+        definition_store.update(
+            routine_id,
+            payload,
+            person_id=selected_person_id,
+        )
     except DefinitionValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
-    routine_store.reconcile_definition(routine_id)
-    current_user = _current_user(request)
-    people, selected_person_id = _select_person(current_user)
-    progress = routine_store.snapshot(person_id=selected_person_id)["routines"] if selected_person_id else {}
-    return {**_definitions_response(), "progress": progress}
+    routine_store.reconcile_definition(
+        routine_id,
+        person_id=selected_person_id,
+    )
+    progress = routine_store.snapshot(person_id=selected_person_id)["routines"]
+    return _person_response(
+        {
+            **_definitions_response(selected_person_id),
+            "progress": progress,
+        },
+        people,
+        selected_person_id,
+    )
 
 
 @router.post("/api/family/routines/definitions/{routine_id}/reset-default")
-def reset_routine_definition(request: Request, routine_id: str):
+def reset_routine_definition(
+    request: Request,
+    routine_id: str,
+    person_id: str | None = None,
+):
     if routine_id not in ROUTINE_IDS:
         raise HTTPException(status_code=404, detail="Routine not found")
+    current_user = _current_user(request)
     if _editor_user(request) is None:
         raise HTTPException(status_code=403, detail="Adult role required")
-    definition_store.reset_default(routine_id)
-    routine_store.reconcile_definition(routine_id, reset=True)
-    current_user = _current_user(request)
-    people, selected_person_id = _select_person(current_user)
-    progress = routine_store.snapshot(person_id=selected_person_id)["routines"] if selected_person_id else {}
-    return {**_definitions_response(), "progress": progress}
+    people, selected_person_id = _select_person(current_user, person_id)
+    if selected_person_id is None:
+        raise HTTPException(status_code=409, detail="No family persons configured")
+    definition_store.reset_default(
+        routine_id,
+        person_id=selected_person_id,
+    )
+    routine_store.reconcile_definition(
+        routine_id,
+        reset=True,
+        person_id=selected_person_id,
+    )
+    progress = routine_store.snapshot(person_id=selected_person_id)["routines"]
+    return _person_response(
+        {
+            **_definitions_response(selected_person_id),
+            "progress": progress,
+        },
+        people,
+        selected_person_id,
+    )
