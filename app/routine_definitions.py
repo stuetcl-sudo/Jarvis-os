@@ -11,6 +11,7 @@ from pathlib import Path
 ROUTINE_IDS = {"morning", "evening"}
 EDITOR_ROLES = {"owner", "adult"}
 DEFAULT_DEFINITIONS_PATH = Path("/data/family_routine_definitions.json")
+DEFINITION_STATE_VERSION = 2
 MAX_TASKS = 30
 MAX_TITLE_LENGTH = 80
 MAX_LABEL_LENGTH = 40
@@ -156,16 +157,23 @@ def validate_definition(routine_id, payload, require_ids=False):
             raise DefinitionValidationError("Piktogrammet er ugyldigt")
         raw_time = raw.get("time")
         guidance_time = None if raw_time in (None, "") else raw_time
-        if guidance_time is not None and (not isinstance(guidance_time, str) or not TIME_RE.fullmatch(guidance_time)):
+        if guidance_time is not None and (
+            not isinstance(guidance_time, str) or not TIME_RE.fullmatch(guidance_time)
+        ):
             raise DefinitionValidationError("Tidspunktet skal være HH:MM")
         raw_weekdays = raw.get("weekdays", [])
         if not isinstance(raw_weekdays, list):
             raise DefinitionValidationError("Ugedage er ugyldige")
-        if any(not isinstance(day, int) or isinstance(day, bool) or day not in range(7) for day in raw_weekdays):
+        if any(
+            not isinstance(day, int) or isinstance(day, bool) or day not in range(7)
+            for day in raw_weekdays
+        ):
             raise DefinitionValidationError("Ugedage er ugyldige")
         if len(set(raw_weekdays)) != len(raw_weekdays):
             raise DefinitionValidationError("Ugedage må ikke gentages")
-        tasks.append(RoutineTask(task_id, title, pictogram, guidance_time, tuple(sorted(raw_weekdays))))
+        tasks.append(
+            RoutineTask(task_id, title, pictogram, guidance_time, tuple(sorted(raw_weekdays)))
+        )
     return RoutineDefinition(routine_id, label, tuple(tasks))
 
 
@@ -190,6 +198,15 @@ def tasks_for_date(definition, local_date):
     return tuple(task for task in definition.tasks if not task.weekdays or weekday in task.weekdays)
 
 
+def _clean_person_id(person_id):
+    if person_id is None:
+        return None
+    cleaned = str(person_id).strip()
+    if not cleaned or len(cleaned) > 128 or any(ord(character) < 33 for character in cleaned):
+        raise ValueError("person_id is invalid")
+    return cleaned
+
+
 class RoutineDefinitionStore:
     def __init__(self, path=DEFAULT_DEFINITIONS_PATH):
         self.path = Path(path)
@@ -198,19 +215,52 @@ class RoutineDefinitionStore:
     def _defaults(self):
         return copy.deepcopy(DEFAULT_DEFINITIONS)
 
-    def _read_unlocked(self):
+    def _parse_definitions(self, raw):
+        if not isinstance(raw, dict) or set(raw) != ROUTINE_IDS:
+            raise DefinitionValidationError("Definitioner er ugyldige")
+        return {
+            routine_id: validate_definition(routine_id, raw[routine_id], require_ids=True)
+            for routine_id in ROUTINE_IDS
+        }
+
+    def _read_state_unlocked(self):
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
-            if not isinstance(raw, dict) or set(raw) != ROUTINE_IDS:
-                raise DefinitionValidationError("Definitioner er ugyldige")
+            if (
+                isinstance(raw, dict)
+                and raw.get("version") == DEFINITION_STATE_VERSION
+                and isinstance(raw.get("shared"), dict)
+                and isinstance(raw.get("persons"), dict)
+            ):
+                shared = self._parse_definitions(raw["shared"])
+                persons = {}
+                for raw_person_id, raw_definitions in raw["persons"].items():
+                    try:
+                        person_id = _clean_person_id(raw_person_id)
+                        persons[person_id] = self._parse_definitions(raw_definitions)
+                    except (ValueError, DefinitionValidationError):
+                        continue
+                return {
+                    "version": DEFINITION_STATE_VERSION,
+                    "shared": shared,
+                    "persons": persons,
+                }
+
+            # Version 1 stored shared morning/evening definitions at the file root.
+            shared = self._parse_definitions(raw)
             return {
-                routine_id: validate_definition(routine_id, raw[routine_id], require_ids=True)
-                for routine_id in ROUTINE_IDS
+                "version": DEFINITION_STATE_VERSION,
+                "shared": shared,
+                "persons": {},
             }
         except (FileNotFoundError, OSError, ValueError, TypeError, DefinitionValidationError):
-            return self._defaults()
+            return {
+                "version": DEFINITION_STATE_VERSION,
+                "shared": self._defaults(),
+                "persons": {},
+            }
 
-    def _write_unlocked(self, definitions):
+    def _write_state_unlocked(self, state):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         descriptor, temporary_name = tempfile.mkstemp(
             prefix="family_routine_definitions_",
@@ -218,8 +268,18 @@ class RoutineDefinitionStore:
             dir=self.path.parent,
         )
         payload = {
-            routine_id: definition_to_dict(definitions[routine_id])
-            for routine_id in ("morning", "evening")
+            "version": DEFINITION_STATE_VERSION,
+            "shared": {
+                routine_id: definition_to_dict(state["shared"][routine_id])
+                for routine_id in ("morning", "evening")
+            },
+            "persons": {
+                person_id: {
+                    routine_id: definition_to_dict(definitions[routine_id])
+                    for routine_id in ("morning", "evening")
+                }
+                for person_id, definitions in state["persons"].items()
+            },
         }
         try:
             with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
@@ -232,33 +292,52 @@ class RoutineDefinitionStore:
             if os.path.exists(temporary_name):
                 os.unlink(temporary_name)
 
-    def all(self):
+    def all(self, person_id=None):
+        person_id = _clean_person_id(person_id)
         with self._lock:
-            return self._read_unlocked()
+            state = self._read_state_unlocked()
+            source = state["persons"].get(person_id, state["shared"]) if person_id else state["shared"]
+            return copy.deepcopy(source)
 
-    def get(self, routine_id):
+    def get(self, routine_id, person_id=None):
         if routine_id not in ROUTINE_IDS:
             raise KeyError(routine_id)
-        return self.all()[routine_id]
+        return self.all(person_id)[routine_id]
 
-    def update(self, routine_id, payload):
+    def update(self, routine_id, payload, person_id=None):
         if routine_id not in ROUTINE_IDS:
             raise KeyError(routine_id)
+        person_id = _clean_person_id(person_id)
         normalized = validate_definition(routine_id, payload)
         with self._lock:
-            definitions = self._read_unlocked()
+            state = self._read_state_unlocked()
+            if person_id:
+                definitions = state["persons"].setdefault(
+                    person_id,
+                    copy.deepcopy(state["shared"]),
+                )
+            else:
+                definitions = state["shared"]
             previous = definitions[routine_id]
             definitions[routine_id] = normalized
-            self._write_unlocked(definitions)
+            self._write_state_unlocked(state)
             return previous, normalized
 
-    def reset_default(self, routine_id):
+    def reset_default(self, routine_id, person_id=None):
         if routine_id not in ROUTINE_IDS:
             raise KeyError(routine_id)
+        person_id = _clean_person_id(person_id)
         with self._lock:
-            definitions = self._read_unlocked()
+            state = self._read_state_unlocked()
+            if person_id:
+                definitions = state["persons"].setdefault(
+                    person_id,
+                    copy.deepcopy(state["shared"]),
+                )
+            else:
+                definitions = state["shared"]
             previous = definitions[routine_id]
             restored = copy.deepcopy(DEFAULT_DEFINITIONS[routine_id])
             definitions[routine_id] = restored
-            self._write_unlocked(definitions)
+            self._write_state_unlocked(state)
             return previous, restored
