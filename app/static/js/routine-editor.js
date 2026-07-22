@@ -21,6 +21,8 @@ let routineEditorDraft = null;
 let routineEditorId = "morning";
 let routineEditorDirty = false;
 let routineEditorPending = false;
+let routineEditorPersonId = null;
+let routineEditorPersonName = "";
 let draggedTaskIndex = null;
 
 function editorElement(id) {
@@ -41,6 +43,19 @@ function editorSetPending(pending) {
 
 function cloneRoutine(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function editorPersonQuery() {
+  return routineEditorPersonId
+    ? `?person_id=${encodeURIComponent(routineEditorPersonId)}`
+    : "";
+}
+
+function syncRoutineEditorPerson(data) {
+  routineEditorPersonId = data?.selected_person_id || activePersonId || null;
+  const people = Array.isArray(data?.persons) ? data.persons : [];
+  const selected = people.find((person) => person.user_id === routineEditorPersonId);
+  routineEditorPersonName = selected?.display_name || "valgt person";
 }
 
 function localPictogram(key, label) {
@@ -216,7 +231,7 @@ function switchEditorRoutine(routineId) {
 
 async function editorCsrfToken() {
   if (typeof loadRoutineCsrfToken === "function") return loadRoutineCsrfToken();
-  const response = await fetch("/api/auth/me");
+  const response = await fetch("/api/auth/me", { credentials: "same-origin" });
   if (!response.ok) throw new Error("Login kræves");
   const profile = await response.json();
   return profile.csrf_token;
@@ -227,13 +242,20 @@ async function openRoutineEditor() {
   if (!dialog || routineEditorPending) return;
   editorSetPending(true);
   try {
-    const response = await fetch(editorEndpoints.definitions);
+    routineEditorPersonId = activePersonId || null;
+    if (!routineEditorPersonId) throw new Error("Vælg en person først");
+    const response = await fetch(
+      `${editorEndpoints.definitions}${editorPersonQuery()}`,
+      { credentials: "same-origin" },
+    );
     if (!response.ok) throw new Error("Editor kunne ikke hentes");
     routineEditorData = await response.json();
+    syncRoutineEditorPerson(routineEditorData);
     routineEditorId = activeRoutineId && editorRoutineIds.has(activeRoutineId) ? activeRoutineId : "morning";
     routineEditorDraft = cloneRoutine(routineEditorData.routines[routineEditorId]);
     routineEditorDirty = false;
     renderRoutineEditor();
+    editorMessage(`Redigerer rutiner for ${routineEditorPersonName}.`);
     dialog.showModal();
   } catch (error) {
     editorMessage("Editor kunne ikke åbnes.");
@@ -272,17 +294,22 @@ async function saveRoutineEditor(event) {
   editorMessage("Gemmer…");
   try {
     const csrf = await editorCsrfToken();
-    const response = await fetch(editorEndpoints[routineEditorId].save, {
+    const response = await fetch(
+      `${editorEndpoints[routineEditorId].save}${editorPersonQuery()}`,
+      {
       method: "PUT",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
       body: JSON.stringify(normalizedEditorPayload()),
-    });
+      },
+    );
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail || "Kunne ikke gemme");
     routineEditorData = result;
+    syncRoutineEditorPerson(result);
     routineEditorDraft = cloneRoutine(result.routines[routineEditorId]);
     routineEditorDirty = false;
-    editorMessage("Ændringerne er gemt.");
+    editorMessage(`Ændringerne for ${routineEditorPersonName} er gemt.`);
     if (typeof loadRoutines === "function") await loadRoutines();
     renderRoutineEditor();
   } catch (error) {
@@ -298,16 +325,20 @@ async function restoreRoutineDefault() {
   editorSetPending(true);
   try {
     const csrf = await editorCsrfToken();
-    const response = await fetch(editorEndpoints[routineEditorId].reset, {
-      method: "POST",
-      headers: { "X-CSRF-Token": csrf },
-    });
+    const response = await fetch(
+      `${editorEndpoints[routineEditorId].reset}${editorPersonQuery()}`,
+      {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "X-CSRF-Token": csrf },
+      },
+    );
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail || "Kunne ikke gendanne standard");
     routineEditorData = result;
     routineEditorDraft = cloneRoutine(result.routines[routineEditorId]);
     routineEditorDirty = false;
-    editorMessage("Standardrutinen er gendannet.");
+    editorMessage(`Standardrutinen for ${routineEditorPersonName} er gendannet.`);
     if (typeof loadRoutines === "function") await loadRoutines();
     renderRoutineEditor();
   } catch (error) {
