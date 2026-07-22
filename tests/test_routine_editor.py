@@ -244,6 +244,49 @@ def test_definition_api_authorization_csrf_and_updates():
             assert unknown.status_code == 404
 
 
+def test_person_specific_definitions_are_isolated():
+    with tempfile.TemporaryDirectory() as folder:
+        root = Path(folder)
+        path = root / "definitions.json"
+        store = RoutineDefinitionStore(path)
+
+        dennis = "person-dennis"
+        liam = "person-liam"
+
+        dennis_payload = default_payload("morning")
+        dennis_payload["label"] = "Dennis morgen"
+        dennis_payload["tasks"][0]["title"] = "Dennis står op"
+
+        previous, saved = store.update("morning", dennis_payload, person_id=dennis)
+        assert previous == DEFAULT_DEFINITIONS["morning"]
+        assert saved.label == "Dennis morgen"
+
+        assert store.get("morning", dennis).label == "Dennis morgen"
+        assert store.get("morning", dennis).tasks[0].title == "Dennis står op"
+
+        assert store.get("morning", liam) == DEFAULT_DEFINITIONS["morning"]
+        assert store.get("morning") == DEFAULT_DEFINITIONS["morning"]
+
+        liam_payload = default_payload("evening")
+        liam_payload["label"] = "Liam aften"
+        liam_payload["tasks"][0]["title"] = "Liam laver lektier"
+
+        store.update("evening", liam_payload, person_id=liam)
+
+        assert store.get("evening", liam).label == "Liam aften"
+        assert store.get("evening", dennis) == DEFAULT_DEFINITIONS["evening"]
+
+        store.reset_default("morning", person_id=dennis)
+
+        assert store.get("morning", dennis) == DEFAULT_DEFINITIONS["morning"]
+        assert store.get("evening", liam).label == "Liam aften"
+
+        stored = json.loads(path.read_text(encoding="utf-8"))
+        assert stored["persons"][dennis]["morning"]["label"] == "Godmorgen-rutine"
+        assert stored["persons"][liam]["evening"]["label"] == "Liam aften"
+
+
+
 def test_existing_owner_only_writes_remain_unchanged():
     with editor_environment() as (client, _, _, _):
         csrf = login(client, "adult")
@@ -278,6 +321,7 @@ if __name__ == "__main__":
         test_strict_definition_validation,
         test_progress_reconciliation_after_edits,
         test_definition_api_authorization_csrf_and_updates,
+        test_person_specific_definitions_are_isolated,
         test_existing_owner_only_writes_remain_unchanged,
         test_editor_frontend_role_rendering_and_security,
     ]:
