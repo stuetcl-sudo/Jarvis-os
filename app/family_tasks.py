@@ -11,6 +11,8 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app import config
+from app.family_people import list_family_people
+from app.family_task_assignments import FamilyTaskAssignmentStore
 from app.family_visibility import role_can_do
 from app.home_assistant import (
     HomeAssistantClient,
@@ -287,6 +289,7 @@ def _public_snapshot(snapshot, current_user):
     return {
         "status": "authentication_required",
         "lists": [],
+        "people": [],
         "total": 0,
         "unavailable_lists": 0,
         "stale": False,
@@ -312,10 +315,14 @@ class FamilyTasksService:
         settings_loader=load_family_tasks_settings,
         client_factory=httpx.Client,
         monotonic=time.monotonic,
+        assignment_store=None,
+        people_loader=list_family_people,
     ):
         self.settings_loader = settings_loader
         self.client_factory = client_factory
         self.monotonic = monotonic
+        self.assignment_store = assignment_store or FamilyTaskAssignmentStore()
+        self.people_loader = people_loader
         self._lock = threading.Lock()
         self._cached = None
         self._cached_at = None
@@ -327,13 +334,65 @@ class FamilyTasksService:
             self._cached_at = None
             self._signature = None
 
+    def _decorate_assignments(self, snapshot):
+        result = copy.deepcopy(snapshot)
+        people = self.people_loader()
+        person_ids = {
+            person["user_id"]
+            for person in people
+            if person.get("user_id")
+        }
+
+        task_keys = []
+        for task_list in result.get("lists", []):
+            list_key = task_list.get("key")
+            for item in task_list.get("items", []):
+                task_keys.append((list_key, item.get("uid")))
+
+        assignments = self.assignment_store.get_many(task_keys)
+        counts = {None: 0}
+        counts.update({person_id: 0 for person_id in person_ids})
+
+        for task_list in result.get("lists", []):
+            list_key = task_list.get("key")
+            for item in task_list.get("items", []):
+                task_key = (list_key, item.get("uid"))
+                assignee_id = assignments.get(task_key)
+                if assignee_id not in person_ids:
+                    assignee_id = None
+                item["assignee_id"] = assignee_id
+                counts[assignee_id] = counts.get(assignee_id, 0) + 1
+
+        result["people"] = [
+            {
+                "user_id": None,
+                "display_name": "Familien",
+                "role": "family",
+                "count": counts.get(None, 0),
+            },
+            *[
+                {
+                    **person,
+                    "count": counts.get(person["user_id"], 0),
+                }
+                for person in people
+            ],
+        ]
+        return result
+
+    def _public_tasks(self, snapshot, current_user):
+        return _public_snapshot(
+            self._decorate_assignments(snapshot),
+            current_user,
+        )
+
     def get_tasks(self, current_user=None):
         try:
             settings = self.settings_loader()
         except FamilyTasksConfigurationError:
-            return _public_snapshot(_empty_snapshot("unavailable"), current_user)
+            return self._public_tasks(_empty_snapshot("unavailable"), current_user)
         if settings is None:
-            return _public_snapshot(_empty_snapshot("not_configured"), current_user)
+            return self._public_tasks(_empty_snapshot("not_configured"), current_user)
 
         signature = settings.signature()
         now = self.monotonic()
@@ -345,7 +404,7 @@ class FamilyTasksService:
             if self._cached is not None and self._cached_at is not None:
                 age = max(0.0, now - self._cached_at)
                 if age < settings.cache_seconds:
-                    return _public_snapshot(self._cached, current_user)
+                    return self._public_tasks(self._cached, current_user)
 
             lists, failures = HomeAssistantTasksClient(settings, self.client_factory).fetch()
             if failures < len(settings.sources):
@@ -353,7 +412,7 @@ class FamilyTasksService:
                 snapshot = _snapshot(status, lists, failures)
                 self._cached = copy.deepcopy(snapshot)
                 self._cached_at = now
-                return _public_snapshot(snapshot, current_user)
+                return self._public_tasks(snapshot, current_user)
 
             if self._cached is not None and self._cached_at is not None:
                 age = max(0.0, now - self._cached_at)
@@ -362,9 +421,9 @@ class FamilyTasksService:
                     stale["status"] = "stale"
                     stale["stale"] = True
                     stale["unavailable_lists"] = len(settings.sources)
-                    return _public_snapshot(stale, current_user)
+                    return self._public_tasks(stale, current_user)
 
-            return _public_snapshot(
+            return self._public_tasks(
                 _empty_snapshot("unavailable", settings.sources, len(settings.sources)),
                 current_user,
             )

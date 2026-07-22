@@ -73,8 +73,6 @@ class FamilyTaskAssignmentStore:
         return row["assignee_id"] if row is not None else None
 
     def get_many(self, task_keys):
-        self._initialize()
-
         normalized = {
             (str(list_key).strip(), str(item_uid).strip())
             for list_key, item_uid in task_keys
@@ -82,6 +80,8 @@ class FamilyTaskAssignmentStore:
         }
         if not normalized:
             return {}
+
+        self._initialize()
 
         result = {}
         with _connect(self.db_path) as connection:
