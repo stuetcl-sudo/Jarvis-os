@@ -1,7 +1,10 @@
 import os
 from pathlib import Path
+import sqlite3
+import tempfile
 
 from app import config
+from app.family_task_assignments import FamilyTaskAssignmentStore
 from app.family_tasks import (
     EDITOR_ROLES,
     FamilyTasksService,
@@ -99,6 +102,108 @@ def task_payloads():
             "service_response": {entity_id: {"items": items}},
         }
     return result
+
+
+def create_assignment_test_database(path):
+    connection = sqlite3.connect(path)
+    connection.execute(
+        """
+        CREATE TABLE auth_users (
+            user_id TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            role TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            disabled INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            last_login_at TEXT
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO auth_users (
+            user_id,
+            username,
+            display_name,
+            role,
+            password_hash,
+            disabled,
+            created_at,
+            updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+        """,
+        (
+            "person-dennis",
+            "dennis",
+            "Dennis",
+            "owner",
+            "test",
+            "2026-07-22T00:00:00+00:00",
+            "2026-07-22T00:00:00+00:00",
+        ),
+    )
+    connection.commit()
+    connection.close()
+
+
+def test_task_assignment_store_defaults_to_family_and_isolated_by_task():
+    with tempfile.TemporaryDirectory() as folder:
+        db_path = Path(folder) / "jarvis.db"
+        create_assignment_test_database(db_path)
+        store = FamilyTaskAssignmentStore(db_path)
+
+        assert store.get("familieopgaver", "task-1") is None
+
+        store.set("familieopgaver", "task-1", "person-dennis")
+
+        assert store.get("familieopgaver", "task-1") == "person-dennis"
+        assert store.get("familieopgaver", "task-2") is None
+        assert store.get("lektier", "task-1") is None
+
+        store.set("familieopgaver", "task-1", None)
+
+        assert store.get("familieopgaver", "task-1") is None
+
+
+def test_task_assignment_store_reads_many_and_prunes_missing_tasks():
+    with tempfile.TemporaryDirectory() as folder:
+        db_path = Path(folder) / "jarvis.db"
+        create_assignment_test_database(db_path)
+        store = FamilyTaskAssignmentStore(db_path)
+
+        store.set("familieopgaver", "task-1", "person-dennis")
+        store.set("familieopgaver", "task-2", None)
+        store.set("lektier", "task-3", "person-dennis")
+
+        assignments = store.get_many(
+            [
+                ("familieopgaver", "task-1"),
+                ("familieopgaver", "task-2"),
+                ("missing", "task-4"),
+            ]
+        )
+
+        assert assignments == {
+            ("familieopgaver", "task-1"): "person-dennis",
+            ("familieopgaver", "task-2"): None,
+        }
+
+        removed = store.prune(
+            {
+                ("familieopgaver", "task-1"),
+                ("familieopgaver", "task-2"),
+            }
+        )
+
+        assert removed == 1
+        assert store.get("lektier", "task-3") is None
+
+        store.delete("familieopgaver", "task-1")
+        assert store.get("familieopgaver", "task-1") is None
+
 
 
 def test_default_task_entities_include_shopping_list():
@@ -242,6 +347,8 @@ def test_router_and_middleware_protect_controlled_family_writes():
 
 if __name__ == "__main__":
     for test in [
+        test_task_assignment_store_defaults_to_family_and_isolated_by_task,
+        test_task_assignment_store_reads_many_and_prunes_missing_tasks,
         test_default_task_entities_include_shopping_list,
         test_task_source_parser_accepts_three_plain_todo_entities,
         test_client_reads_all_lists_and_filters_completed_items,
