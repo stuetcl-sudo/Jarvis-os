@@ -568,3 +568,55 @@ body[data-family-role="wall_display"] .family-task-assignee select {
     max-width: 190px;
   }
 }
+
+.family-task-person-button[data-calendar-color="green"] {
+  --task-person-color: #42a66a;
+}
+
+.family-task-person-button[data-calendar-color="blue"] {
+  --task-person-color: #3d7fd8;
+}
+
+.family-task-person-button[data-calendar-color="violet"] {
+  --task-person-color: #8657c9;
+}
+
+.family-task-person-button[data-calendar-color="yellow"] {
+  --task-person-color: #d7ad2f;
+}
+
+.family-task-person-button[data-calendar-color] {
+  border-color: color-mix(
+    in srgb,
+    var(--task-person-color) 55%,
+    var(--card-border)
+  );
+  background: color-mix(
+    in srgb,
+    var(--task-person-color) 12%,
+    var(--card)
+  );
+}
+
+.family-task-person-button[data-calendar-color] strong {
+  background: color-mix(
+    in srgb,
+    var(--task-person-color) 22%,
+    var(--soft)
+  );
+}
+
+.family-task-person-button[data-calendar-color][aria-pressed="true"] {
+  border-color: var(--task-person-color);
+  background: color-mix(
+    in srgb,
+    var(--task-person-color) 32%,
+    var(--card)
+  );
+  box-shadow: inset 0 0 0 1px var(--task-person-color);
+}
+
+.family-task-person-button[data-calendar-color][aria-pressed="true"] strong {
+  background: var(--task-person-color);
+  color: white;
+}

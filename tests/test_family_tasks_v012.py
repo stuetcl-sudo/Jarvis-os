@@ -432,6 +432,12 @@ def test_frontend_supports_shopping_add_edit_remove_and_safe_completion():
     assert '"assignment",' in TASKS_JS
     assert 'labelText.textContent = "Tildel til"' in TASKS_JS
     assert ".family-task-assignee" in TASKS_CSS
+    assert "taskPersonCalendarColor" in TASKS_JS
+    assert "jarvis:calendar-updated" in TASKS_JS
+    assert 'data-calendar-color="green"' in TASKS_CSS
+    assert 'data-calendar-color="blue"' in TASKS_CSS
+    assert 'data-calendar-color="violet"' in TASKS_CSS
+    assert 'data-calendar-color="yellow"' in TASKS_CSS
 
 
 def test_router_and_middleware_protect_controlled_family_writes():

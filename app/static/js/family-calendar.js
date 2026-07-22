@@ -162,6 +162,11 @@ function renderCalendarDays(calendar) {
 
 renderAuthenticatedCalendar = function renderAuthenticatedCalendarRange(calendar) {
   latestCalendarSnapshot = calendar;
+  window.dispatchEvent(
+    new CustomEvent("jarvis:calendar-updated", {
+      detail: calendar,
+    }),
+  );
   const summary = document.getElementById("calendarAnonymousSummary");
   const legend = document.getElementById("calendarLegend");
   const events = document.getElementById("calendarEvents");

@@ -326,6 +326,46 @@
     return person?.display_name || "Familien";
   }
 
+  function normalizedPersonName(value) {
+    return String(value || "")
+      .trim()
+      .toLocaleLowerCase("da-DK")
+      .replace(/familien/g, "familie");
+  }
+
+  function taskPersonCalendarColor(person) {
+    const personName = normalizedPersonName(taskPersonLabel(person));
+    const calendars =
+      typeof latestCalendarSnapshot !== "undefined" &&
+      Array.isArray(latestCalendarSnapshot?.calendars)
+        ? latestCalendarSnapshot.calendars
+        : [];
+
+    const calendar = calendars.find((item) => {
+      const label =
+        item?.label ||
+        item?.name ||
+        item?.summary ||
+        item?.title ||
+        "";
+      return normalizedPersonName(label) === personName;
+    });
+
+    const color = String(calendar?.color || "").trim().toLowerCase();
+    if (["green", "blue", "violet", "yellow"].includes(color)) {
+      return color;
+    }
+
+    const fallbackColors = {
+      emma: "green",
+      liam: "blue",
+      dennis: "violet",
+      familie: "yellow",
+    };
+    return fallbackColors[personName] || "";
+  }
+
+
   function selectedTaskPerson(tasks) {
     const people = Array.isArray(tasks?.people) ? tasks.people : [];
     return people.find(
@@ -365,6 +405,8 @@
 
       button.type = "button";
       button.className = "family-task-person-button";
+      const calendarColor = taskPersonCalendarColor(person);
+      if (calendarColor) button.dataset.calendarColor = calendarColor;
       button.setAttribute("aria-pressed", selected ? "true" : "false");
       button.setAttribute(
         "aria-label",
@@ -525,6 +567,10 @@
       showTaskRefreshFailure();
     }
   }
+
+  window.addEventListener("jarvis:calendar-updated", () => {
+    if (latestFamilyTasks) renderFamilyTasks(latestFamilyTasks);
+  });
 
   refreshFamilyTasks();
   setInterval(refreshFamilyTasks, 30000);
