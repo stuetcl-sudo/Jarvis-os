@@ -426,6 +426,12 @@ def test_frontend_supports_shopping_add_edit_remove_and_safe_completion():
     assert "har ingen åbne opgaver" in TASKS_JS
     assert ".family-task-person-switch" in TASKS_CSS
     assert '.family-task-person-button[aria-pressed="true"]' in TASKS_CSS
+    assert "async function assignFamilyTask(" in TASKS_JS
+    assert "function createTaskAssigneeSelect(" in TASKS_JS
+    assert '"PUT",' in TASKS_JS
+    assert '"assignment",' in TASKS_JS
+    assert 'labelText.textContent = "Tildel til"' in TASKS_JS
+    assert ".family-task-assignee" in TASKS_CSS
 
 
 def test_router_and_middleware_protect_controlled_family_writes():
