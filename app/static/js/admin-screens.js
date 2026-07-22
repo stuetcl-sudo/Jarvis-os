@@ -36,6 +36,7 @@
     show_safety_status: true,
   };
   let selectedScreen = null;
+  let wallUsers = [];
 
   function moduleLabels(values) {
     const lookup = Object.fromEntries(modules);
@@ -115,6 +116,7 @@
     const active = document.getElementById("screenActive");
     const adminLink = document.getElementById("screenShowAdminLink");
     const safetyStatus = document.getElementById("screenShowSafetyStatus");
+    const wallUser = document.getElementById("screenWallUser");
     if (!name || !slug || !type || !active) return;
     name.value = screen?.name || "";
     slug.value = screen?.slug || "";
@@ -124,6 +126,7 @@
     const displayOptions = { ...defaultDisplayOptions, ...(screen?.display_options || {}) };
     if (adminLink) adminLink.checked = displayOptions.show_admin_link === true;
     if (safetyStatus) safetyStatus.checked = displayOptions.show_safety_status !== false;
+    if (wallUser) wallUser.value = screen?.wall_user_id || "";
     const activeModules = screen?.modules || defaultModules;
     const activeLayout = screen?.module_layout || defaultModuleLayout;
     document.querySelectorAll("[data-screen-module]").forEach((input) => {
@@ -144,6 +147,16 @@
     const detail = element("small", "", `${screenTypes.find(([key]) => key === screen.screen_type)?.[1] || screen.screen_type} · ${moduleLabels(screen.modules)}`);
     const layout = element("small", "", moduleLayoutLabels(screen));
     const display = element("small", "", displayLabels(screen));
+    const assignedUser = wallUsers.find(
+      (user) => user.user_id === screen.wall_user_id,
+    );
+    const binding = element(
+      "small",
+      "",
+      assignedUser
+        ? `Vægkonto: ${assignedUser.display_name}`
+        : "Vægkonto: Ikke valgt",
+    );
     const actions = element("div", "quick-buttons");
 
     const open = element("a", "family-link", "Åbn");
@@ -162,7 +175,7 @@
       remove.addEventListener("click", () => deleteScreen(screen));
       actions.append(remove);
     }
-    card.append(title, url, detail, layout, display, actions);
+    card.append(title, url, detail, layout, display, binding, actions);
     return card;
   }
 
@@ -171,6 +184,7 @@
     if (!list) return;
     try {
       const data = await getJson("/api/admin/screens");
+      wallUsers = Array.isArray(data.wall_users) ? data.wall_users : [];
       replaceContent(list, (data.screens || []).map(screenCard));
     } catch (error) {
       replaceContent(list, [emptyState(`Skærme kunne ikke hentes: ${error.message}`)]);
@@ -188,6 +202,7 @@
       modules: selectedModules(),
       module_layout: selectedModuleLayout(),
       display_options: selectedDisplayOptions(),
+      wall_user_id: document.getElementById("screenWallUser")?.value || null,
       is_active: document.getElementById("screenActive").checked,
     };
     try {
@@ -224,6 +239,27 @@
       option.value = value;
       select.append(option);
     });
+    return select;
+  }
+
+  function createWallUserSelect() {
+    const select = document.createElement("select");
+    select.id = "screenWallUser";
+
+    const empty = element("option", "", "Ingen fast vægkonto");
+    empty.value = "";
+    select.append(empty);
+
+    wallUsers.forEach((user) => {
+      const option = element(
+        "option",
+        "",
+        `${user.display_name} (${user.username})`,
+      );
+      option.value = user.user_id;
+      select.append(option);
+    });
+
     return select;
   }
 
@@ -306,6 +342,7 @@
       labeledInput("Navn", name),
       labeledInput("Slug / link", slug),
       labeledInput("Type", createTypeSelect()),
+      labeledInput("Fast vægkonto", createWallUserSelect()),
       createActiveControl(),
     );
 

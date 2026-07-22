@@ -49,6 +49,7 @@ DEFAULT_SCREEN = {
     "modules": DEFAULT_MODULES,
     "module_layout": {module: DEFAULT_MODULE_LAYOUT[module] for module in DEFAULT_MODULES},
     "display_options": dict(DEFAULT_DISPLAY_OPTIONS),
+    "wall_user_id": None,
     "is_active": True,
 }
 
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS screens (
     modules TEXT NOT NULL,
     module_layout TEXT NOT NULL DEFAULT '{}',
     display_options TEXT NOT NULL DEFAULT '{}',
+    wall_user_id TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -84,6 +86,8 @@ def ensure_screen_table(conn):
         conn.execute("ALTER TABLE screens ADD COLUMN module_layout TEXT NOT NULL DEFAULT '{}'")
     if "display_options" not in columns:
         conn.execute("ALTER TABLE screens ADD COLUMN display_options TEXT NOT NULL DEFAULT '{}'")
+    if "wall_user_id" not in columns:
+        conn.execute("ALTER TABLE screens ADD COLUMN wall_user_id TEXT")
 
 
 def normalize_slug(value):
@@ -129,6 +133,11 @@ def normalize_display_options(values):
         if key in source:
             options[key] = bool(source.get(key))
     return options
+
+
+def normalize_wall_user_id(value):
+    cleaned = str(value or "").strip()
+    return cleaned or None
 
 
 def normalize_screen_type(value):
@@ -182,6 +191,7 @@ def default_screen():
         "modules": list(DEFAULT_MODULES),
         "module_layout": dict(DEFAULT_SCREEN["module_layout"]),
         "display_options": dict(DEFAULT_DISPLAY_OPTIONS),
+        "wall_user_id": None,
         "url": "/wall",
     }
 
@@ -197,6 +207,7 @@ def row_to_screen(row):
         parsed_layout = DEFAULT_MODULE_LAYOUT
     item["module_layout"] = normalize_module_layout(parsed_layout, item["modules"])
     item["display_options"] = normalize_display_options(parse_display_options(item.get("display_options")))
+    item["wall_user_id"] = normalize_wall_user_id(item.get("wall_user_id"))
     item["is_active"] = bool(item.get("is_active"))
     item["url"] = "/wall" if item["slug"] == "wall" else f"/wall/{item['slug']}"
     return item
@@ -231,7 +242,16 @@ def list_screens():
         conn.close()
 
 
-def upsert_screen(name, slug, screen_type="wall-surface", modules=None, is_active=True, module_layout=None, display_options=None):
+def upsert_screen(
+    name,
+    slug,
+    screen_type="wall-surface",
+    modules=None,
+    is_active=True,
+    module_layout=None,
+    display_options=None,
+    wall_user_id=None,
+):
     cleaned_name = str(name or "").strip()
     if not cleaned_name:
         raise ValueError("screen name is required")
@@ -240,6 +260,7 @@ def upsert_screen(name, slug, screen_type="wall-surface", modules=None, is_activ
     modules = normalize_modules(modules)
     module_layout = normalize_module_layout(module_layout, modules)
     display_options = normalize_display_options(display_options)
+    wall_user_id = normalize_wall_user_id(wall_user_id)
     timestamp = now_iso()
     conn = connect()
     try:
@@ -247,13 +268,34 @@ def upsert_screen(name, slug, screen_type="wall-surface", modules=None, is_activ
         existing = conn.execute("SELECT slug FROM screens WHERE slug = ?", (slug,)).fetchone()
         if existing:
             conn.execute(
-                "UPDATE screens SET name = ?, screen_type = ?, modules = ?, module_layout = ?, display_options = ?, is_active = ?, updated_at = ? WHERE slug = ?",
-                (cleaned_name, screen_type, serialize_modules(modules), serialize_module_layout(module_layout), serialize_display_options(display_options), 1 if is_active else 0, timestamp, slug),
+                "UPDATE screens SET name = ?, screen_type = ?, modules = ?, module_layout = ?, display_options = ?, wall_user_id = ?, is_active = ?, updated_at = ? WHERE slug = ?",
+                (
+                    cleaned_name,
+                    screen_type,
+                    serialize_modules(modules),
+                    serialize_module_layout(module_layout),
+                    serialize_display_options(display_options),
+                    wall_user_id,
+                    1 if is_active else 0,
+                    timestamp,
+                    slug,
+                ),
             )
         else:
             conn.execute(
-                "INSERT INTO screens (slug, name, screen_type, modules, module_layout, display_options, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (slug, cleaned_name, screen_type, serialize_modules(modules), serialize_module_layout(module_layout), serialize_display_options(display_options), 1 if is_active else 0, timestamp, timestamp),
+                "INSERT INTO screens (slug, name, screen_type, modules, module_layout, display_options, wall_user_id, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    slug,
+                    cleaned_name,
+                    screen_type,
+                    serialize_modules(modules),
+                    serialize_module_layout(module_layout),
+                    serialize_display_options(display_options),
+                    wall_user_id,
+                    1 if is_active else 0,
+                    timestamp,
+                    timestamp,
+                ),
             )
         conn.commit()
     finally:
