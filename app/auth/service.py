@@ -1,6 +1,7 @@
 import hashlib
 import secrets
 import sqlite3
+import threading
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -19,6 +20,8 @@ GENERIC_RATE_LIMIT_ERROR = "For mange loginforsøg. Prøv igen senere."
 
 CREDENTIAL_HASHER = PasswordHash.recommended()
 DUMMY_CREDENTIAL_HASH = CREDENTIAL_HASHER.hash("jarvis-dummy-password-not-a-user")
+_AUTH_SCHEMA_LOCK = threading.Lock()
+_AUTH_TABLE_NAMES = {"auth_users", "auth_sessions", "auth_login_attempts"}
 
 AUTH_USERS_SCHEMA = """
 CREATE TABLE IF NOT EXISTS auth_users (
@@ -117,17 +120,28 @@ def safe_user(row):
 
 
 def initialize_auth_tables():
-    conn = connect()
-    try:
-        conn.execute("PRAGMA foreign_keys = ON")
-        conn.execute(AUTH_USERS_SCHEMA)
-        conn.execute(AUTH_SESSIONS_SCHEMA)
-        conn.execute(AUTH_LOGIN_ATTEMPTS_SCHEMA)
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions(expires_at)")
-        conn.commit()
-    finally:
-        conn.close()
+    with _AUTH_SCHEMA_LOCK:
+        conn = connect()
+        try:
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA busy_timeout = 5000")
+            existing = {
+                row["name"]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (?, ?, ?)",
+                    tuple(sorted(_AUTH_TABLE_NAMES)),
+                ).fetchall()
+            }
+            if existing == _AUTH_TABLE_NAMES:
+                return
+            conn.execute(AUTH_USERS_SCHEMA)
+            conn.execute(AUTH_SESSIONS_SCHEMA)
+            conn.execute(AUTH_LOGIN_ATTEMPTS_SCHEMA)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions(expires_at)")
+            conn.commit()
+        finally:
+            conn.close()
 
 
 class AuthService:

@@ -1,0 +1,150 @@
+.routine-toolbar {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  padding-inline: 10px;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.routine-toolbar .routine-switch {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 5;
+  min-width: max-content;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.routine-toolbar .routine-switch button {
+  white-space: nowrap;
+}
+
+.routine-person-switch {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: max-content;
+  max-width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 4px;
+  overflow: visible;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  background: var(--surface-muted);
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.routine-person-switch[hidden] {
+  display: none;
+}
+
+.routine-person-switch button {
+  position: relative;
+  z-index: 6;
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 760;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.routine-person-switch button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.routine-person-switch button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+body[data-wall-dashboard="true"] .routine-toolbar {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding-inline: 12px;
+  overflow: visible;
+}
+
+body[data-wall-dashboard="true"] .routine-person-switch {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-width: max-content;
+  min-height: 38px;
+  padding: 3px;
+  border-radius: 14px;
+}
+
+body[data-wall-dashboard="true"] .routine-person-switch button {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+
+body[data-family-role="child"] .routine-person-switch button {
+  min-height: 48px;
+  padding-inline: 18px;
+  font-size: 17px;
+}
+
+@media (max-width: 820px) {
+  .routine-toolbar:not(body[data-wall-dashboard="true"] .routine-toolbar) {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding-inline: 6px;
+  }
+
+  .routine-person-switch:not(body[data-wall-dashboard="true"] .routine-person-switch) {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  body:not([data-wall-dashboard="true"]) .routine-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  body:not([data-wall-dashboard="true"]) .routine-person-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    min-width: 0;
+  }
+
+  body:not([data-wall-dashboard="true"]) .routine-person-switch button {
+    width: 100%;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .routine-person-switch button[aria-pressed="true"] {
+    box-shadow: none;
+  }
+}
