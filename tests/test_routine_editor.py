@@ -92,7 +92,10 @@ def test_definition_store_defaults_malformed_custom_atomic_and_separate():
         assert saved.label == "Ny morgen"
         assert store.get("morning").tasks[0].title == "Stå roligt op"
         assert store.get("evening") == DEFAULT_DEFINITIONS["evening"]
-        assert json.loads(path.read_text(encoding="utf-8"))["morning"]["label"] == "Ny morgen"
+        stored = json.loads(path.read_text(encoding="utf-8"))
+        assert stored["version"] == 2
+        assert stored["shared"]["morning"]["label"] == "Ny morgen"
+        assert stored["persons"] == {}
         assert not list(root.glob("*.tmp"))
         assert RoutineDefinitionStore(path).get("morning").label == "Ny morgen"
 
