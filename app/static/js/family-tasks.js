@@ -12,6 +12,8 @@
   const WALL_SHOPPING_PREVIEW_LIMIT = 5;
   const pendingTasks = new Set();
   let taskCsrfToken = null;
+  let activeTaskAssigneeId = null;
+  let latestFamilyTasks = null;
 
   function setTaskState(message) {
     const state = document.getElementById("familyTasksState");
@@ -248,6 +250,94 @@
     return `${total} ${total === 1 ? "punkt" : "punkter"}`;
   }
 
+  function normalizedAssigneeId(value) {
+    const identifier = String(value || "").trim();
+    return identifier || null;
+  }
+
+  function taskPersonLabel(person) {
+    return person?.display_name || "Familien";
+  }
+
+  function selectedTaskPerson(tasks) {
+    const people = Array.isArray(tasks?.people) ? tasks.people : [];
+    return people.find(
+      (person) => normalizedAssigneeId(person.user_id) === activeTaskAssigneeId,
+    ) || people[0] || {
+      user_id: null,
+      display_name: "Familien",
+      count: 0,
+    };
+  }
+
+  function syncActiveTaskPerson(tasks) {
+    const people = Array.isArray(tasks?.people) ? tasks.people : [];
+    const selectionExists = people.some(
+      (person) => normalizedAssigneeId(person.user_id) === activeTaskAssigneeId,
+    );
+
+    if (!selectionExists) {
+      activeTaskAssigneeId = normalizedAssigneeId(people[0]?.user_id);
+    }
+  }
+
+  function renderTaskPersonSwitch(tasks) {
+    const container = document.getElementById("familyTaskPersonSwitch");
+    if (!container) return;
+
+    const people = Array.isArray(tasks?.people) ? tasks.people : [];
+    syncActiveTaskPerson(tasks);
+    container.replaceChildren();
+
+    people.forEach((person) => {
+      const personId = normalizedAssigneeId(person.user_id);
+      const selected = personId === activeTaskAssigneeId;
+      const button = document.createElement("button");
+      const name = document.createElement("span");
+      const count = document.createElement("strong");
+
+      button.type = "button";
+      button.className = "family-task-person-button";
+      button.setAttribute("aria-pressed", selected ? "true" : "false");
+      button.setAttribute(
+        "aria-label",
+        `${taskPersonLabel(person)}, ${Number(person.count) || 0} åbne opgaver`,
+      );
+
+      name.textContent = taskPersonLabel(person);
+      count.textContent = String(Number(person.count) || 0);
+
+      button.append(name, count);
+      button.addEventListener("click", () => {
+        activeTaskAssigneeId = personId;
+        if (latestFamilyTasks) renderFamilyTasks(latestFamilyTasks);
+      });
+      container.append(button);
+    });
+
+    container.hidden = people.length === 0;
+  }
+
+  function filteredTaskLists(tasks) {
+    const lists = Array.isArray(tasks?.lists) ? tasks.lists : [];
+
+    return lists.map((taskList) => ({
+      ...taskList,
+      items: (Array.isArray(taskList.items) ? taskList.items : []).filter(
+        (item) => normalizedAssigneeId(item.assignee_id) === activeTaskAssigneeId,
+      ),
+    }));
+  }
+
+  function createTaskFilterEmpty(tasks) {
+    const empty = document.createElement("p");
+    const person = selectedTaskPerson(tasks);
+
+    empty.className = "family-task-filter-empty";
+    empty.textContent = `${taskPersonLabel(person)} har ingen åbne opgaver`;
+    return empty;
+  }
+
   function taskPermissions(tasks) {
     return {
       canAdd: Boolean(tasks.can_add),
@@ -257,7 +347,7 @@
     };
   }
 
-  function createTaskList(taskList, permissions) {
+  function createTaskList(taskList, permissions, allowAdd) {
     const section = document.createElement("section");
     section.className = `family-task-list family-task-list-${taskList.key || "general"}`;
     if (isShoppingList(taskList)) section.classList.add("family-task-list-shopping-list");
@@ -291,12 +381,14 @@
     }
 
     section.append(heading);
-    if (permissions.canAdd) section.append(createAddForm(taskList));
+    if (permissions.canAdd && allowAdd) section.append(createAddForm(taskList));
     section.append(items);
     return section;
   }
 
   function renderFamilyTasks(tasks) {
+    latestFamilyTasks = tasks;
+
     if (tasks.status === "authentication_required") {
       setTaskState("Log ind for at se familiens lister");
       return;
@@ -317,9 +409,27 @@
 
     const permissions = taskPermissions(tasks);
     const lists = document.getElementById("familyTaskLists");
+    renderTaskPersonSwitch(tasks);
+
     if (lists) {
       lists.replaceChildren();
-      (tasks.lists || []).forEach((taskList) => lists.append(createTaskList(taskList, permissions)));
+
+      const filteredLists = filteredTaskLists(tasks);
+      const visibleTotal = filteredLists.reduce(
+        (total, taskList) => total + taskList.items.length,
+        0,
+      );
+      const familySelected = activeTaskAssigneeId === null;
+
+      if (visibleTotal === 0 && !familySelected) {
+        lists.append(createTaskFilterEmpty(tasks));
+      } else {
+        filteredLists.forEach((taskList) => {
+          if (familySelected || taskList.items.length > 0) {
+            lists.append(createTaskList(taskList, permissions, familySelected));
+          }
+        });
+      }
     }
 
     const messages = {

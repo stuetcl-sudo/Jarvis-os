@@ -418,6 +418,14 @@ def test_frontend_supports_shopping_add_edit_remove_and_safe_completion():
     assert ".family-task-add" in TASKS_CSS
     assert ".family-task-actions" in TASKS_CSS
     assert ".family-task-list-shopping-list" in TASKS_CSS
+    assert 'id="familyTaskPersonSwitch"' in INDEX
+    assert "function renderTaskPersonSwitch(tasks)" in TASKS_JS
+    assert "function filteredTaskLists(tasks)" in TASKS_JS
+    assert "activeTaskAssigneeId" in TASKS_JS
+    assert 'count.textContent = String(Number(person.count) || 0)' in TASKS_JS
+    assert "har ingen åbne opgaver" in TASKS_JS
+    assert ".family-task-person-switch" in TASKS_CSS
+    assert '.family-task-person-button[aria-pressed="true"]' in TASKS_CSS
 
 
 def test_router_and_middleware_protect_controlled_family_writes():
