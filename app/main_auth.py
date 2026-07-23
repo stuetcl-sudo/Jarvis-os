@@ -21,6 +21,7 @@ from app.routines import ROUTINE_ROLES, router as routines_router
 from app.safety_status import status_item
 from app.safety_status import router as safety_status_router
 from app.screen_routes import router as screen_router
+from app.setup_state import BOOTSTRAP_REQUIRED, READY, setup_status
 from app.wall_view import WALL_ROLES, render_wall_page
 from app.weather import router as weather_router
 
@@ -150,6 +151,16 @@ async def enforce_local_authentication(request: Request, call_next):
         and not family_task_write
     )
     try:
+        if request.method == "GET" and path in {"/login", "/bootstrap", "/setup", "/admin"}:
+            installation = setup_status(db_path=config.DB_PATH)
+            if installation["state"] == BOOTSTRAP_REQUIRED and path == "/login":
+                return RedirectResponse("/bootstrap", status_code=303)
+            if current_user and current_user.get("role") == "owner":
+                if path == "/admin" and installation["state"] != READY:
+                    return RedirectResponse("/setup", status_code=303)
+                if path == "/setup" and installation["state"] == READY:
+                    return RedirectResponse("/admin", status_code=303)
+
         if request.method == "GET" and path == "/":
             return HTMLResponse(render_family_page(current_user))
 

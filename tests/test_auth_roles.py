@@ -268,6 +268,7 @@ def test_roles_write_protection_and_handler_reachability():
 
     for role in ["adult", "child", "wall_display"]:
         with environment() as client:
+            create()
             create(role)
             login(client, role)
             assert client.get("/admin").status_code == 403
@@ -277,7 +278,8 @@ def test_roles_write_protection_and_handler_reachability():
     with environment() as client:
         create()
         me = login(client)
-        assert client.get("/admin").status_code == 200
+        redirect = client.get("/admin")
+        assert redirect.status_code == 303 and redirect.headers["location"] == "/setup"
         for case in write_cases():
             assert send(client, case).status_code == 403
         headers = {"X-CSRF-Token": me["csrf_token"]}

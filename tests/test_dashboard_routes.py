@@ -63,11 +63,11 @@ def test_admin_requires_login_and_static_home_administration_is_preserved():
 
 def test_login_page_and_assets_load():
     response = client.get("/login")
-    assert response.status_code == 200
-    assert "Log ind på Jarvis" in response.text
-    assert "Ingen ejer er oprettet endnu." in response.text
-    assert 'href="/bootstrap"' in response.text
-    assert "docker compose exec" not in response.text
+    assert response.status_code == 303
+    assert response.headers["location"] == "/bootstrap"
+    bootstrap = client.get("/bootstrap")
+    assert bootstrap.status_code == 200
+    assert "Velkommen til Jarvis" in bootstrap.text
     for asset in ["/static/css/login.css", "/static/js/login.js"]:
         loaded = client.get(asset)
         assert loaded.status_code == 200
@@ -190,6 +190,7 @@ def test_validation_script_checks_protected_live_v010_deployment():
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py' in script
     assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_family_role_views.py' in script
+    assert 'PYTHONPATH=. "$PYTHON_BIN" tests/test_setup_state.py' in script
     assert 'check_live_route "/" "family dashboard" "Her er et roligt overblik over hjemmet"' in script
     assert 'check_live_json_status "/api/family/weather" "family weather API" "weather"' in script
     assert 'check_live_json_status "/api/family/calendar" "family calendar API" "calendar"' in script

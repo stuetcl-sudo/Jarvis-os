@@ -11,14 +11,14 @@ function safeNextPath(value, fallback = "/admin") {
 
 async function ownerLandingPath(requestedPath) {
   try {
-    const response = await fetch("/api/admin/setup/summary", {
+    const response = await fetch("/api/admin/setup/status", {
       method: "GET",
       credentials: "same-origin",
       headers: { "Accept": "application/json" },
     });
     if (!response.ok) return requestedPath;
     const summary = await response.json();
-    if (!summary.completed) return "/setup";
+    if (summary.state !== "ready") return "/setup";
   } catch (error) {
     return requestedPath;
   }

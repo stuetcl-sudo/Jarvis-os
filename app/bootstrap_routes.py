@@ -11,6 +11,7 @@ from app.auth.service import (
     BootstrapUnavailable,
     auth_service,
 )
+from app.setup_state import setup_status
 
 
 router = APIRouter(tags=["bootstrap"])
@@ -35,7 +36,8 @@ def bootstrap_page():
 
 @router.get("/api/bootstrap/status")
 def bootstrap_status():
-    required = auth_service.bootstrap_required()
+    status = setup_status(db_path=config.DB_PATH)
+    required = status["state"] == "bootstrap_required"
     return {
         "bootstrap_required": required,
         "owner_exists": not required,

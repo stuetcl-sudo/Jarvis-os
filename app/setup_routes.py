@@ -2,9 +2,15 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app import config, home_assistant_setup, home_entity_settings, home_setup, settings_store
+from app.setup_state import setup_status
 
 
 router = APIRouter(prefix="/api/admin/setup", tags=["setup"])
+
+
+@router.get("/status")
+def get_setup_status():
+    return setup_status(db_path=config.DB_PATH)
 
 
 class HomeAssistantConnectionPayload(BaseModel):
