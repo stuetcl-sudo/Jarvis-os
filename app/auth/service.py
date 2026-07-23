@@ -71,6 +71,10 @@ class LoginRateLimited(AuthError):
     pass
 
 
+class BootstrapUnavailable(AuthError):
+    pass
+
+
 def utc_now():
     return datetime.now(timezone.utc)
 
@@ -157,6 +161,139 @@ class AuthService:
             return bool(row)
         finally:
             conn.close()
+
+    def bootstrap_required(self):
+        """Bootstrap remains closed permanently after any owner has been created."""
+        initialize_auth_tables()
+        conn = connect()
+        try:
+            row = conn.execute(
+                "SELECT 1 FROM auth_users WHERE role = 'owner' LIMIT 1"
+            ).fetchone()
+            return not bool(row)
+        finally:
+            conn.close()
+
+    def create_first_owner(self, username, display_name, password):
+        """Create exactly one initial owner and its first session atomically."""
+        initialize_auth_tables()
+
+        normalized = normalize_username(username)
+        cleaned_display_name = str(display_name or "").strip()
+
+        if not normalized:
+            raise ValueError("Brugernavn skal udfyldes")
+        if not cleaned_display_name:
+            raise ValueError("Navn skal udfyldes")
+
+        validate_password(password)
+
+        current = utc_now()
+        now = to_iso(current)
+        user_id = str(uuid4())
+        credential_hash = CREDENTIAL_HASHER.hash(password)
+        session_value = secrets.token_urlsafe(48)
+        csrf_value = secrets.token_urlsafe(32)
+        duration = timedelta(hours=config.AUTH_SESSION_HOURS)
+        expires_at = current + duration
+
+        conn = connect()
+        try:
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA busy_timeout = 5000")
+            conn.execute("BEGIN IMMEDIATE")
+
+            existing_owner = conn.execute(
+                "SELECT 1 FROM auth_users WHERE role = 'owner' LIMIT 1"
+            ).fetchone()
+            if existing_owner:
+                conn.rollback()
+                raise BootstrapUnavailable(
+                    "Den første ejer er allerede oprettet"
+                )
+
+            conn.execute(
+                """
+                INSERT INTO auth_users (
+                    user_id,
+                    username,
+                    display_name,
+                    role,
+                    password_hash,
+                    disabled,
+                    created_at,
+                    updated_at,
+                    last_login_at
+                )
+                VALUES (?, ?, ?, 'owner', ?, 0, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    normalized,
+                    cleaned_display_name,
+                    credential_hash,
+                    now,
+                    now,
+                    now,
+                ),
+            )
+
+            conn.execute(
+                """
+                INSERT INTO auth_sessions (
+                    session_token_hash,
+                    user_id,
+                    csrf_token,
+                    created_at,
+                    expires_at,
+                    last_seen_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    hash_session_token(session_value),
+                    user_id,
+                    csrf_value,
+                    now,
+                    to_iso(expires_at),
+                    now,
+                ),
+            )
+
+            conn.commit()
+        except sqlite3.IntegrityError as exc:
+            conn.rollback()
+            raise ValueError("Brugernavnet kan ikke anvendes") from exc
+        except Exception:
+            if conn.in_transaction:
+                conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+        log_action(
+            "auth_first_owner_created",
+            normalized,
+            "ok",
+            "role=owner",
+        )
+
+        return {
+            "user": {
+                "user_id": user_id,
+                "username": normalized,
+                "display_name": cleaned_display_name,
+                "role": "owner",
+                "disabled": False,
+                "created_at": now,
+                "updated_at": now,
+                "last_login_at": now,
+            },
+            "session_value": session_value,
+            "csrf_value": csrf_value,
+            "expires_at": to_iso(expires_at),
+            "cookie_max_age": int(duration.total_seconds()),
+        }
 
     def create_user(self, username, display_name, role, password):
         initialize_auth_tables()

@@ -7,6 +7,7 @@ from app import config
 from app.auth.context import reset_current_actor, set_current_actor
 from app.auth.routes import router as auth_router
 from app.auth.service import SESSION_COOKIE_NAME, auth_service
+from app.bootstrap_routes import router as bootstrap_router
 from app.calendar import router as calendar_router
 from app.db import log_action
 from app.family_tasks import router as family_tasks_router
@@ -24,6 +25,7 @@ from app.wall_view import WALL_ROLES, render_wall_page
 from app.weather import router as weather_router
 
 app.include_router(auth_router)
+app.include_router(bootstrap_router)
 app.include_router(weather_router)
 app.include_router(calendar_router)
 app.include_router(meal_plan_router)
@@ -48,7 +50,12 @@ def is_owner_only_read(method, path):
         return True
     if not path.startswith("/api/"):
         return False
-    if path.startswith("/api/auth/") or path.startswith("/api/family/") or path.startswith("/api/admin/"):
+    if (
+        path.startswith("/api/auth/")
+        or path.startswith("/api/bootstrap/")
+        or path.startswith("/api/family/")
+        or path.startswith("/api/admin/")
+    ):
         return False
     return True
 
@@ -138,6 +145,7 @@ async def enforce_local_authentication(request: Request, call_next):
         request.method in {"POST", "PUT", "PATCH", "DELETE"}
         and path.startswith("/api/")
         and not path.startswith("/api/auth/")
+        and not path.startswith("/api/bootstrap/")
         and not routine_write
         and not family_task_write
     )

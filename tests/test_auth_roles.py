@@ -1,9 +1,11 @@
 import contextlib
+import threading
 import importlib
 import io
 import sqlite3
 import tempfile
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,7 +22,7 @@ from app.auth import service as auth_module
 from app.auth.cli import main as cli_main
 from app.auth.context import reset_current_actor, set_current_actor
 from app.auth.dependencies import safe_next_path
-from app.auth.service import ALLOWED_ROLES, DUMMY_CREDENTIAL_HASH, InvalidCredentials, LoginRateLimited, auth_service, hash_session_token, initialize_auth_tables, rate_limit_key
+from app.auth.service import ALLOWED_ROLES, BootstrapUnavailable, DUMMY_CREDENTIAL_HASH, InvalidCredentials, LoginRateLimited, auth_service, hash_session_token, initialize_auth_tables, rate_limit_key
 from app.db import init_db
 from app.main_auth import app
 
@@ -360,6 +362,102 @@ def test_actor_csrf_redirect_and_frontend_contract():
     assert "source:" not in admin_js
 
 
+def test_first_owner_bootstrap_api_and_cookie_contract():
+    with environment() as client:
+        status = client.get("/api/bootstrap/status")
+        assert status.status_code == 200
+        assert status.json() == {
+            "bootstrap_required": True,
+            "owner_exists": False,
+        }
+
+        weak = client.post(
+            "/api/bootstrap/owner",
+            json={
+                "display_name": "Første ejer",
+                "username": "owner",
+                "password": "".join(["for", "-kort"]),
+            },
+        )
+        assert weak.status_code == 400
+        assert auth_service.bootstrap_required() is True
+
+        created = client.post(
+            "/api/bootstrap/owner",
+            json={
+                "display_name": "Første ejer",
+                "username": "Owner",
+                "password": password(),
+            },
+        )
+        assert created.status_code == 201, created.text
+        assert created.json()["status"] == "created"
+        assert created.json()["next"] == "/setup"
+        assert created.json()["user"]["username"] == "owner"
+        assert created.json()["user"]["role"] == "owner"
+
+        cookie_header = created.headers.get("set-cookie", "").lower()
+        assert "jarvis_session=" in cookie_header
+        assert "httponly" in cookie_header
+        assert "samesite=strict" in cookie_header
+
+        profile = client.get("/api/auth/me")
+        assert profile.status_code == 200
+        assert profile.json()["username"] == "owner"
+        assert profile.json()["role"] == "owner"
+
+        status = client.get("/api/bootstrap/status")
+        assert status.status_code == 200
+        assert status.json() == {
+            "bootstrap_required": False,
+            "owner_exists": True,
+        }
+
+        duplicate = client.post(
+            "/api/bootstrap/owner",
+            json={
+                "display_name": "Anden ejer",
+                "username": "another-owner",
+                "password": password(),
+            },
+        )
+        assert duplicate.status_code == 409
+
+        owners = rows(
+            "SELECT username FROM auth_users WHERE role = 'owner'"
+        )
+        assert [row["username"] for row in owners] == ["owner"]
+
+
+def test_first_owner_bootstrap_is_atomic_under_concurrency():
+    with environment():
+        barrier = threading.Barrier(2)
+
+        def attempt(number):
+            barrier.wait(timeout=5)
+            try:
+                session = auth_service.create_first_owner(
+                    f"owner-{number}",
+                    f"Ejer {number}",
+                    password(),
+                )
+                return ("created", session["user"]["username"])
+            except BootstrapUnavailable:
+                return ("blocked", None)
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(attempt, (1, 2)))
+
+        states = sorted(result[0] for result in results)
+        assert states == ["blocked", "created"]
+
+        owners = rows(
+            "SELECT username FROM auth_users WHERE role = 'owner'"
+        )
+        assert len(owners) == 1
+
+
+
 if __name__ == "__main__":
     for test in [
         test_login_payload_password_alias_has_no_unsupported_field_warning,
@@ -367,6 +465,8 @@ if __name__ == "__main__":
         test_login_dummy_rate_limit_and_sessions,
         test_roles_write_protection_and_handler_reachability,
         test_actor_csrf_redirect_and_frontend_contract,
+        test_first_owner_bootstrap_api_and_cookie_contract,
+        test_first_owner_bootstrap_is_atomic_under_concurrency,
     ]:
         test()
     print("Auth and role tests OK")
