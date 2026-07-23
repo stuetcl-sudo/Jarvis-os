@@ -151,3 +151,33 @@ def public_connection_summary(db_path=None):
         "home_assistant_url": get_setting("home_assistant.base_url", "", db_path=db_path),
         "home_assistant_token_configured": has_secret("home_assistant.token", db_path=db_path),
     }
+
+
+def set_home_assistant_connection(base_url, token, db_path=None, master_key=None):
+    """Persist the HA URL and encrypted token in one database transaction."""
+    encrypted = _fernet(master_key).encrypt(str(token).encode("utf-8")).decode("ascii")
+    now = _now_iso()
+    init_settings_store(db_path)
+    conn = _connect(db_path)
+    try:
+        conn.execute(
+            """
+            INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+            """,
+            ("home_assistant.base_url", str(base_url), now),
+        )
+        conn.execute(
+            """
+            INSERT INTO app_secrets (key, encrypted_value, updated_at) VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET encrypted_value = excluded.encrypted_value, updated_at = excluded.updated_at
+            """,
+            ("home_assistant.token", encrypted, now),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return True

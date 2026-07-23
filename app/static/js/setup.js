@@ -17,15 +17,16 @@ async function setupJson(url, options = {}) {
     options.headers = { ...(options.headers || {}), "X-CSRF-Token": setupCsrfToken };
   }
   const response = await fetch(url, options);
-  if (response.status === 401) {
+  const body = await response.json().catch(() => ({}));
+  const detail = body.detail || {};
+  if (response.status === 401 && detail.code !== "authentication_failed") {
     window.location.assign(`/login?next=${encodeURIComponent("/setup")}`);
     throw new Error("Din session er udløbet");
   }
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.detail || response.statusText || "Anmodningen mislykkedes");
+    throw new Error(detail.message || (typeof detail === "string" ? detail : "") || response.statusText || "Anmodningen mislykkedes");
   }
-  return response.json();
+  return body;
 }
 
 function showSetupNotice(message, tone = "success") {
@@ -114,10 +115,37 @@ async function testHomeAssistant(save = false) {
     body: JSON.stringify(homeAssistantPayload()),
   });
   document.getElementById("setupHaStatus").textContent = save
-    ? "Forbindelsen er testet og gemt sikkert."
-    : `Forbindelsen virker: ${result.message}`;
-  if (save) document.getElementById("setupHaToken").value = "";
+    ? "Forbindelsen virker og er gemt sikkert."
+    : "Forbindelsen til Home Assistant virker.";
+  if (save) {
+    document.getElementById("setupHaToken").value = "";
+    document.getElementById("setupHaTokenStatus").textContent = "Et token er gemt krypteret.";
+  }
   return result;
+}
+
+async function runHomeAssistantAction(save) {
+  const testButton = document.getElementById("setupTestHaButton");
+  const saveButton = document.getElementById("setupSaveHaButton");
+  const nextButton = document.getElementById("setupNextButton");
+  testButton.disabled = true;
+  saveButton.disabled = true;
+  nextButton.disabled = true;
+  document.getElementById("setupHaStatus").textContent = save ? "Tester og gemmer…" : "Tester forbindelsen…";
+  try {
+    const result = await testHomeAssistant(save);
+    showSetupNotice(save ? "Home Assistant-forbindelsen er gemt sikkert." : "Home Assistant-forbindelsen virker.");
+    if (save && result.setup?.ready) window.location.assign("/admin");
+    return result;
+  } catch (error) {
+    document.getElementById("setupHaStatus").textContent = error.message;
+    showSetupNotice(error.message, "error");
+    throw error;
+  } finally {
+    testButton.disabled = false;
+    saveButton.disabled = false;
+    nextButton.disabled = false;
+  }
 }
 
 function isTechnicalEntity(item) {
@@ -298,7 +326,7 @@ async function refreshWizardSummary() {
 async function nextStep() {
   try {
     if (setupStep === 0) await saveHomeStep();
-    if (setupStep === 1 && document.getElementById("setupHaUrl").value.trim()) await testHomeAssistant(true);
+    if (setupStep === 1) await runHomeAssistantAction(true);
     if (setupStep === 2 && setupEntities.length) await saveEntitySettings();
     if (setupStep === 3) {
       await setupJson("/api/admin/setup/complete", { method: "POST" });
@@ -327,6 +355,7 @@ async function initializeSetup() {
     document.getElementById("setupTimezone").value = home.timezone || "Europe/Copenhagen";
     document.getElementById("setupHaUrl").value = ha.home_assistant_url || "";
     document.getElementById("setupHaStatus").textContent = ha.configured ? "En gemt forbindelse blev fundet." : "Ikke konfigureret endnu.";
+    document.getElementById("setupHaTokenStatus").textContent = ha.token_configured ? "Et token er allerede gemt. Feltet er med vilje tomt." : "Intet token er gemt.";
     applyEntitySettings(settings);
   } catch (error) {
     showSetupNotice(`Opsætningen kunne ikke indlæses: ${error.message}`, "error");
@@ -337,12 +366,13 @@ document.querySelectorAll("[data-step-button]").forEach((button) => button.addEv
 document.getElementById("setupBackButton").addEventListener("click", () => showStep(setupStep - 1));
 document.getElementById("setupNextButton").addEventListener("click", nextStep);
 document.getElementById("setupTestHaButton").addEventListener("click", async () => {
-  try { await testHomeAssistant(false); showSetupNotice("Home Assistant-forbindelsen virker."); }
-  catch (error) { showSetupNotice(error.message, "error"); }
+  try { await runHomeAssistantAction(false); } catch (_error) { /* Status is shown by the action. */ }
 });
 document.getElementById("setupSaveHaButton").addEventListener("click", async () => {
-  try { await testHomeAssistant(true); showSetupNotice("Home Assistant-forbindelsen er gemt sikkert."); }
-  catch (error) { showSetupNotice(error.message, "error"); }
+  try {
+    await runHomeAssistantAction(true);
+    if (setupStep === 1) showStep(2);
+  } catch (_error) { /* Status is shown by the action. */ }
 });
 
 initializeSetup();

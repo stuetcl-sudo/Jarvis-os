@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
 
 from app import config, home_assistant_setup, home_entity_settings, home_setup, settings_store
@@ -11,11 +11,6 @@ router = APIRouter(prefix="/api/admin/setup", tags=["setup"])
 @router.get("/status")
 def get_setup_status():
     return setup_status(db_path=config.DB_PATH)
-
-
-class HomeAssistantConnectionPayload(BaseModel):
-    base_url: str
-    token: str = ""
 
 
 class HomeAssistantEntitySettingsPayload(BaseModel):
@@ -42,8 +37,25 @@ class HomeSettingsPayload(BaseModel):
 
 def _connection_values(payload=None):
     current = config.home_assistant_configuration()
-    base_url = payload.base_url if payload else current["base_url"]
-    token = payload.token.strip() if payload and payload.token.strip() else current["access_value"]
+    if payload is not None and not isinstance(payload, dict):
+        raise home_assistant_setup.HomeAssistantSetupError(
+            "malformed_request", "Anmodningen om Home Assistant-forbindelsen er ugyldig"
+        )
+    base_url = payload.get("base_url", "") if payload is not None else current["base_url"]
+    supplied_token = payload.get("token", "") if payload is not None else ""
+    if not isinstance(base_url, str):
+        raise home_assistant_setup.HomeAssistantSetupError(
+            "malformed_url", "Home Assistant-adressen er ugyldig"
+        )
+    if len(base_url) > 2048:
+        raise home_assistant_setup.HomeAssistantSetupError(
+            "malformed_url", "Home Assistant-adressen er ugyldig"
+        )
+    if not isinstance(supplied_token, str):
+        raise home_assistant_setup.HomeAssistantSetupError(
+            "token_invalid", "Home Assistant-tokenet er ugyldigt"
+        )
+    token = supplied_token.strip() if supplied_token.strip() else current["access_value"]
     return base_url, token, current["timeout_seconds"]
 
 
@@ -92,33 +104,48 @@ def home_assistant_summary():
             or bool(config.home_assistant_configuration()["access_value"])
         )
     )
+    summary["token_configured"] = summary["home_assistant_token_configured"] or bool(
+        config.home_assistant_configuration()["access_value"]
+    )
     return summary
 
 
+def _ha_error(exc):
+    if isinstance(exc, home_assistant_setup.HomeAssistantSetupError):
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    raise HTTPException(
+        status_code=400,
+        detail={"code": "configuration_error", "message": "Home Assistant-konfigurationen kunne ikke bruges"},
+    ) from exc
+
+
 @router.post("/home-assistant/test")
-def test_home_assistant_connection(payload: HomeAssistantConnectionPayload):
-    base_url, token, timeout_seconds = _connection_values(payload)
+def test_home_assistant_connection(payload: object = Body(...)):
     try:
+        base_url, token, timeout_seconds = _connection_values(payload)
         return home_assistant_setup.test_connection(base_url, token, timeout_seconds)
     except (ValueError, RuntimeError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        _ha_error(exc)
 
 
 @router.post("/home-assistant/save")
-def save_home_assistant_connection(payload: HomeAssistantConnectionPayload):
-    base_url, token, timeout_seconds = _connection_values(payload)
+def save_home_assistant_connection(payload: object = Body(...)):
     try:
+        base_url, token, timeout_seconds = _connection_values(payload)
         result = home_assistant_setup.test_connection(base_url, token, timeout_seconds)
         summary = home_assistant_setup.save_connection(base_url, token, db_path=config.DB_PATH)
     except (ValueError, RuntimeError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {**summary, **result}
+        _ha_error(exc)
+    return {**summary, **result, "setup": setup_status(db_path=config.DB_PATH)}
 
 
 @router.post("/home-assistant/entities")
-def discover_home_assistant_entities(payload: HomeAssistantConnectionPayload):
-    base_url, token, timeout_seconds = _connection_values(payload)
+def discover_home_assistant_entities(payload: object = Body(...)):
     try:
+        base_url, token, timeout_seconds = _connection_values(payload)
         entities = home_assistant_setup.discover_entities(base_url, token, timeout_seconds)
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

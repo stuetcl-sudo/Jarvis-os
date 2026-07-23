@@ -52,17 +52,18 @@
     <section class="setup-card" data-step="1" hidden>
       <p class="section-kicker">Trin 2</p>
       <h2>Forbind Home Assistant</h2>
-      <p class="setup-help">Forbindelsen testes, før adgangsnøglen gemmes krypteret.</p>
+      <p class="setup-help"><strong>Home Assistant er påkrævet for at bruge Jarvis.</strong> Forbind en eksisterende installation. Jarvis installerer eller administrerer ikke Home Assistant.</p>
       <div class="setup-form">
         <label>Home Assistant-adresse
           <input id="setupHaUrl" type="url" placeholder="Indtast Home Assistant-adressen" required />
         </label>
-        <label>Langtidsadgang
-          <input id="setupHaToken" type="password" autocomplete="new-password" placeholder="Lad stå tomt for at beholde gemt adgang" />
+        <label>Langtidsadgangstoken
+          <input id="setupHaToken" type="password" autocomplete="new-password" placeholder="Indsæt et langtidsadgangstoken" />
         </label>
+        <p id="setupHaTokenStatus" class="setup-inline-status">Intet token er gemt.</p>
         <div class="setup-actions left">
           <button id="setupTestHaButton" type="button" class="secondary">Test forbindelse</button>
-          <button id="setupSaveHaButton" type="button">Gem forbindelse</button>
+          <button id="setupSaveHaButton" type="button">Gem og fortsæt</button>
         </div>
         <p id="setupHaStatus" class="setup-inline-status">Ikke testet endnu.</p>
       </div>
