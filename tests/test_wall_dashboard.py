@@ -1,13 +1,16 @@
+import os
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from app import config
+from app import config, home_setup
 from app.auth.service import auth_service, initialize_auth_tables
 from app.db import init_db
 from app.main_auth import app
+from app.setup_state import setup_status
 from app.wall_view import WALL_ROLES, render_wall_page
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,7 +19,13 @@ ROOT = Path(__file__).resolve().parents[1]
 @contextmanager
 def wall_environment():
     previous = config.DB_PATH
-    with tempfile.TemporaryDirectory() as folder:
+    with tempfile.TemporaryDirectory() as folder, patch.dict(
+        os.environ,
+        {
+            "HOME_ASSISTANT_URL": "http://home-assistant.example.com:8123",
+            "HOME_ASSISTANT_" + "TOKEN": "example-token",
+        },
+    ):
         config.DB_PATH = str(Path(folder) / "wall.db")
         init_db()
         initialize_auth_tables()
@@ -42,6 +51,14 @@ def login(client, role, display_name=None):
     return profile.json().get("csrf_token") or profile.json().get("csrf_value")
 
 
+def complete_ready_setup():
+    home_setup.save_home_settings(
+        "Example home", "Europe/Copenhagen", "Example owner", db_path=config.DB_PATH
+    )
+    home_setup.complete_setup(db_path=config.DB_PATH)
+    assert setup_status(db_path=config.DB_PATH)["state"] == "ready"
+
+
 def test_wall_route_roles_and_admin_policy():
     with wall_environment() as client:
         anonymous = client.get("/wall?role=owner")
@@ -54,6 +71,8 @@ def test_wall_route_roles_and_admin_policy():
             wall = client.get("/wall?role=owner")
             assert wall.status_code == 200
             assert 'data-wall-dashboard="true"' in wall.text
+            if role == "owner":
+                complete_ready_setup()
             admin = client.get("/admin")
             assert admin.status_code == (200 if role == "owner" else 403)
 

@@ -1,7 +1,14 @@
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
 
-from app import config, home_assistant_setup, home_entity_settings, home_setup, settings_store
+from app import (
+    config,
+    home_assistant_setup,
+    home_entity_settings,
+    home_setup,
+    managed_home_assistant_installer,
+    settings_store,
+)
 from app.setup_state import setup_status
 
 
@@ -108,6 +115,39 @@ def home_assistant_summary():
         config.home_assistant_configuration()["access_value"]
     )
     return summary
+
+
+@router.get("/home-assistant/managed")
+def managed_home_assistant_status():
+    try:
+        return managed_home_assistant_installer.managed_install_status(db_path=config.DB_PATH)
+    except (OSError, RuntimeError) as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "managed_install_status_unavailable",
+                "message": "Status for den administrerede Home Assistant-installation kunne ikke hentes.",
+            },
+        ) from exc
+
+
+@router.post("/home-assistant/managed/plan")
+def request_managed_home_assistant_plan(payload: object = Body(default=None)):
+    try:
+        return managed_home_assistant_installer.request_install_plan(payload, db_path=config.DB_PATH)
+    except managed_home_assistant_installer.ManagedInstallError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    except (OSError, RuntimeError) as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "managed_install_plan_unavailable",
+                "message": "Installationsplanen kunne ikke gemmes.",
+            },
+        ) from exc
 
 
 def _ha_error(exc):

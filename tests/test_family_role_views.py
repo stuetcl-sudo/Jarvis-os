@@ -1,3 +1,4 @@
+import os
 import re
 import tempfile
 from contextlib import contextmanager
@@ -6,10 +7,11 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from app import config
+from app import config, home_setup
 from app.auth.service import auth_service, initialize_auth_tables
 from app.db import init_db
 from app.main_auth import app
+from app.setup_state import setup_status
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,7 +23,13 @@ def credential():
 @contextmanager
 def environment():
     previous = config.DB_PATH
-    with tempfile.TemporaryDirectory() as folder:
+    with tempfile.TemporaryDirectory() as folder, patch.dict(
+        os.environ,
+        {
+            "HOME_ASSISTANT_URL": "http://home-assistant.example.com:8123",
+            "HOME_ASSISTANT_" + "TOKEN": "example-token",
+        },
+    ):
         config.DB_PATH = str(Path(folder) / "family.db")
         init_db()
         initialize_auth_tables()
@@ -41,6 +49,14 @@ def create_and_login(client, role, display_name):
         json={"username": username, "password": credential()},
     )
     assert response.status_code == 200, response.text
+
+
+def complete_ready_setup():
+    home_setup.save_home_settings(
+        "Example home", "Europe/Copenhagen", "Example owner", db_path=config.DB_PATH
+    )
+    home_setup.complete_setup(db_path=config.DB_PATH)
+    assert setup_status(db_path=config.DB_PATH)["state"] == "ready"
 
 
 def assert_no_technical_presentation(text):
@@ -169,6 +185,7 @@ def test_family_frontend_is_safe_read_only_and_admin_boundary_is_unchanged():
 
     with environment() as client:
         create_and_login(client, "owner", "Ejer Test")
+        complete_ready_setup()
         assert client.get("/admin").status_code == 200
 
 

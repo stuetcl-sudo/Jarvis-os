@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from app import config, home_assistant_setup, home_setup, settings_store
+from app import config, home_assistant_setup, home_setup, managed_home_assistant_installer, settings_store
 from app.auth.service import auth_service, initialize_auth_tables
 from app.db import init_db
 from app.main_auth import app
@@ -144,6 +144,26 @@ def test_home_assistant_api_errors_are_stable_safe_and_do_not_overwrite():
         assert settings_store.get_setting("home_assistant.base_url", "", db_path=config.DB_PATH) == ""
         assert settings_store.has_secret("home_assistant.token", db_path=config.DB_PATH) is False
 
+        with patch(
+            "app.setup_routes.managed_home_assistant_installer.managed_install_status",
+            side_effect=RuntimeError("private diagnostic"),
+        ):
+            unavailable = client.get("/api/admin/setup/home-assistant/managed")
+        assert unavailable.status_code == 500
+        assert unavailable.json()["detail"]["code"] == "managed_install_status_unavailable"
+        assert "private diagnostic" not in unavailable.text
+
+        with patch(
+            "app.setup_routes.managed_home_assistant_installer.request_install_plan",
+            side_effect=RuntimeError("private diagnostic"),
+        ):
+            unavailable = client.post(
+                "/api/admin/setup/home-assistant/managed/plan", headers=headers, json={}
+            )
+        assert unavailable.status_code == 500
+        assert unavailable.json()["detail"]["code"] == "managed_install_plan_unavailable"
+        assert "private diagnostic" not in unavailable.text
+
         settings_store.set_home_assistant_connection(
             "http://previous.example:8123", "previous-token", db_path=config.DB_PATH
         )
@@ -265,6 +285,57 @@ def test_valid_save_is_secret_free_persists_and_makes_setup_ready():
         cleanup(folder, previous_path, previous_secure, client)
 
 
+def test_managed_install_plan_access_csrf_fixed_values_and_setup_state():
+    for role, expected in ((None, 401), ("adult", 403)):
+        values = build_client(role)
+        folder, previous_path, previous_secure, client, user = values
+        try:
+            headers = {"X-CSRF-Token": user["csrf_token"]} if user else {}
+            assert client.get("/api/admin/setup/home-assistant/managed").status_code == expected
+            assert client.post(
+                "/api/admin/setup/home-assistant/managed/plan", headers=headers, json={}
+            ).status_code == expected
+        finally:
+            cleanup(folder, previous_path, previous_secure, client)
+
+    values = build_client("owner")
+    folder, previous_path, previous_secure, client, user = values
+    headers = {"X-CSRF-Token": user["csrf_token"]}
+    try:
+        home_setup.save_home_settings("Mit hjem", "Europe/Copenhagen", "Ejer", db_path=config.DB_PATH)
+        home_setup.complete_setup(db_path=config.DB_PATH)
+        assert client.get("/api/admin/setup/status").json()["state"] == "home_assistant_required"
+        assert client.post("/api/admin/setup/home-assistant/managed/plan", json={}).status_code == 403
+
+        first = client.post(
+            "/api/admin/setup/home-assistant/managed/plan", headers=headers, json={}
+        )
+        second = client.post(
+            "/api/admin/setup/home-assistant/managed/plan", headers=headers, json={}
+        )
+        assert first.status_code == 200
+        assert first.json() == second.json()
+        assert first.json()["state"] == "ready_to_install"
+        assert first.json()["installation_started"] is False
+        assert first.json()["container_name"] == managed_home_assistant_installer.CONTAINER_NAME
+        assert first.json()["volume_name"] == managed_home_assistant_installer.VOLUME_NAME
+        assert first.json()["network_name"] == managed_home_assistant_installer.NETWORK_NAME
+        assert first.json()["published_port"] == managed_home_assistant_installer.PUBLISHED_PORT
+
+        override = client.post(
+            "/api/admin/setup/home-assistant/managed/plan",
+            headers=headers,
+            json={"image": "example/image:latest", "command": "example-command"},
+        )
+        assert override.status_code == 400
+        assert override.json()["detail"]["code"] == "managed_install_options_not_allowed"
+        assert client.get("/api/admin/setup/status").json()["state"] == "home_assistant_required"
+        assert settings_store.get_setting("home_assistant.base_url", "", db_path=config.DB_PATH) == ""
+        assert settings_store.has_secret("home_assistant.token", db_path=config.DB_PATH) is False
+    finally:
+        cleanup(folder, previous_path, previous_secure, client)
+
+
 def test():
     test_anonymous_setup_access_is_rejected()
     test_family_roles_cannot_access_setup()
@@ -272,6 +343,7 @@ def test():
     test_home_assistant_endpoints_are_owner_only_and_require_csrf()
     test_home_assistant_api_errors_are_stable_safe_and_do_not_overwrite()
     test_valid_save_is_secret_free_persists_and_makes_setup_ready()
+    test_managed_install_plan_access_csrf_fixed_values_and_setup_state()
     print("Setup access tests OK")
 
 

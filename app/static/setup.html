@@ -52,8 +52,13 @@
     <section class="setup-card" data-step="1" hidden>
       <p class="section-kicker">Trin 2</p>
       <h2>Forbind Home Assistant</h2>
-      <p class="setup-help"><strong>Home Assistant er påkrævet for at bruge Jarvis.</strong> Forbind en eksisterende installation. Jarvis installerer eller administrerer ikke Home Assistant.</p>
-      <div class="setup-form">
+      <p class="setup-help"><strong>Home Assistant er påkrævet for at bruge Jarvis.</strong> Vælg, om du vil forbinde en eksisterende installation eller forberede en sikker installationsplan.</p>
+      <fieldset class="setup-form">
+        <legend>Vælg Home Assistant-løsning</legend>
+        <label><input id="setupHaExistingChoice" type="radio" name="setupHaChoice" value="existing" checked /> Forbind eksisterende Home Assistant</label>
+        <label><input id="setupHaManagedChoice" type="radio" name="setupHaChoice" value="managed" /> Installér Home Assistant for mig</label>
+      </fieldset>
+      <div id="setupHaExistingPanel" class="setup-form">
         <label>Home Assistant-adresse
           <input id="setupHaUrl" type="url" placeholder="Indtast Home Assistant-adressen" required />
         </label>
@@ -66,6 +71,20 @@
           <button id="setupSaveHaButton" type="button">Gem og fortsæt</button>
         </div>
         <p id="setupHaStatus" class="setup-inline-status">Ikke testet endnu.</p>
+      </div>
+      <div id="setupHaManagedPanel" class="setup-form" hidden>
+        <h3>Forbered en installationsplan</h3>
+        <p class="setup-help">Installationen er ikke startet. Først oprettes kun en plan med faste, isolerede ressourcer. Installationen starter først efter en senere, udtrykkelig bekræftelse fra ejeren.</p>
+        <button id="setupManagedPlanButton" type="button">Opret installationsplan</button>
+        <p id="setupManagedStatus" class="setup-inline-status">Der er endnu ikke oprettet en installationsplan.</p>
+        <dl id="setupManagedPlanSummary" class="summary-grid" hidden>
+          <div class="summary-card"><dt>Container</dt><dd id="setupManagedContainer"></dd></div>
+          <div class="summary-card"><dt>Image</dt><dd id="setupManagedImage"></dd></div>
+          <div class="summary-card"><dt>Lager</dt><dd id="setupManagedVolume"></dd></div>
+          <div class="summary-card"><dt>Netværk</dt><dd id="setupManagedNetwork"></dd></div>
+          <div class="summary-card"><dt>Forventet lokal adresse</dt><dd id="setupManagedUrl"></dd></div>
+          <div class="summary-card"><dt>Afgrænsning</dt><dd id="setupManagedIsolation"></dd></div>
+        </dl>
       </div>
     </section>
 

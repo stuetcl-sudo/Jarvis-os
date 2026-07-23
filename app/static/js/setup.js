@@ -148,6 +148,54 @@ async function runHomeAssistantAction(save) {
   }
 }
 
+function selectedHomeAssistantChoice() {
+  return document.getElementById("setupHaManagedChoice").checked ? "managed" : "existing";
+}
+
+function showHomeAssistantChoice() {
+  const managed = selectedHomeAssistantChoice() === "managed";
+  document.getElementById("setupHaExistingPanel").hidden = managed;
+  document.getElementById("setupHaManagedPanel").hidden = !managed;
+}
+
+function renderManagedInstallPlan(plan) {
+  const summary = document.getElementById("setupManagedPlanSummary");
+  document.getElementById("setupManagedContainer").textContent = plan.container_name;
+  document.getElementById("setupManagedImage").textContent = plan.image;
+  document.getElementById("setupManagedVolume").textContent = `${plan.volume_name} → ${plan.config_mount_path}`;
+  document.getElementById("setupManagedNetwork").textContent = `${plan.network_name}. ${plan.network_description}`;
+  document.getElementById("setupManagedUrl").textContent = plan.expected_local_url;
+  document.getElementById("setupManagedIsolation").textContent = plan.isolation_description;
+  document.getElementById("setupManagedStatus").textContent = plan.message;
+  summary.hidden = plan.state === "not_requested";
+}
+
+async function requestManagedInstallPlan() {
+  const planButton = document.getElementById("setupManagedPlanButton");
+  const nextButton = document.getElementById("setupNextButton");
+  const choices = document.querySelectorAll('input[name="setupHaChoice"]');
+  planButton.disabled = true;
+  nextButton.disabled = true;
+  choices.forEach((choice) => { choice.disabled = true; });
+  document.getElementById("setupManagedStatus").textContent = "Opretter en sikker plan…";
+  try {
+    const plan = await setupJson("/api/admin/setup/home-assistant/managed/plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    renderManagedInstallPlan(plan);
+    showSetupNotice("Installationsplanen er oprettet. Home Assistant er ikke installeret eller startet.");
+  } catch (error) {
+    document.getElementById("setupManagedStatus").textContent = error.message;
+    showSetupNotice(error.message, "error");
+  } finally {
+    planButton.disabled = false;
+    nextButton.disabled = false;
+    choices.forEach((choice) => { choice.disabled = false; });
+  }
+}
+
 function isTechnicalEntity(item) {
   const value = `${item.entity_id || ""} ${item.name || ""}`.toLowerCase();
   return ["localhost_", "acpitz", "processor_", "memory_use", "memory_free", "disk_use", "disk_free", "load_1m", "load_5m", "load_15m"].some((part) => value.includes(part));
@@ -326,6 +374,10 @@ async function refreshWizardSummary() {
 async function nextStep() {
   try {
     if (setupStep === 0) await saveHomeStep();
+    if (setupStep === 1 && selectedHomeAssistantChoice() === "managed") {
+      showSetupNotice("Installationsplanen er kun en plan. Home Assistant skal installeres og forbindes, før du kan fortsætte.", "error");
+      return;
+    }
     if (setupStep === 1) await runHomeAssistantAction(true);
     if (setupStep === 2 && setupEntities.length) await saveEntitySettings();
     if (setupStep === 3) {
@@ -345,10 +397,11 @@ async function initializeSetup() {
   try {
     const user = await setupJson("/api/auth/me");
     setupCsrfToken = user.csrf_token;
-    const [home, ha, settings] = await Promise.all([
+    const [home, ha, settings, managedPlan] = await Promise.all([
       setupJson("/api/admin/setup/home"),
       setupJson("/api/admin/setup/home-assistant"),
       setupJson("/api/admin/setup/home-assistant/entity-settings"),
+      setupJson("/api/admin/setup/home-assistant/managed"),
     ]);
     document.getElementById("setupHomeName").value = home.home_name || "";
     document.getElementById("setupOwnerName").value = home.owner_name || user.display_name || "";
@@ -356,6 +409,9 @@ async function initializeSetup() {
     document.getElementById("setupHaUrl").value = ha.home_assistant_url || "";
     document.getElementById("setupHaStatus").textContent = ha.configured ? "En gemt forbindelse blev fundet." : "Ikke konfigureret endnu.";
     document.getElementById("setupHaTokenStatus").textContent = ha.token_configured ? "Et token er allerede gemt. Feltet er med vilje tomt." : "Intet token er gemt.";
+    if (managedPlan.requested && !ha.configured) document.getElementById("setupHaManagedChoice").checked = true;
+    renderManagedInstallPlan(managedPlan);
+    showHomeAssistantChoice();
     applyEntitySettings(settings);
   } catch (error) {
     showSetupNotice(`Opsætningen kunne ikke indlæses: ${error.message}`, "error");
@@ -374,5 +430,8 @@ document.getElementById("setupSaveHaButton").addEventListener("click", async () 
     if (setupStep === 1) showStep(2);
   } catch (_error) { /* Status is shown by the action. */ }
 });
+document.getElementById("setupHaExistingChoice").addEventListener("change", showHomeAssistantChoice);
+document.getElementById("setupHaManagedChoice").addEventListener("change", showHomeAssistantChoice);
+document.getElementById("setupManagedPlanButton").addEventListener("click", requestManagedInstallPlan);
 
 initializeSetup();
