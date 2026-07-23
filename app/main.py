@@ -28,6 +28,7 @@ from app.events.bus import event_bus
 from app.events.dispatcher import publish
 from app.events.types import EventTypes
 from app.health import get_health
+from app.migrations import run_migrations
 from app.setup_routes import router as setup_router
 from app.policies.engine import policy_engine
 from app.worker import run_check_once, worker_loop, worker_status
@@ -72,6 +73,7 @@ def asset_summary(assets):
 @app.on_event("startup")
 async def startup():
     init_db()
+    run_migrations()
     initialize_asset_tables()
     initialize_relationship_tables()
     policy_engine.initialize()
