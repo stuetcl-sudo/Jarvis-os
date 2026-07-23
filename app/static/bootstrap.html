@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <title>Kom i gang med Jarvis</title>
+  <link rel="stylesheet" href="/static/css/tokens.css" />
+  <link rel="stylesheet" href="/static/css/base.css" />
+  <link rel="stylesheet" href="/static/css/components.css" />
+  <link rel="stylesheet" href="/static/css/layout.css" />
+  <link rel="stylesheet" href="/static/css/common.css" />
+  <link rel="stylesheet" href="/static/css/login.css" />
+  <link rel="stylesheet" href="/static/css/bootstrap.css" />
+</head>
+<body>
+  <main class="login-shell">
+    <section class="login-card bootstrap-card" aria-labelledby="bootstrapTitle">
+      <p class="login-kicker">Jarvis-os</p>
+      <p class="bootstrap-step">Første opsætning</p>
+
+      <h1 id="bootstrapTitle">Velkommen til Jarvis</h1>
+
+      <p class="login-intro">
+        Opret den første ejer. Ejeren får adgang til opsætning,
+        forbindelser, brugere og systemindstillinger.
+      </p>
+
+      <aside class="bootstrap-notice">
+        <strong>Din adgangskode bliver gemt sikkert.</strong>
+        <span>
+          Den skal være mindst 12 tegn og bliver ikke vist igen.
+        </span>
+      </aside>
+
+      <form id="bootstrapForm" novalidate>
+        <label for="displayName">Dit navn</label>
+        <input
+          id="displayName"
+          name="display_name"
+          type="text"
+          autocomplete="name"
+          required
+          maxlength="128"
+          autofocus
+        />
+
+        <label for="username">Brugernavn</label>
+        <input
+          id="username"
+          name="username"
+          type="text"
+          autocomplete="username"
+          autocapitalize="none"
+          spellcheck="false"
+          required
+          maxlength="128"
+        />
+
+        <label for="password">Adgangskode</label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autocomplete="new-password"
+          required
+          minlength="12"
+          maxlength="128"
+          aria-describedby="passwordHelp"
+        />
+
+        <p id="passwordHelp" class="field-help">
+          Brug mindst 12 tegn.
+        </p>
+
+        <label for="confirmPassword">Gentag adgangskoden</label>
+        <input
+          id="confirmPassword"
+          name="confirm_password"
+          type="password"
+          autocomplete="new-password"
+          required
+          minlength="12"
+          maxlength="128"
+        />
+
+        <p
+          id="bootstrapError"
+          class="login-error"
+          role="alert"
+          hidden
+        ></p>
+
+        <button id="bootstrapSubmit" type="submit">
+          Opret ejer og fortsæt
+        </button>
+      </form>
+
+      <p class="bootstrap-footer">
+        Jarvis opretter kun den første ejer her. Flere brugere
+        kan tilføjes senere.
+      </p>
+    </section>
+  </main>
+
+  <script src="/static/js/bootstrap.js" defer></script>
+</body>
+</html>

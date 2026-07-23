@@ -1,5 +1,7 @@
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
 from app import config
@@ -11,7 +13,8 @@ from app.auth.service import (
 )
 
 
-router = APIRouter(prefix="/api/bootstrap", tags=["bootstrap"])
+router = APIRouter(tags=["bootstrap"])
+BOOTSTRAP_TEMPLATE = Path("app/static/bootstrap.html")
 
 
 class FirstOwnerPayload(BaseModel):
@@ -20,7 +23,17 @@ class FirstOwnerPayload(BaseModel):
     password: str
 
 
-@router.get("/status")
+@router.get("/bootstrap", response_class=HTMLResponse)
+def bootstrap_page():
+    if not auth_service.bootstrap_required():
+        return RedirectResponse("/login", status_code=303)
+
+    return HTMLResponse(
+        BOOTSTRAP_TEMPLATE.read_text(encoding="utf-8")
+    )
+
+
+@router.get("/api/bootstrap/status")
 def bootstrap_status():
     required = auth_service.bootstrap_required()
     return {
@@ -29,7 +42,7 @@ def bootstrap_status():
     }
 
 
-@router.post("/owner", status_code=201)
+@router.post("/api/bootstrap/owner", status_code=201)
 def create_first_owner(payload: FirstOwnerPayload):
     try:
         session = auth_service.create_first_owner(

@@ -65,7 +65,9 @@ def test_login_page_and_assets_load():
     response = client.get("/login")
     assert response.status_code == 200
     assert "Log ind på Jarvis" in response.text
-    assert "Ingen aktiv ejer findes endnu" in response.text
+    assert "Ingen ejer er oprettet endnu." in response.text
+    assert 'href="/bootstrap"' in response.text
+    assert "docker compose exec" not in response.text
     for asset in ["/static/css/login.css", "/static/js/login.js"]:
         loaded = client.get(asset)
         assert loaded.status_code == 200

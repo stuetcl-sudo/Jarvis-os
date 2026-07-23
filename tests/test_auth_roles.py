@@ -362,6 +362,54 @@ def test_actor_csrf_redirect_and_frontend_contract():
     assert "source:" not in admin_js
 
 
+def test_bootstrap_page_and_frontend_contract():
+    html = (ROOT / "app/static/bootstrap.html").read_text(encoding="utf-8")
+    javascript = (
+        ROOT / "app/static/js/bootstrap.js"
+    ).read_text(encoding="utf-8")
+    routes_source = (
+        ROOT / "app/auth/routes.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'id="bootstrapForm"' in html
+    assert 'autocomplete="new-password"' in html
+    assert 'minlength="12"' in html
+    assert 'name="role"' not in html
+    assert 'data-role' not in html
+
+    assert 'fetch("/api/bootstrap/status"' in javascript
+    assert 'fetch("/api/bootstrap/owner"' in javascript
+    assert javascript.count('credentials: "same-origin"') == 2
+    assert 'window.location.replace(payload.next || "/setup")' in javascript
+    assert "innerHTML" not in javascript
+    assert "localStorage" not in javascript
+    assert "sessionStorage" not in javascript
+    assert "eval(" not in javascript
+
+    assert "docker compose exec" not in routes_source
+    assert 'href="/bootstrap"' in routes_source
+
+    with environment() as client:
+        page = client.get("/bootstrap")
+        assert page.status_code == 200
+        assert "Velkommen til Jarvis" in page.text
+
+        created = client.post(
+            "/api/bootstrap/owner",
+            json={
+                "display_name": "Første ejer",
+                "username": "owner",
+                "password": password(),
+            },
+        )
+        assert created.status_code == 201
+
+        redirected = client.get("/bootstrap")
+        assert redirected.status_code == 303
+        assert redirected.headers["location"] == "/login"
+
+
+
 def test_first_owner_bootstrap_api_and_cookie_contract():
     with environment() as client:
         status = client.get("/api/bootstrap/status")
@@ -465,6 +513,7 @@ if __name__ == "__main__":
         test_login_dummy_rate_limit_and_sessions,
         test_roles_write_protection_and_handler_reachability,
         test_actor_csrf_redirect_and_frontend_contract,
+        test_bootstrap_page_and_frontend_contract,
         test_first_owner_bootstrap_api_and_cookie_contract,
         test_first_owner_bootstrap_is_atomic_under_concurrency,
     ]:

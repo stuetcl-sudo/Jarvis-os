@@ -46,9 +46,13 @@ def login_page():
     notice = ""
     if not auth_service.owner_exists():
         notice = (
-            '<aside class="owner-setup" role="status"><strong>Ingen aktiv ejer findes endnu.</strong>'
-            '<span>Opret den første ejer lokalt fra serverens terminal:</span>'
-            '<code>docker compose exec jarvis-os python -m app.auth.cli create-user --username owner --display-name "Owner" --role owner</code></aside>'
+            '<aside class="owner-setup" role="status">'
+            '<strong>Ingen ejer er oprettet endnu.</strong>'
+            '<span>Start den første opsætning i browseren.</span>'
+            '<a class="owner-setup-link" href="/bootstrap">'
+            'Opret første ejer'
+            '</a>'
+            '</aside>'
         )
     return HTMLResponse(html.replace("<!--OWNER_SETUP_NOTICE-->", notice))
 

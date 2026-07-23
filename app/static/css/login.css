@@ -67,3 +67,15 @@ button:disabled { opacity: .6; cursor: wait; }
   body { background: radial-gradient(circle at top left, rgba(45,105,175,.25), transparent 34rem), var(--page); }
   input { background: rgba(255,255,255,.06); }
 }
+
+.owner-setup {
+  display: grid;
+  gap: 6px;
+}
+
+.owner-setup-link {
+  width: fit-content;
+  margin-top: 6px;
+  color: var(--accent);
+  font-weight: 800;
+}
