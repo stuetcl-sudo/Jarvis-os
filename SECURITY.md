@@ -39,9 +39,9 @@ The normal Jarvis application and staging container must never receive a Docker 
 
 ## Managed Home Assistant installer boundary
 
-The managed Home Assistant foundation creates a plan only. It does not run Docker, subprocesses or shell commands.
+The daily application creates a plan and an expiring, single-use opaque installation request only. It does not run Docker, subprocesses or shell commands.
 
-Any future installation execution must be a separate, one-shot component that:
+Installation execution is the opt-in `compose.installer.yml` one-shot component. It:
 
 - starts only after an explicit owner confirmation and exits after the task
 - accepts no browser-provided image, resource name, port, path or command
@@ -49,6 +49,8 @@ Any future installation execution must be a separate, one-shot component that:
 - implements only its documented allowlisted operations
 - never adopts, inspects, stops, restarts, removes or modifies unrelated resources
 - never exposes a generic Docker API
+
+Only that one-shot installer component mounts `/var/run/docker.sock` with write access; it exposes no port and receives no application secrets. Its request expires after ten minutes, is atomically consumed once, and cannot carry Docker arguments. Conflicting fixed-name resources are refused rather than adopted. The normal Jarvis application and staging remain raw-socket-free, and staging never runs the installer.
 
 Staging remains isolated and must not use the real Docker socket.
 

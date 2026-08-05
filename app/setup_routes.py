@@ -121,7 +121,7 @@ def home_assistant_summary():
 def managed_home_assistant_status():
     try:
         return managed_home_assistant_installer.managed_install_status(db_path=config.DB_PATH)
-    except (OSError, RuntimeError) as exc:
+    except Exception as exc:
         raise HTTPException(
             status_code=500,
             detail={
@@ -140,12 +140,31 @@ def request_managed_home_assistant_plan(payload: object = Body(default=None)):
             status_code=400,
             detail={"code": exc.code, "message": exc.message},
         ) from exc
-    except (OSError, RuntimeError) as exc:
+    except Exception as exc:
         raise HTTPException(
             status_code=500,
             detail={
                 "code": "managed_install_plan_unavailable",
                 "message": "Installationsplanen kunne ikke gemmes.",
+            },
+        ) from exc
+
+
+@router.post("/home-assistant/managed/install-request")
+def request_managed_home_assistant_installation(payload: object = Body(default=None)):
+    try:
+        return managed_home_assistant_installer.create_install_request(payload, db_path=config.DB_PATH)
+    except managed_home_assistant_installer.ManagedInstallError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "managed_install_request_unavailable",
+                "message": "Installationsanmodningen kunne ikke gemmes.",
             },
         ) from exc
 

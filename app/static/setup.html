@@ -77,6 +77,12 @@
         <p class="setup-help">Installationen er ikke startet. Først oprettes kun en plan med faste, isolerede ressourcer. Installationen starter først efter en senere, udtrykkelig bekræftelse fra ejeren.</p>
         <button id="setupManagedPlanButton" type="button">Opret installationsplan</button>
         <p id="setupManagedStatus" class="setup-inline-status">Der er endnu ikke oprettet en installationsplan.</p>
+        <div id="setupManagedConfirmation" hidden>
+          <p><strong>Bekræft installation:</strong> Jarvis opretter kun den faste Home Assistant-container, den dedikerede volume og det dedikerede netværk vist nedenfor og åbner port 8123. Ingen andre Docker-ressourcer ændres.</p>
+          <label><input id="setupManagedConfirmCheck" type="checkbox" /> Jeg bekræfter, at den viste, faste installation må anmodes.</label>
+          <button id="setupManagedInstallButton" type="button" disabled>Anmod om installation</button>
+          <p id="setupManagedRunHint" class="setup-inline-status" hidden></p>
+        </div>
         <dl id="setupManagedPlanSummary" class="summary-grid" hidden>
           <div class="summary-card"><dt>Container</dt><dd id="setupManagedContainer"></dd></div>
           <div class="summary-card"><dt>Image</dt><dd id="setupManagedImage"></dd></div>

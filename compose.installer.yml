@@ -1,0 +1,27 @@
+services:
+  managed-home-assistant-installer:
+    profiles: ["managed-home-assistant-install"]
+    build: .
+    image: jarvis-os:local
+    command:
+      - python
+      - -m
+      - app.managed_home_assistant_installer
+    restart: "no"
+    environment:
+      DB_PATH: /data/jarvis.db
+    volumes:
+      - jarvis_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  jarvis_data:
+    external: true
+    name: jarvis-os_jarvis_data

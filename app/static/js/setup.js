@@ -160,6 +160,8 @@ function showHomeAssistantChoice() {
 
 function renderManagedInstallPlan(plan) {
   const summary = document.getElementById("setupManagedPlanSummary");
+  const confirmation = document.getElementById("setupManagedConfirmation");
+  const installButton = document.getElementById("setupManagedInstallButton");
   document.getElementById("setupManagedContainer").textContent = plan.container_name;
   document.getElementById("setupManagedImage").textContent = plan.image;
   document.getElementById("setupManagedVolume").textContent = `${plan.volume_name} → ${plan.config_mount_path}`;
@@ -168,6 +170,11 @@ function renderManagedInstallPlan(plan) {
   document.getElementById("setupManagedIsolation").textContent = plan.isolation_description;
   document.getElementById("setupManagedStatus").textContent = plan.message;
   summary.hidden = plan.state === "not_requested";
+  confirmation.hidden = plan.state !== "ready_to_install";
+  installButton.disabled = plan.installation_requested || !document.getElementById("setupManagedConfirmCheck").checked;
+  if (plan.installation_requested) {
+    document.getElementById("setupManagedStatus").textContent = "Installationen er anmodet og afventer den særskilte engangs-installer.";
+  }
 }
 
 async function requestManagedInstallPlan() {
@@ -193,6 +200,26 @@ async function requestManagedInstallPlan() {
     planButton.disabled = false;
     nextButton.disabled = false;
     choices.forEach((choice) => { choice.disabled = false; });
+  }
+}
+
+async function requestManagedInstallation() {
+  const button = document.getElementById("setupManagedInstallButton");
+  button.disabled = true;
+  try {
+    const result = await setupJson("/api/admin/setup/home-assistant/managed/install-request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    renderManagedInstallPlan(result);
+    const hint = document.getElementById("setupManagedRunHint");
+    hint.textContent = "Kør den faste engangs-installer på værten. Installationsanmodningen indeholder ingen Docker-parametre.";
+    hint.hidden = false;
+    showSetupNotice("Installationen er anmodet. Den særskilte engangs-installer skal nu køres af værten.");
+  } catch (error) {
+    document.getElementById("setupManagedStatus").textContent = error.message;
+    showSetupNotice(error.message, "error");
   }
 }
 
@@ -421,6 +448,10 @@ async function initializeSetup() {
 document.querySelectorAll("[data-step-button]").forEach((button) => button.addEventListener("click", () => showStep(Number(button.dataset.stepButton))));
 document.getElementById("setupBackButton").addEventListener("click", () => showStep(setupStep - 1));
 document.getElementById("setupNextButton").addEventListener("click", nextStep);
+document.getElementById("setupManagedConfirmCheck").addEventListener("change", (event) => {
+  document.getElementById("setupManagedInstallButton").disabled = !event.target.checked;
+});
+document.getElementById("setupManagedInstallButton").addEventListener("click", requestManagedInstallation);
 document.getElementById("setupTestHaButton").addEventListener("click", async () => {
   try { await runHomeAssistantAction(false); } catch (_error) { /* Status is shown by the action. */ }
 });

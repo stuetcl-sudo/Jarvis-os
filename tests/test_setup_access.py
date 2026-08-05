@@ -295,6 +295,9 @@ def test_managed_install_plan_access_csrf_fixed_values_and_setup_state():
             assert client.post(
                 "/api/admin/setup/home-assistant/managed/plan", headers=headers, json={}
             ).status_code == expected
+            assert client.post(
+                "/api/admin/setup/home-assistant/managed/install-request", headers=headers, json={}
+            ).status_code == expected
         finally:
             cleanup(folder, previous_path, previous_secure, client)
 
@@ -306,6 +309,15 @@ def test_managed_install_plan_access_csrf_fixed_values_and_setup_state():
         home_setup.complete_setup(db_path=config.DB_PATH)
         assert client.get("/api/admin/setup/status").json()["state"] == "home_assistant_required"
         assert client.post("/api/admin/setup/home-assistant/managed/plan", json={}).status_code == 403
+        assert client.post(
+            "/api/admin/setup/home-assistant/managed/install-request", json={}
+        ).status_code == 403
+
+        no_plan = client.post(
+            "/api/admin/setup/home-assistant/managed/install-request", headers=headers, json={}
+        )
+        assert no_plan.status_code == 409
+        assert no_plan.json()["detail"]["code"] == "plan_not_ready"
 
         first = client.post(
             "/api/admin/setup/home-assistant/managed/plan", headers=headers, json={}
@@ -321,6 +333,26 @@ def test_managed_install_plan_access_csrf_fixed_values_and_setup_state():
         assert first.json()["volume_name"] == managed_home_assistant_installer.VOLUME_NAME
         assert first.json()["network_name"] == managed_home_assistant_installer.NETWORK_NAME
         assert first.json()["published_port"] == managed_home_assistant_installer.PUBLISHED_PORT
+
+        requested = client.post(
+            "/api/admin/setup/home-assistant/managed/install-request", headers=headers, json={}
+        )
+        assert requested.status_code == 200
+        assert requested.json()["installation_requested"] is True
+        assert "request_token" not in requested.json()
+        assert all("docker.sock" not in str(value) for value in requested.json().values())
+        duplicate = client.post(
+            "/api/admin/setup/home-assistant/managed/install-request", headers=headers, json={}
+        )
+        assert duplicate.status_code == 409
+        assert duplicate.json()["detail"]["code"] == "installation_already_requested"
+        override_request = client.post(
+            "/api/admin/setup/home-assistant/managed/install-request",
+            headers=headers,
+            json={"image": "example/image:latest"},
+        )
+        assert override_request.status_code == 400
+        assert override_request.json()["detail"]["code"] == "managed_install_options_not_allowed"
 
         override = client.post(
             "/api/admin/setup/home-assistant/managed/plan",
