@@ -4,9 +4,10 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+import httpx
 from fastapi.testclient import TestClient
 
-from app import config, home_assistant_setup, home_setup, managed_home_assistant_installer, settings_store
+from app import config, home_assistant_setup, home_setup, managed_home_assistant_installer, managed_home_assistant_onboarding, settings_store
 from app.auth.service import auth_service, initialize_auth_tables
 from app.db import init_db
 from app.main_auth import app
@@ -389,7 +390,9 @@ def test_managed_onboarding_access_fixed_url_token_security_and_readiness():
     folder, previous_path, previous_secure, client, user = values
     headers = {"X-CSRF-Token": user["csrf_token"]}
     previous_master_key = os.environ.get("CONFIG_MASTER_KEY")
+    previous_public_url = os.environ.get(managed_home_assistant_onboarding.PUBLIC_URL_ENV)
     os.environ["CONFIG_MASTER_KEY"] = "managed-access-test-key"
+    os.environ[managed_home_assistant_onboarding.PUBLIC_URL_ENV] = "https://home-assistant.example.com:8123/"
     token = "managed-example-secret"
     try:
         home_setup.save_home_settings("Mit hjem", "Europe/Copenhagen", "Ejer", db_path=config.DB_PATH)
@@ -428,14 +431,50 @@ def test_managed_onboarding_access_fixed_url_token_security_and_readiness():
         assert tested.status_code == 200
         assert saved.status_code == 200
         assert seen_urls == [
-            managed_home_assistant_installer.EXPECTED_LOCAL_URL,
-            managed_home_assistant_installer.EXPECTED_LOCAL_URL,
+            managed_home_assistant_installer.BACKEND_URL,
+            managed_home_assistant_installer.BACKEND_URL,
         ]
         assert token not in tested.text
         assert token not in saved.text
         assert saved.json()["setup"]["state"] == "ready"
-        assert settings_store.get_setting("home_assistant.base_url", db_path=config.DB_PATH) == managed_home_assistant_installer.EXPECTED_LOCAL_URL
+        assert saved.json()["home_assistant_url"] == "https://home-assistant.example.com:8123"
+        assert managed_home_assistant_installer.BACKEND_URL not in saved.text
+        assert settings_store.get_setting("home_assistant.base_url", db_path=config.DB_PATH) == managed_home_assistant_installer.BACKEND_URL
         assert settings_store.get_secret("home_assistant.token", db_path=config.DB_PATH) == token
+        connection_summary = client.get("/api/admin/setup/home-assistant")
+        assert connection_summary.status_code == 200
+        assert connection_summary.json()["home_assistant_url"] == "https://home-assistant.example.com:8123"
+        assert managed_home_assistant_installer.BACKEND_URL not in connection_summary.text
+
+        class FakeProbeClient:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def get(self, url, headers=None):
+                assert url.startswith(managed_home_assistant_installer.BACKEND_URL)
+                if url.endswith("/api/onboarding"):
+                    return httpx.Response(200, json=[{"step": "user", "done": True}])
+                return httpx.Response(401, json={"message": "Unauthorized"})
+
+        with patch(
+            "app.managed_home_assistant_onboarding.httpx.Client",
+            return_value=FakeProbeClient(),
+        ):
+            public_status = client.get(
+                "/api/admin/setup/home-assistant/managed/onboarding",
+                headers={
+                    "Host": "attacker.example",
+                    "X-Forwarded-Host": "forwarded.attacker.example",
+                    "X-Forwarded-Proto": "http",
+                },
+            )
+        assert public_status.status_code == 200
+        assert public_status.json()["home_assistant_url"] == "https://home-assistant.example.com:8123"
+        assert "attacker.example" not in public_status.text
+        assert managed_home_assistant_installer.BACKEND_URL not in public_status.text
 
         override = client.post(
             "/api/admin/setup/home-assistant/managed/test",
@@ -449,6 +488,10 @@ def test_managed_onboarding_access_fixed_url_token_security_and_readiness():
             os.environ.pop("CONFIG_MASTER_KEY", None)
         else:
             os.environ["CONFIG_MASTER_KEY"] = previous_master_key
+        if previous_public_url is None:
+            os.environ.pop(managed_home_assistant_onboarding.PUBLIC_URL_ENV, None)
+        else:
+            os.environ[managed_home_assistant_onboarding.PUBLIC_URL_ENV] = previous_public_url
         cleanup(folder, previous_path, previous_secure, client)
 
 

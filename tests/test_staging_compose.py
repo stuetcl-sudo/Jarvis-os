@@ -16,6 +16,7 @@ def test():
     assert "docker-socket-proxy" not in COMPOSE
     assert "env_file:" not in COMPOSE
     assert ".env" not in COMPOSE
+    assert "jarvis-managed-home-assistant-network" not in COMPOSE
 
 
 if __name__ == "__main__":

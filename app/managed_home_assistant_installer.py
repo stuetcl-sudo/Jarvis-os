@@ -29,7 +29,7 @@ CONTAINER_NAME = "jarvis-managed-home-assistant"
 VOLUME_NAME = "jarvis-managed-home-assistant-config"
 NETWORK_NAME = "jarvis-managed-home-assistant-network"
 IMAGE_NAME = "homeassistant/home-assistant:stable"
-EXPECTED_LOCAL_URL = "http://localhost:8123"
+BACKEND_URL = f"http://{CONTAINER_NAME}:8123"
 CONFIG_MOUNT_PATH = "/config"
 PUBLISHED_PORT = 8123
 REQUEST_TTL_SECONDS = 600
@@ -85,7 +85,6 @@ class ManagedInstallPlan:
     config_mount_path: str
     network_name: str
     published_port: int
-    expected_local_url: str
     allowed_operations: tuple[str, ...]
     storage_description: str
     network_description: str
@@ -168,7 +167,6 @@ def _plan(state, db_path=None):
         config_mount_path=CONFIG_MOUNT_PATH,
         network_name=NETWORK_NAME,
         published_port=PUBLISHED_PORT,
-        expected_local_url=EXPECTED_LOCAL_URL,
         allowed_operations=ALLOWED_INSTALL_OPERATIONS,
         storage_description="Home Assistant-data gemmes i den dedikerede Docker-volume.",
         network_description="Home Assistant får sit eget dedikerede Docker-netværk.",
@@ -285,7 +283,7 @@ def _claim_request(db_path=None, now=None):
 
 def _labels_match(resource):
     labels = resource.attrs.get("Labels") or resource.attrs.get("Config", {}).get("Labels") or {}
-    return all(labels.get(key) == value for key, value in MANAGED_LABELS.items())
+    return labels == MANAGED_LABELS
 
 
 def _get_fixed(collection, name):

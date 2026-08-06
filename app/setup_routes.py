@@ -117,17 +117,25 @@ def complete_setup():
 @router.get("/home-assistant")
 def home_assistant_summary():
     summary = settings_store.public_connection_summary(db_path=config.DB_PATH)
-    if not summary["home_assistant_url"]:
-        summary["home_assistant_url"] = config.home_assistant_configuration()["base_url"]
+    current = config.home_assistant_configuration()
+    internal_url = summary["home_assistant_url"] or current["base_url"]
+    if internal_url == managed_home_assistant_onboarding.BACKEND_PROBE_URL:
+        try:
+            public_url, _message = managed_home_assistant_onboarding._public_url()
+        except managed_home_assistant_onboarding.ManagedPublicUrlError:
+            public_url = None
+        summary["home_assistant_url"] = public_url or ""
+    elif not summary["home_assistant_url"]:
+        summary["home_assistant_url"] = internal_url
     summary["configured"] = bool(
-        summary["home_assistant_url"]
+        internal_url
         and (
             summary["home_assistant_token_configured"]
-            or bool(config.home_assistant_configuration()["access_value"])
+            or bool(current["access_value"])
         )
     )
     summary["token_configured"] = summary["home_assistant_token_configured"] or bool(
-        config.home_assistant_configuration()["access_value"]
+        current["access_value"]
     )
     return summary
 
@@ -203,7 +211,7 @@ def test_managed_home_assistant_connection(payload: object = Body(...)):
     try:
         token = _managed_token(payload)
         return home_assistant_setup.test_connection(
-            managed_home_assistant_onboarding.MANAGED_URL,
+            managed_home_assistant_onboarding.BACKEND_PROBE_URL,
             token,
             managed_home_assistant_onboarding.PROBE_TIMEOUT_SECONDS,
         )
@@ -216,18 +224,26 @@ def save_managed_home_assistant_connection(payload: object = Body(...)):
     try:
         token = _managed_token(payload)
         result = home_assistant_setup.test_connection(
-            managed_home_assistant_onboarding.MANAGED_URL,
+            managed_home_assistant_onboarding.BACKEND_PROBE_URL,
             token,
             managed_home_assistant_onboarding.PROBE_TIMEOUT_SECONDS,
         )
         summary = home_assistant_setup.save_connection(
-            managed_home_assistant_onboarding.MANAGED_URL,
+            managed_home_assistant_onboarding.BACKEND_PROBE_URL,
             token,
             db_path=config.DB_PATH,
         )
     except (ValueError, RuntimeError) as exc:
         _ha_error(exc)
-    return {**summary, **result, "setup": setup_status(db_path=config.DB_PATH)}
+    try:
+        public_url, _message = managed_home_assistant_onboarding._public_url()
+    except managed_home_assistant_onboarding.ManagedPublicUrlError:
+        public_url = None
+    return {
+        **{**summary, "home_assistant_url": public_url},
+        **result,
+        "setup": setup_status(db_path=config.DB_PATH),
+    }
 
 
 def _ha_error(exc):

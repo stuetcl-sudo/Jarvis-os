@@ -39,8 +39,36 @@ def _migration_1_baseline(connection: sqlite3.Connection) -> None:
     connection.execute("SELECT 1")
 
 
+def _migration_2_bootstrap_and_managed_setup(connection: sqlite3.Connection) -> None:
+    """Create the v0.20 bootstrap, settings, and managed-installer persistence."""
+    from app.auth.service import (
+        AUTH_LOGIN_ATTEMPTS_SCHEMA,
+        AUTH_SESSIONS_SCHEMA,
+        AUTH_USERS_SCHEMA,
+    )
+    from app.managed_home_assistant_installer import REQUEST_SCHEMA
+    from app.settings_store import SECRETS_SCHEMA, SETTINGS_SCHEMA
+
+    for schema in (
+        SETTINGS_SCHEMA,
+        SECRETS_SCHEMA,
+        AUTH_USERS_SCHEMA,
+        AUTH_SESSIONS_SCHEMA,
+        AUTH_LOGIN_ATTEMPTS_SCHEMA,
+        REQUEST_SCHEMA,
+    ):
+        connection.execute(schema)
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions(expires_at)"
+    )
+
+
 MIGRATIONS: tuple[Migration, ...] = (
     (1, "v0.20 migration framework baseline", _migration_1_baseline),
+    (2, "v0.20 bootstrap and managed setup tables", _migration_2_bootstrap_and_managed_setup),
 )
 
 

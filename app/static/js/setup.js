@@ -183,12 +183,15 @@ function renderManagedOnboarding(status) {
   const tokenLabel = document.getElementById("setupManagedTokenLabel");
   const tokenStatus = document.getElementById("setupManagedTokenStatus");
   const tokenActions = document.getElementById("setupManagedTokenActions");
-  const canOpen = ["onboarding_required", "token_required", "connected"].includes(status.state);
+  const publicUrlStatus = document.getElementById("setupManagedPublicUrlStatus");
+  const canOpen = Boolean(status.home_assistant_url) && ["onboarding_required", "token_required", "connected"].includes(status.state);
   const needsGuidance = ["onboarding_required", "token_required"].includes(status.state);
   const needsToken = status.state === "token_required";
   panel.hidden = false;
   panel.dataset.state = status.state;
   document.getElementById("setupManagedOnboardingStatus").textContent = status.message;
+  publicUrlStatus.textContent = status.public_url_message || "";
+  publicUrlStatus.hidden = !status.public_url_message;
   openLink.hidden = !canOpen;
   if (canOpen) openLink.href = status.home_assistant_url;
   else openLink.removeAttribute("href");
@@ -221,7 +224,6 @@ function renderManagedInstallPlan(plan) {
   document.getElementById("setupManagedImage").textContent = plan.image;
   document.getElementById("setupManagedVolume").textContent = `${plan.volume_name} → ${plan.config_mount_path}`;
   document.getElementById("setupManagedNetwork").textContent = `${plan.network_name}. ${plan.network_description}`;
-  document.getElementById("setupManagedUrl").textContent = plan.expected_local_url;
   document.getElementById("setupManagedIsolation").textContent = plan.isolation_description;
   document.getElementById("setupManagedStatus").textContent = plan.message;
   summary.hidden = plan.state === "not_requested";

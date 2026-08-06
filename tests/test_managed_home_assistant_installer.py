@@ -128,6 +128,8 @@ def test_plan_uses_only_fixed_names_and_is_idempotent():
         assert first["volume_name"] == installer.VOLUME_NAME
         assert first["network_name"] == installer.NETWORK_NAME
         assert first["published_port"] == 8123
+        assert "expected_local_url" not in first
+        assert installer.BACKEND_URL == "http://jarvis-managed-home-assistant:8123"
 
 
 def test_request_requires_plan_rejects_duplicate_replay_and_expiry():
@@ -226,6 +228,24 @@ def test_conflict_is_refused_before_changes_and_safe_failure_is_stored():
         }
 
 
+def test_resources_with_additional_labels_are_refused():
+    with tempfile.TemporaryDirectory() as folder:
+        db_path = os.path.join(folder, "jarvis.db")
+        labels = {**installer.MANAGED_LABELS, "unexpected.label": "not-managed"}
+        network = Resource({"Labels": labels, "Driver": "bridge"})
+        client = FakeDockerClient(networks={installer.NETWORK_NAME: network})
+        planned_request(db_path)
+
+        try:
+            installer.run_installation(client, db_path=db_path)
+        except installer.ManagedInstallError as exc:
+            assert exc.code == "resource_conflict"
+        else:
+            raise AssertionError("A resource with non-exact labels must fail")
+
+        assert not any(call[0].endswith(".create") for call in client.calls)
+
+
 def test_missing_image_pulls_only_the_fixed_image():
     with tempfile.TemporaryDirectory() as folder:
         db_path = os.path.join(folder, "jarvis.db")
@@ -285,6 +305,7 @@ def test_no_shell_and_compose_boundaries():
     production = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     staging = (ROOT / "compose.staging.yml").read_text(encoding="utf-8")
     one_shot = (ROOT / "compose.installer.yml").read_text(encoding="utf-8")
+    overlay = (ROOT / "compose.managed-home-assistant.yml").read_text(encoding="utf-8")
     for forbidden in ("subprocess", "os.system", "shell=true", "create_container("):
         assert forbidden not in source
     assert "/var/run/docker.sock" not in production.split("  jarvis-os:", 1)[1]
@@ -297,6 +318,13 @@ def test_no_shell_and_compose_boundaries():
     assert "network_mode:" not in one_shot
     assert "MANAGED_HA_INSTALL_REQUEST" not in one_shot
     assert one_shot.count("/var/run/docker.sock") == 2
+    assert "docker.sock" not in overlay
+    assert "network_mode:" not in overlay
+    assert "external: true" in overlay
+    assert f"name: {installer.NETWORK_NAME}" in overlay
+    assert "- default" in overlay
+    assert "- managed_home_assistant_network" in overlay
+    assert installer.NETWORK_NAME not in staging
     assert "fake" in FakeDockerClient.__name__.lower()
 
 
@@ -368,6 +396,7 @@ def test():
     test_request_requires_plan_rejects_duplicate_replay_and_expiry()
     test_installer_uses_fixed_resources_and_transitions_to_installed()
     test_conflict_is_refused_before_changes_and_safe_failure_is_stored()
+    test_resources_with_additional_labels_are_refused()
     test_missing_image_pulls_only_the_fixed_image()
     test_docker_connection_failure_is_stored_without_raw_exception()
     test_existing_expected_resources_are_idempotent_and_unrelated_are_untouched()

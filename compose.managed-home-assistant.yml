@@ -1,0 +1,10 @@
+services:
+  jarvis-os:
+    networks:
+      - default
+      - managed_home_assistant_network
+
+networks:
+  managed_home_assistant_network:
+    external: true
+    name: jarvis-managed-home-assistant-network

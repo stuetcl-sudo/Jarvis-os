@@ -31,6 +31,8 @@ Use placeholders such as `example.com`, `docker:example-app`, `system:cpu`, and 
 
 ## Docker socket warning
 
+The normal Jarvis service and staging never receive the raw Docker socket. Managed Home Assistant installation is an explicit one-shot operation. After installation, `compose.managed-home-assistant.yml` may be enabled to attach Jarvis to the dedicated external managed network; this grants network connectivity to the fixed managed Home Assistant container but no additional Docker API access.
+
 Jarvis-os reads Docker state through the Docker socket. Docker socket access is highly privileged, even when mounted read-only.
 
 Only run Jarvis-os on trusted hosts and trusted networks. Anyone who can access a service with Docker socket access may gain sensitive information about the host and workloads.

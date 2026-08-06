@@ -16,6 +16,24 @@ v0.20.0-alpha.1 begins the self-service installation foundation. This alpha esta
 - Staging has its own database, volume and network.
 - Staging does not use the Docker socket, production `.env` or production secrets.
 
+## Managed Home Assistant connectivity
+
+Jarvis probes a managed Home Assistant only through its fixed container address on the dedicated managed network. Browser navigation uses a separate, explicit server setting:
+
+```env
+MANAGED_HOME_ASSISTANT_PUBLIC_URL=https://home-assistant.example.com
+```
+
+The value must be a valid `http://` or `https://` Home Assistant base URL without credentials, query parameters or fragments. It is never derived from browser headers or request data. If it is unset, backend readiness and token validation continue, but Jarvis suppresses the browser link and shows a configuration message.
+
+Normal Compose deliberately does not reference the managed network, so it starts safely before managed Home Assistant is installed. After the one-shot installer has created and verified the external network, explicitly attach Jarvis with:
+
+```text
+docker compose -f docker-compose.yml -f compose.managed-home-assistant.yml up -d jarvis-os
+```
+
+The overlay keeps Jarvis on its normal network for the restricted Docker proxy and additionally joins only the externally owned `jarvis-managed-home-assistant-network`. Compose does not create or delete that external network. Do not enable the overlay before the installer has successfully created the network.
+
 ## Earlier dashboard milestone: v0.13
 
 v0.13 expands the family dashboard with practical list editing, clearer UV guidance and a more flexible shared wall layout.
