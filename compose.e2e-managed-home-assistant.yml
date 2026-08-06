@@ -1,0 +1,92 @@
+name: jarvis-managed-ha-e2e
+
+services:
+  dind:
+    image: docker:29-dind
+    hostname: jarvis-os
+    privileged: true
+    restart: "no"
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - e2e_dind_data:/var/lib/docker
+      - e2e_dind_certs:/certs
+    networks:
+      e2e_control:
+        aliases:
+          - jarvis-managed-home-assistant
+          - jarvis-os
+      e2e_egress:
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    expose:
+      - "2376"
+      - "8123"
+
+  jarvis-e2e:
+    build: .
+    image: jarvis-os:managed-ha-e2e
+    command: ["uvicorn", "app.main_auth:app", "--host", "0.0.0.0", "--port", "8088"]
+    restart: "no"
+    environment:
+      APP_NAME: Jarvis-os Managed HA E2E
+      DB_PATH: /e2e-data/jarvis-e2e.db
+      CONFIG_MASTER_KEY: e2e-only-managed-ha-master-key-not-for-production
+      AUTH_COOKIE_SECURE: "false"
+      SAFE_MODE: "true"
+      DRY_RUN: "true"
+      WORKER_ENABLED: "false"
+      MANAGED_HOME_ASSISTANT_PUBLIC_URL: http://127.0.0.1:18123
+    volumes:
+      - e2e_jarvis_data:/e2e-data
+    ports:
+      - "127.0.0.1:18088:8088"
+    networks:
+      - e2e_control
+      - e2e_loopback
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  installer-e2e:
+    profiles: ["installer"]
+    build: .
+    image: jarvis-os:managed-ha-e2e
+    command: ["python", "-m", "app.managed_home_assistant_installer"]
+    restart: "no"
+    environment:
+      DB_PATH: /e2e-data/jarvis-e2e.db
+      CONFIG_MASTER_KEY: e2e-only-managed-ha-master-key-not-for-production
+      DOCKER_HOST: tcp://jarvis-os:2376
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
+    volumes:
+      - e2e_jarvis_data:/e2e-data
+      - e2e_dind_certs:/certs:ro
+    networks:
+      - e2e_control
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  e2e_dind_data:
+  e2e_dind_certs:
+  e2e_jarvis_data:
+
+networks:
+  e2e_control:
+    internal: true
+  e2e_egress:
+  e2e_loopback:

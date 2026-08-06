@@ -89,10 +89,10 @@ def managed_resource(driver):
     return Resource({"Labels": dict(installer.MANAGED_LABELS), "Driver": driver})
 
 
-def expected_container(status="running", calls=None):
+def expected_container(status="running", calls=None, labels=None):
     return Resource(
         {
-            "Config": {"Image": installer.IMAGE_NAME, "Labels": dict(installer.MANAGED_LABELS)},
+            "Config": {"Image": installer.IMAGE_NAME, "Labels": dict(labels or installer.MANAGED_LABELS)},
             "Mounts": [{
                 "Type": "volume",
                 "Name": installer.VOLUME_NAME,
@@ -246,6 +246,51 @@ def test_resources_with_additional_labels_are_refused():
         assert not any(call[0].endswith(".create") for call in client.calls)
 
 
+def test_container_requires_managed_labels_and_allows_image_labels():
+    exact = expected_container()
+    inherited = expected_container(labels={
+        **installer.MANAGED_LABELS,
+        "io.hass.type": "core",
+        "io.hass.version": "2026.8.0",
+        "org.opencontainers.image.title": "Home Assistant",
+    })
+    missing = dict(installer.MANAGED_LABELS)
+    missing.pop("dk.jarvis.component")
+    incorrect = {
+        **installer.MANAGED_LABELS,
+        "dk.jarvis.managed": "something-else",
+        "io.hass.type": "core",
+    }
+    unrelated = {
+        "io.hass.type": "core",
+        "org.opencontainers.image.title": "Home Assistant",
+    }
+
+    assert installer._container_matches(exact)
+    assert installer._container_matches(inherited)
+    assert not installer._container_matches(expected_container(labels=missing))
+    assert not installer._container_matches(expected_container(labels=incorrect))
+    assert not installer._container_matches(expected_container(labels=unrelated))
+
+
+def test_network_and_volume_labels_remain_exact():
+    exact_network = managed_resource("bridge")
+    exact_volume = managed_resource("local")
+    additional_network = Resource({
+        "Labels": {**installer.MANAGED_LABELS, "io.hass.type": "core"},
+        "Driver": "bridge",
+    })
+    additional_volume = Resource({
+        "Labels": {**installer.MANAGED_LABELS, "io.hass.type": "core"},
+        "Driver": "local",
+    })
+
+    assert installer._labels_match_exactly(exact_network)
+    assert installer._labels_match_exactly(exact_volume)
+    assert not installer._labels_match_exactly(additional_network)
+    assert not installer._labels_match_exactly(additional_volume)
+
+
 def test_missing_image_pulls_only_the_fixed_image():
     with tempfile.TemporaryDirectory() as folder:
         db_path = os.path.join(folder, "jarvis.db")
@@ -397,6 +442,8 @@ def test():
     test_installer_uses_fixed_resources_and_transitions_to_installed()
     test_conflict_is_refused_before_changes_and_safe_failure_is_stored()
     test_resources_with_additional_labels_are_refused()
+    test_container_requires_managed_labels_and_allows_image_labels()
+    test_network_and_volume_labels_remain_exact()
     test_missing_image_pulls_only_the_fixed_image()
     test_docker_connection_failure_is_stored_without_raw_exception()
     test_existing_expected_resources_are_idempotent_and_unrelated_are_untouched()

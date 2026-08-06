@@ -281,9 +281,17 @@ def _claim_request(db_path=None, now=None):
         conn.close()
 
 
-def _labels_match(resource):
-    labels = resource.attrs.get("Labels") or resource.attrs.get("Config", {}).get("Labels") or {}
-    return labels == MANAGED_LABELS
+def _resource_labels(resource):
+    return resource.attrs.get("Labels") or resource.attrs.get("Config", {}).get("Labels") or {}
+
+
+def _labels_match_exactly(resource):
+    return _resource_labels(resource) == MANAGED_LABELS
+
+
+def _required_labels_match(resource):
+    labels = _resource_labels(resource)
+    return all(labels.get(key) == value for key, value in MANAGED_LABELS.items())
 
 
 def _get_fixed(collection, name):
@@ -298,7 +306,7 @@ def _get_fixed(collection, name):
 def _ensure_network(client):
     network = _get_fixed(client.networks, NETWORK_NAME)
     if network:
-        if not _labels_match(network) or network.attrs.get("Driver") != "bridge":
+        if not _labels_match_exactly(network) or network.attrs.get("Driver") != "bridge":
             raise ManagedInstallError("resource_conflict", SAFE_ERRORS["resource_conflict"])
         return network
     return client.networks.create(
@@ -309,7 +317,7 @@ def _ensure_network(client):
 def _ensure_volume(client):
     volume = _get_fixed(client.volumes, VOLUME_NAME)
     if volume:
-        if not _labels_match(volume) or volume.attrs.get("Driver") != "local":
+        if not _labels_match_exactly(volume) or volume.attrs.get("Driver") != "local":
             raise ManagedInstallError("resource_conflict", SAFE_ERRORS["resource_conflict"])
         return volume
     return client.volumes.create(VOLUME_NAME, labels=MANAGED_LABELS, driver="local")
@@ -322,7 +330,7 @@ def _container_matches(container):
     networks = attrs.get("NetworkSettings", {}).get("Networks", {})
     bindings = ports.get(f"{PUBLISHED_PORT}/tcp") or []
     return (
-        _labels_match(container)
+        _required_labels_match(container)
         and attrs.get("Config", {}).get("Image") == IMAGE_NAME
         and len(mounts) == 1
         and any(
@@ -382,9 +390,9 @@ def _preflight(client):
     network = _get_fixed(client.networks, NETWORK_NAME)
     volume = _get_fixed(client.volumes, VOLUME_NAME)
     container = _get_fixed(client.containers, CONTAINER_NAME)
-    if network and (not _labels_match(network) or network.attrs.get("Driver") != "bridge"):
+    if network and (not _labels_match_exactly(network) or network.attrs.get("Driver") != "bridge"):
         raise ManagedInstallError("resource_conflict", SAFE_ERRORS["resource_conflict"])
-    if volume and (not _labels_match(volume) or volume.attrs.get("Driver") != "local"):
+    if volume and (not _labels_match_exactly(volume) or volume.attrs.get("Driver") != "local"):
         raise ManagedInstallError("resource_conflict", SAFE_ERRORS["resource_conflict"])
     if container and not _container_matches(container):
         raise ManagedInstallError("resource_conflict", SAFE_ERRORS["resource_conflict"])
