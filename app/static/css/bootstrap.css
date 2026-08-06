@@ -1,0 +1,42 @@
+.bootstrap-card {
+  width: min(520px, 100%);
+}
+
+.bootstrap-step {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.bootstrap-notice {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 22px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(22, 119, 255, .08);
+}
+
+.bootstrap-notice span,
+.field-help,
+.bootstrap-footer {
+  color: var(--muted);
+}
+
+.field-help {
+  margin: -4px 0 2px;
+  font-size: 13px;
+}
+
+.bootstrap-footer {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 13px;
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--danger);
+  outline-color: var(--danger);
+}

@@ -1,18 +1,27 @@
-import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = "0.17.3"
+from app import config
+from app.version import VERSION
 
-config = (ROOT / "app/config.py").read_text(encoding="utf-8")
-readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
-match = re.search(r'^VERSION = "([^"]+)"$', config, re.MULTILINE)
+EXPECTED_VERSION = "0.20.0-alpha.1"
 
-assert match is not None
-assert match.group(1) == EXPECTED_VERSION
-assert f"# Jarvis-os v{EXPECTED_VERSION}" in readme
-assert f"Current development version: `{EXPECTED_VERSION}`." in readme
-assert "## What is new in v0.17.3" in readme
 
-print("Release version tests OK")
+def test_release_version_has_one_authoritative_source():
+    assert VERSION == EXPECTED_VERSION
+    assert config.VERSION == EXPECTED_VERSION
+
+
+def test_readme_matches_release_version():
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    assert f"# Jarvis-os v{EXPECTED_VERSION}" in readme
+    assert f"Current development version: `{EXPECTED_VERSION}`." in readme
+    assert f"## What is new in v{EXPECTED_VERSION}" in readme
+
+
+def test_config_does_not_define_a_second_version():
+    config_source = Path("app/config.py").read_text(encoding="utf-8")
+
+    assert 'VERSION = "' not in config_source
+    assert "from app.version import VERSION" in config_source

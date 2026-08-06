@@ -12,7 +12,6 @@ def mock_transport(handler):
 
 def test_connection_accepts_valid_home_assistant_response():
     test_url = "http://" + "homeassistant" + ".local:8123"
-    test_url = "http://" + "homeassistant" + ".local:8123"
     def handler(request):
         assert request.url.path == "/api/"
         assert request.headers["Authorization"] == "Bearer test-token"
@@ -23,11 +22,14 @@ def test_connection_accepts_valid_home_assistant_response():
         "test-token",
         transport=mock_transport(handler),
     )
-    assert result == {"connected": True, "message": "API running."}
+    assert result == {
+        "connected": True,
+        "code": "connected",
+        "message": "Forbindelsen til Home Assistant virker",
+    }
 
 
 def test_connection_rejects_bad_token():
-    test_url = "http://" + "homeassistant" + ".local:8123"
     test_url = "http://" + "homeassistant" + ".local:8123"
     def handler(request):
         return httpx.Response(401, json={"message": "Unauthorized"})
@@ -38,8 +40,8 @@ def test_connection_rejects_bad_token():
             "bad-token",
             transport=mock_transport(handler),
         )
-    except RuntimeError as exc:
-        assert "afviste tokenet" in str(exc)
+    except home_assistant_setup.HomeAssistantSetupError as exc:
+        assert exc.code == "authentication_failed"
     else:
         raise AssertionError("An invalid token must be rejected")
 
@@ -82,7 +84,6 @@ def test_discovery_returns_sorted_plain_entity_metadata():
 
 def test_save_connection_stores_token_encrypted_and_returns_only_summary():
     test_url = "http://" + "homeassistant" + ".local:8123"
-    test_url = "http://" + "homeassistant" + ".local:8123"
     with tempfile.TemporaryDirectory() as folder:
         db_path = os.path.join(folder, "jarvis.db")
         master_key_name = "CONFIG_MASTER_" + "KEY"
@@ -108,13 +109,54 @@ def test_save_connection_stores_token_encrypted_and_returns_only_summary():
 
 
 def test_invalid_url_is_rejected():
-    for value in ["", "homeassistant.local:8123", "ftp://homeassistant.local"]:
+    expected = {
+        "": "unsupported_scheme",
+        "homeassistant.local:8123": "unsupported_scheme",
+        "ftp://homeassistant.local": "unsupported_scheme",
+        "file:///etc/passwd": "unsupported_scheme",
+        "data:text/plain,example": "unsupported_scheme",
+        "javascript:alert(1)": "unsupported_scheme",
+        "http://home assistant.local": "malformed_url",
+        "http://homeassistant.local\\@example.com": "malformed_url",
+        "http://home%2eassistant.example.com": "malformed_url",
+        "http://homeassistant.local?token=bad": "malformed_url",
+        "http://[not-ipv6]": "malformed_url",
+    }
+    for value, code in expected.items():
         try:
             home_assistant_setup.normalize_base_url(value)
-        except ValueError:
-            pass
+        except home_assistant_setup.HomeAssistantSetupError as exc:
+            assert exc.code == code
         else:
             raise AssertionError(f"Invalid URL was accepted: {value}")
+
+
+def test_safe_connection_failures_are_classified():
+    def unreachable(request):
+        raise httpx.ConnectError("private diagnostic", request=request)
+
+    def invalid_response(request):
+        return httpx.Response(200, json={"message": "Another service"})
+
+    def timeout(request):
+        raise httpx.ReadTimeout("private diagnostic", request=request)
+
+    for handler, code in (
+        (unreachable, "unreachable"),
+        (invalid_response, "invalid_response"),
+        (timeout, "timeout"),
+    ):
+        try:
+            home_assistant_setup.test_connection(
+                "http://home-assistant.example.com:8123",
+                "example-token",
+                transport=mock_transport(handler),
+            )
+        except home_assistant_setup.HomeAssistantSetupError as exc:
+            assert exc.code == code
+            assert "example-token" not in str(exc)
+        else:
+            raise AssertionError(f"Expected {code}")
 
 
 def test():
@@ -123,6 +165,7 @@ def test():
     test_discovery_returns_sorted_plain_entity_metadata()
     test_save_connection_stores_token_encrypted_and_returns_only_summary()
     test_invalid_url_is_rejected()
+    test_safe_connection_failures_are_classified()
     print("Home Assistant setup tests OK")
 
 

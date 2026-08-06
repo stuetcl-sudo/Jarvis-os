@@ -135,6 +135,7 @@ PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_weather_integration.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_family_role_views.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_auth_roles.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_setup_state.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_setup_access.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_home_setup.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_home_entity_settings.py

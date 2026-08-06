@@ -1,20 +1,38 @@
-# Jarvis-os v0.17.3
+# Jarvis-os v0.20.0-alpha.1
 
 Jarvis-os is a local, private home dashboard with family views, local authentication, calendar, weather, routines, Home Assistant family content, Docker monitoring, system health and a safety-first Action Engine.
 
 The product direction for v1.0 is a flexible home dashboard that works without AI. Jarvis AI remains an optional future module rather than a requirement for the dashboard.
 
-Current development version: `0.17.3`.
+Current development version: `0.20.0-alpha.1`.
 
-## What is new in v0.17.3
+## What is new in v0.20.0-alpha.1
 
-v0.17.3 improves dashboard reliability and development safety.
+v0.20.0-alpha.1 begins the self-service installation foundation. This alpha establishes one authoritative application version before bootstrap, setup-state and migration work is introduced.
 
 - Weather, calendar, meal plans, family lists and routines keep the last successfully displayed data during temporary refresh failures.
 - Clear stale-data messages replace disappearing dashboard cards.
 - Isolated staging runs on `127.0.0.1:8098`.
 - Staging has its own database, volume and network.
 - Staging does not use the Docker socket, production `.env` or production secrets.
+
+## Managed Home Assistant connectivity
+
+Jarvis probes a managed Home Assistant only through its fixed container address on the dedicated managed network. Browser navigation uses a separate, explicit server setting:
+
+```env
+MANAGED_HOME_ASSISTANT_PUBLIC_URL=https://home-assistant.example.com
+```
+
+The value must be a valid `http://` or `https://` Home Assistant base URL without credentials, query parameters or fragments. It is never derived from browser headers or request data. If it is unset, backend readiness and token validation continue, but Jarvis suppresses the browser link and shows a configuration message.
+
+Normal Compose deliberately does not reference the managed network, so it starts safely before managed Home Assistant is installed. After the one-shot installer has created and verified the external network, explicitly attach Jarvis with:
+
+```text
+docker compose -f docker-compose.yml -f compose.managed-home-assistant.yml up -d jarvis-os
+```
+
+The overlay keeps Jarvis on its normal network for the restricted Docker proxy and additionally joins only the externally owned `jarvis-managed-home-assistant-network`. Compose does not create or delete that external network. Do not enable the overlay before the installer has successfully created the network.
 
 ## Earlier dashboard milestone: v0.13
 

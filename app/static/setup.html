@@ -52,19 +52,64 @@
     <section class="setup-card" data-step="1" hidden>
       <p class="section-kicker">Trin 2</p>
       <h2>Forbind Home Assistant</h2>
-      <p class="setup-help">Forbindelsen testes, før adgangsnøglen gemmes krypteret.</p>
-      <div class="setup-form">
+      <p class="setup-help"><strong>Home Assistant er påkrævet for at bruge Jarvis.</strong> Vælg, om du vil forbinde en eksisterende installation eller forberede en sikker installationsplan.</p>
+      <fieldset class="setup-form">
+        <legend>Vælg Home Assistant-løsning</legend>
+        <label><input id="setupHaExistingChoice" type="radio" name="setupHaChoice" value="existing" checked /> Forbind eksisterende Home Assistant</label>
+        <label><input id="setupHaManagedChoice" type="radio" name="setupHaChoice" value="managed" /> Installér Home Assistant for mig</label>
+      </fieldset>
+      <div id="setupHaExistingPanel" class="setup-form">
         <label>Home Assistant-adresse
           <input id="setupHaUrl" type="url" placeholder="Indtast Home Assistant-adressen" required />
         </label>
-        <label>Langtidsadgang
-          <input id="setupHaToken" type="password" autocomplete="new-password" placeholder="Lad stå tomt for at beholde gemt adgang" />
+        <label>Langtidsadgangstoken
+          <input id="setupHaToken" type="password" autocomplete="new-password" placeholder="Indsæt et langtidsadgangstoken" />
         </label>
+        <p id="setupHaTokenStatus" class="setup-inline-status">Intet token er gemt.</p>
         <div class="setup-actions left">
           <button id="setupTestHaButton" type="button" class="secondary">Test forbindelse</button>
-          <button id="setupSaveHaButton" type="button">Gem forbindelse</button>
+          <button id="setupSaveHaButton" type="button">Gem og fortsæt</button>
         </div>
         <p id="setupHaStatus" class="setup-inline-status">Ikke testet endnu.</p>
+      </div>
+      <div id="setupHaManagedPanel" class="setup-form" hidden>
+        <h3>Forbered en installationsplan</h3>
+        <p class="setup-help">Installationen er ikke startet. Først oprettes kun en plan med faste, isolerede ressourcer. Installationen starter først efter en senere, udtrykkelig bekræftelse fra ejeren.</p>
+        <button id="setupManagedPlanButton" type="button">Opret installationsplan</button>
+        <p id="setupManagedStatus" class="setup-inline-status">Der er endnu ikke oprettet en installationsplan.</p>
+        <div id="setupManagedConfirmation" hidden>
+          <p><strong>Bekræft installation:</strong> Jarvis opretter kun den faste Home Assistant-container, den dedikerede volume og det dedikerede netværk vist nedenfor og åbner port 8123. Ingen andre Docker-ressourcer ændres.</p>
+          <label><input id="setupManagedConfirmCheck" type="checkbox" /> Jeg bekræfter, at den viste, faste installation må anmodes.</label>
+          <button id="setupManagedInstallButton" type="button" disabled>Anmod om installation</button>
+          <p id="setupManagedRunHint" class="setup-inline-status" hidden></p>
+        </div>
+        <dl id="setupManagedPlanSummary" class="summary-grid" hidden>
+          <div class="summary-card"><dt>Container</dt><dd id="setupManagedContainer"></dd></div>
+          <div class="summary-card"><dt>Image</dt><dd id="setupManagedImage"></dd></div>
+          <div class="summary-card"><dt>Lager</dt><dd id="setupManagedVolume"></dd></div>
+          <div class="summary-card"><dt>Netværk</dt><dd id="setupManagedNetwork"></dd></div>
+          <div class="summary-card"><dt>Afgrænsning</dt><dd id="setupManagedIsolation"></dd></div>
+        </dl>
+        <section id="setupManagedOnboarding" hidden>
+          <h3>Gør Home Assistant klar</h3>
+          <p id="setupManagedOnboardingStatus" class="setup-inline-status"></p>
+          <p id="setupManagedPublicUrlStatus" class="setup-inline-status" hidden></p>
+          <a id="setupManagedOpenHomeAssistant" class="button-link secondary-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Åbn Home Assistant i en ny fane</a>
+          <ol id="setupManagedOnboardingSteps" class="setup-help" hidden>
+            <li>Åbn Home Assistant og opret den første ejerkonto. Adgangskoden bliver kun hos Home Assistant.</li>
+            <li>Når onboarding er færdig, åbn din brugerprofil nederst i Home Assistant-menuen.</li>
+            <li>Find “Langtidsadgangstokens”, vælg “Opret token”, og kopiér tokenet.</li>
+            <li>Vend tilbage til Jarvis, indsæt tokenet nedenfor, test det, og gem forbindelsen.</li>
+          </ol>
+          <label id="setupManagedTokenLabel" hidden>Langtidsadgangstoken
+            <input id="setupManagedHaToken" type="password" autocomplete="new-password" placeholder="Indsæt token fra Home Assistant" />
+          </label>
+          <p id="setupManagedTokenStatus" class="setup-inline-status" hidden>Tokenet vises eller udfyldes aldrig igen.</p>
+          <div id="setupManagedTokenActions" class="setup-actions left" hidden>
+            <button id="setupManagedTestTokenButton" type="button" class="secondary">Test token</button>
+            <button id="setupManagedSaveTokenButton" type="button">Gem og fortsæt</button>
+          </div>
+        </section>
       </div>
     </section>
 

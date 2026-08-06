@@ -17,12 +17,15 @@ def test_uv_indicator_is_present_on_family_and_wall_dashboard():
 
 def test_uv_uses_simple_green_yellow_red_categories():
     assert 'value <= 2' in UV_JS
-    assert '{ key: "green", label: "Lav" }' in UV_JS
+    assert '{ key: "green", label: "Lav UV" }' in UV_JS
     assert 'value <= 5' in UV_JS
-    assert '{ key: "yellow", label: "Middel" }' in UV_JS
-    assert '{ key: "red", label: "Høj" }' in UV_JS
+    assert '{ key: "yellow", label: "Solcreme hvis du er længe ude" }' in UV_JS
+    assert 'value <= 7' in UV_JS
+    assert '{ key: "red", label: "Tag solcreme på" }' in UV_JS
+    assert '{ key: "red", label: "Solcreme, skygge og pause" }' in UV_JS
     assert 'weather-uv-${category.key}' in UV_JS
-    assert 'UV-indeks ${formatted}' in UV_JS
+    assert 'badge.setAttribute("aria-label", `${uv.label} ${formatted}. ${category.label}`)' in UV_JS
+    assert 'valueElement.textContent = `${uv.label} ${formatted}`' in UV_JS
 
 
 def test_uv_frontend_is_read_only_and_safe():

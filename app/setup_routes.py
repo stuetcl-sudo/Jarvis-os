@@ -1,15 +1,24 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
 
-from app import config, home_assistant_setup, home_entity_settings, home_setup, settings_store
+from app import (
+    config,
+    home_assistant_setup,
+    home_entity_settings,
+    home_setup,
+    managed_home_assistant_installer,
+    managed_home_assistant_onboarding,
+    settings_store,
+)
+from app.setup_state import setup_status
 
 
 router = APIRouter(prefix="/api/admin/setup", tags=["setup"])
 
 
-class HomeAssistantConnectionPayload(BaseModel):
-    base_url: str
-    token: str = ""
+@router.get("/status")
+def get_setup_status():
+    return setup_status(db_path=config.DB_PATH)
 
 
 class HomeAssistantEntitySettingsPayload(BaseModel):
@@ -34,10 +43,41 @@ class HomeSettingsPayload(BaseModel):
     owner_name: str
 
 
+def _managed_token(payload):
+    if not isinstance(payload, dict) or set(payload) != {"token"}:
+        raise home_assistant_setup.HomeAssistantSetupError(
+            "managed_token_request_invalid",
+            "Anmodningen må kun indeholde Home Assistant-tokenet.",
+        )
+    token = payload.get("token")
+    if not isinstance(token, str):
+        raise home_assistant_setup.HomeAssistantSetupError(
+            "token_invalid", "Home Assistant-tokenet er ugyldigt"
+        )
+    return token
+
+
 def _connection_values(payload=None):
     current = config.home_assistant_configuration()
-    base_url = payload.base_url if payload else current["base_url"]
-    token = payload.token.strip() if payload and payload.token.strip() else current["access_value"]
+    if payload is not None and not isinstance(payload, dict):
+        raise home_assistant_setup.HomeAssistantSetupError(
+            "malformed_request", "Anmodningen om Home Assistant-forbindelsen er ugyldig"
+        )
+    base_url = payload.get("base_url", "") if payload is not None else current["base_url"]
+    supplied_token = payload.get("token", "") if payload is not None else ""
+    if not isinstance(base_url, str):
+        raise home_assistant_setup.HomeAssistantSetupError(
+            "malformed_url", "Home Assistant-adressen er ugyldig"
+        )
+    if len(base_url) > 2048:
+        raise home_assistant_setup.HomeAssistantSetupError(
+            "malformed_url", "Home Assistant-adressen er ugyldig"
+        )
+    if not isinstance(supplied_token, str):
+        raise home_assistant_setup.HomeAssistantSetupError(
+            "token_invalid", "Home Assistant-tokenet er ugyldigt"
+        )
+    token = supplied_token.strip() if supplied_token.strip() else current["access_value"]
     return base_url, token, current["timeout_seconds"]
 
 
@@ -77,42 +117,171 @@ def complete_setup():
 @router.get("/home-assistant")
 def home_assistant_summary():
     summary = settings_store.public_connection_summary(db_path=config.DB_PATH)
-    if not summary["home_assistant_url"]:
-        summary["home_assistant_url"] = config.home_assistant_configuration()["base_url"]
+    current = config.home_assistant_configuration()
+    internal_url = summary["home_assistant_url"] or current["base_url"]
+    if internal_url == managed_home_assistant_onboarding.BACKEND_PROBE_URL:
+        try:
+            public_url, _message = managed_home_assistant_onboarding._public_url()
+        except managed_home_assistant_onboarding.ManagedPublicUrlError:
+            public_url = None
+        summary["home_assistant_url"] = public_url or ""
+    elif not summary["home_assistant_url"]:
+        summary["home_assistant_url"] = internal_url
     summary["configured"] = bool(
-        summary["home_assistant_url"]
+        internal_url
         and (
             summary["home_assistant_token_configured"]
-            or bool(config.home_assistant_configuration()["access_value"])
+            or bool(current["access_value"])
         )
+    )
+    summary["token_configured"] = summary["home_assistant_token_configured"] or bool(
+        current["access_value"]
     )
     return summary
 
 
-@router.post("/home-assistant/test")
-def test_home_assistant_connection(payload: HomeAssistantConnectionPayload):
-    base_url, token, timeout_seconds = _connection_values(payload)
+@router.get("/home-assistant/managed")
+def managed_home_assistant_status():
     try:
+        return managed_home_assistant_installer.managed_install_status(db_path=config.DB_PATH)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "managed_install_status_unavailable",
+                "message": "Status for den administrerede Home Assistant-installation kunne ikke hentes.",
+            },
+        ) from exc
+
+
+@router.get("/home-assistant/managed/onboarding")
+def managed_home_assistant_onboarding_status():
+    try:
+        return managed_home_assistant_onboarding.managed_onboarding_status(db_path=config.DB_PATH)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "managed_onboarding_status_unavailable",
+                "message": "Onboardingstatus for Home Assistant kunne ikke hentes.",
+            },
+        ) from exc
+
+
+@router.post("/home-assistant/managed/plan")
+def request_managed_home_assistant_plan(payload: object = Body(default=None)):
+    try:
+        return managed_home_assistant_installer.request_install_plan(payload, db_path=config.DB_PATH)
+    except managed_home_assistant_installer.ManagedInstallError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "managed_install_plan_unavailable",
+                "message": "Installationsplanen kunne ikke gemmes.",
+            },
+        ) from exc
+
+
+@router.post("/home-assistant/managed/install-request")
+def request_managed_home_assistant_installation(payload: object = Body(default=None)):
+    try:
+        return managed_home_assistant_installer.create_install_request(payload, db_path=config.DB_PATH)
+    except managed_home_assistant_installer.ManagedInstallError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "managed_install_request_unavailable",
+                "message": "Installationsanmodningen kunne ikke gemmes.",
+            },
+        ) from exc
+
+
+@router.post("/home-assistant/managed/test")
+def test_managed_home_assistant_connection(payload: object = Body(...)):
+    try:
+        token = _managed_token(payload)
+        return home_assistant_setup.test_connection(
+            managed_home_assistant_onboarding.BACKEND_PROBE_URL,
+            token,
+            managed_home_assistant_onboarding.PROBE_TIMEOUT_SECONDS,
+        )
+    except (ValueError, RuntimeError) as exc:
+        _ha_error(exc)
+
+
+@router.post("/home-assistant/managed/save")
+def save_managed_home_assistant_connection(payload: object = Body(...)):
+    try:
+        token = _managed_token(payload)
+        result = home_assistant_setup.test_connection(
+            managed_home_assistant_onboarding.BACKEND_PROBE_URL,
+            token,
+            managed_home_assistant_onboarding.PROBE_TIMEOUT_SECONDS,
+        )
+        summary = home_assistant_setup.save_connection(
+            managed_home_assistant_onboarding.BACKEND_PROBE_URL,
+            token,
+            db_path=config.DB_PATH,
+        )
+    except (ValueError, RuntimeError) as exc:
+        _ha_error(exc)
+    try:
+        public_url, _message = managed_home_assistant_onboarding._public_url()
+    except managed_home_assistant_onboarding.ManagedPublicUrlError:
+        public_url = None
+    return {
+        **{**summary, "home_assistant_url": public_url},
+        **result,
+        "setup": setup_status(db_path=config.DB_PATH),
+    }
+
+
+def _ha_error(exc):
+    if isinstance(exc, home_assistant_setup.HomeAssistantSetupError):
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    raise HTTPException(
+        status_code=400,
+        detail={"code": "configuration_error", "message": "Home Assistant-konfigurationen kunne ikke bruges"},
+    ) from exc
+
+
+@router.post("/home-assistant/test")
+def test_home_assistant_connection(payload: object = Body(...)):
+    try:
+        base_url, token, timeout_seconds = _connection_values(payload)
         return home_assistant_setup.test_connection(base_url, token, timeout_seconds)
     except (ValueError, RuntimeError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        _ha_error(exc)
 
 
 @router.post("/home-assistant/save")
-def save_home_assistant_connection(payload: HomeAssistantConnectionPayload):
-    base_url, token, timeout_seconds = _connection_values(payload)
+def save_home_assistant_connection(payload: object = Body(...)):
     try:
+        base_url, token, timeout_seconds = _connection_values(payload)
         result = home_assistant_setup.test_connection(base_url, token, timeout_seconds)
         summary = home_assistant_setup.save_connection(base_url, token, db_path=config.DB_PATH)
     except (ValueError, RuntimeError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {**summary, **result}
+        _ha_error(exc)
+    return {**summary, **result, "setup": setup_status(db_path=config.DB_PATH)}
 
 
 @router.post("/home-assistant/entities")
-def discover_home_assistant_entities(payload: HomeAssistantConnectionPayload):
-    base_url, token, timeout_seconds = _connection_values(payload)
+def discover_home_assistant_entities(payload: object = Body(...)):
     try:
+        base_url, token, timeout_seconds = _connection_values(payload)
         entities = home_assistant_setup.discover_entities(base_url, token, timeout_seconds)
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

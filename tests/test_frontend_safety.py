@@ -79,9 +79,11 @@ def test_same_origin_credentials_are_explicit_for_each_frontend():
     family = SCRIPTS["family.js"]
     wall = SCRIPTS["wall.js"]
     wall_safety = SCRIPTS["wall-safety.js"]
+    setup = SCRIPTS["setup.js"]
 
     assert 'credentials: "same-origin"' in login
     assert 'options.credentials = "same-origin"' in admin
+    assert 'options.credentials = "same-origin"' in setup
 
     family_endpoints = [
         "/api/mission",
@@ -122,6 +124,31 @@ def test_calendar_and_wall_mode_enhancements_are_read_only_and_storage_free():
     assert "createElement" in enhancements
 
 
+def test_setup_is_storage_free_and_keeps_secrets_out_of_dom_defaults():
+    setup = SCRIPTS["setup.js"]
+    setup_html = (ROOT / "app" / "static" / "setup.html").read_text(encoding="utf-8")
+    for forbidden in ("localStorage", "sessionStorage", "innerHTML", "insertAdjacentHTML", "eval("):
+        assert forbidden not in setup
+    assert 'document.getElementById("setupHaToken").value = ""' in setup
+    assert 'credentials = "same-origin"' in setup
+    assert 'detail.code !== "authentication_failed"' in setup
+    assert 'nextButton.disabled = true' in setup
+    assert 'value=' not in setup_html.split('id="setupHaToken"', 1)[1].split("/>", 1)[0]
+
+
+def test_managed_install_ui_is_plan_only_and_uses_safe_fetch_helper():
+    setup = SCRIPTS["setup.js"]
+    setup_html = (ROOT / "app" / "static" / "setup.html").read_text(encoding="utf-8")
+    assert 'setupJson("/api/admin/setup/home-assistant/managed/plan", {' in setup
+    assert 'setupJson("/api/admin/setup/home-assistant/managed")' in setup
+    assert 'body: JSON.stringify({})' in setup
+    assert "planButton.disabled = true" in setup
+    assert "Installationen er ikke startet" in setup_html
+    assert "Opret installationsplan" in setup_html
+    assert "Forbind eksisterende Home Assistant" in setup_html
+    assert "Installér Home Assistant for mig" in setup_html
+
+
 def test_admin_classification_controls_have_unique_scopes():
     assert 'function classificationControlId(control, index, scope = "table")' in ADMIN
     assert 'classificationControlId("prot", index)' in ADMIN
@@ -153,6 +180,8 @@ if __name__ == "__main__":
     test_html_shaped_payload_can_only_be_assigned_as_text()
     test_same_origin_credentials_are_explicit_for_each_frontend()
     test_calendar_and_wall_mode_enhancements_are_read_only_and_storage_free()
+    test_setup_is_storage_free_and_keeps_secrets_out_of_dom_defaults()
+    test_managed_install_ui_is_plan_only_and_uses_safe_fetch_helper()
     test_admin_classification_controls_have_unique_scopes()
     test_existing_frontend_security_contract_remains_present()
     print("Frontend safety tests OK")

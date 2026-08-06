@@ -6,6 +6,7 @@ INDEX = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
 FAMILY_CALENDAR = (ROOT / "app/static/js/family-calendar.js").read_text(encoding="utf-8")
 CALENDAR_RANGE_CSS = (ROOT / "app/static/css/calendar-range.css").read_text(encoding="utf-8")
 WALL_MODE_JS = (ROOT / "app/static/js/wall-mode.js").read_text(encoding="utf-8")
+WALL_FULLSCREEN_JS = (ROOT / "app/static/js/wall-fullscreen.js").read_text(encoding="utf-8")
 WALL_MODE_CSS = (ROOT / "app/static/css/wall-mode.css").read_text(encoding="utf-8")
 WALL_VIEW = (ROOT / "app/wall_view.py").read_text(encoding="utf-8")
 
@@ -75,9 +76,9 @@ def test_wall_route_reuses_family_dashboard_in_shared_display_mode():
     assert "wall_asset_version" not in WALL_VIEW
     assert '<!-- WALL_DISPLAY_ACTIONS -->' in INDEX
     assert '/static/css/wall-mode.css' in INDEX
-    assert '/static/js/wall-mode.js' in INDEX
+    assert '/static/js/wall-fullscreen.js' in INDEX
     assert 'id="wallFullscreen"' in WALL_VIEW
-    assert "requestFullscreen" in WALL_MODE_JS
+    assert "requestFullscreen" in WALL_FULLSCREEN_JS
     assert 'body[data-wall-dashboard="true"]' in WALL_MODE_CSS
 
 

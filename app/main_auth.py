@@ -7,6 +7,7 @@ from app import config
 from app.auth.context import reset_current_actor, set_current_actor
 from app.auth.routes import router as auth_router
 from app.auth.service import SESSION_COOKIE_NAME, auth_service
+from app.bootstrap_routes import router as bootstrap_router
 from app.calendar import router as calendar_router
 from app.db import log_action
 from app.family_tasks import router as family_tasks_router
@@ -20,10 +21,12 @@ from app.routines import ROUTINE_ROLES, router as routines_router
 from app.safety_status import status_item
 from app.safety_status import router as safety_status_router
 from app.screen_routes import router as screen_router
+from app.setup_state import BOOTSTRAP_REQUIRED, READY, setup_status
 from app.wall_view import WALL_ROLES, render_wall_page
 from app.weather import router as weather_router
 
 app.include_router(auth_router)
+app.include_router(bootstrap_router)
 app.include_router(weather_router)
 app.include_router(calendar_router)
 app.include_router(meal_plan_router)
@@ -48,7 +51,12 @@ def is_owner_only_read(method, path):
         return True
     if not path.startswith("/api/"):
         return False
-    if path.startswith("/api/auth/") or path.startswith("/api/family/") or path.startswith("/api/admin/"):
+    if (
+        path.startswith("/api/auth/")
+        or path.startswith("/api/bootstrap/")
+        or path.startswith("/api/family/")
+        or path.startswith("/api/admin/")
+    ):
         return False
     return True
 
@@ -138,10 +146,21 @@ async def enforce_local_authentication(request: Request, call_next):
         request.method in {"POST", "PUT", "PATCH", "DELETE"}
         and path.startswith("/api/")
         and not path.startswith("/api/auth/")
+        and not path.startswith("/api/bootstrap/")
         and not routine_write
         and not family_task_write
     )
     try:
+        if request.method == "GET" and path in {"/login", "/bootstrap", "/setup", "/admin"}:
+            installation = setup_status(db_path=config.DB_PATH)
+            if installation["state"] == BOOTSTRAP_REQUIRED and path == "/login":
+                return RedirectResponse("/bootstrap", status_code=303)
+            if current_user and current_user.get("role") == "owner":
+                if path == "/admin" and installation["state"] != READY:
+                    return RedirectResponse("/setup", status_code=303)
+                if path == "/setup" and installation["state"] == READY:
+                    return RedirectResponse("/admin", status_code=303)
+
         if request.method == "GET" and path == "/":
             return HTMLResponse(render_family_page(current_user))
 
