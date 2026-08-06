@@ -3,6 +3,7 @@ from pathlib import Path
 
 from app import config
 from app.family_visibility import load_visibility_rules, role_can_see
+from app.module_settings import MODULES, load_module_settings
 
 FAMILY_TEMPLATE = Path(__file__).resolve().parent / "static" / "index.html"
 FAMILY_ROLES = {"owner", "adult", "child", "wall_display"}
@@ -75,6 +76,19 @@ VISIBILITY_SELECTORS = {
 }
 
 
+def apply_module_settings(page, settings):
+    for module in MODULES:
+        start = f"<!-- MODULE:{module}:START -->"
+        end = f"<!-- MODULE:{module}:END -->"
+        while start in page:
+            before, _, remainder = page.partition(start)
+            content, marker, after = remainder.partition(end)
+            if not marker:
+                break
+            page = before + (content if settings.get(module, True) else "") + after
+    return page
+
+
 def anonymous_context():
     return {
         "role": "anonymous",
@@ -126,16 +140,19 @@ def visibility_style(role):
 
 def render_family_page(current_user, wall_actions=""):
     context = resolve_family_context(current_user)
+    module_settings = load_module_settings(db_path=config.DB_PATH)
+    enabled_modules = ",".join(module for module in MODULES if module_settings[module])
     page = FAMILY_TEMPLATE.read_text(encoding="utf-8")
     body = (
         f'<body data-family-role="{context["role"]}" '
         f'data-family-display-name="{escape(context["display_name"], quote=True)}" '
         f'data-family-view="{context["view"]}" data-family-kiosk="{context["kiosk"]}" '
         f'data-family-label="{escape(context["label"], quote=True)}" '
-        f'data-family-subtitle="{escape(context["subtitle"], quote=True)}">'
+        f'data-family-subtitle="{escape(context["subtitle"], quote=True)}" '
+        f'data-family-modules="{enabled_modules}">'
     )
     page = page.replace(
-        '<body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false" data-family-label="Fælles overblik" data-family-subtitle="Her er et roligt overblik over hjemmet.">',
+        '<body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false" data-family-label="Fælles overblik" data-family-subtitle="Her er et roligt overblik over hjemmet." data-family-modules="calendar,tasks,routines,meal_plan,weather,safety">',
         body,
         1,
     )
@@ -156,4 +173,4 @@ def render_family_page(current_user, wall_actions=""):
     page = page.replace("<!-- ROUTINE_EDITOR_ACTION -->", ROUTINE_EDITOR_ACTION if context["role"] in {"owner", "adult"} else "", 1)
     page = page.replace("<!-- WALL_DISPLAY_ACTIONS -->", wall_actions, 1)
     page = page.replace("<!-- FAMILY_NAVIGATION -->", navigation_for(context["role"]), 1)
-    return page
+    return apply_module_settings(page, module_settings)

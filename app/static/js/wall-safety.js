@@ -146,9 +146,11 @@ if (isWallDashboard()) {
   scheduleWallIdleCheck();
 }
 
-refreshWallSafetyStatus();
-setInterval(refreshWallSafetyStatus, 5000);
-window.addEventListener("focus", refreshWallSafetyStatus);
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) refreshWallSafetyStatus();
-});
+if (typeof familyModuleEnabled !== "function" || familyModuleEnabled("safety")) {
+  refreshWallSafetyStatus();
+  setInterval(refreshWallSafetyStatus, 5000);
+  window.addEventListener("focus", refreshWallSafetyStatus);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refreshWallSafetyStatus();
+  });
+}

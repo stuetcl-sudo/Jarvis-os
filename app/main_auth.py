@@ -16,6 +16,7 @@ from app.family_visibility import family_feature_hidden, router as family_visibi
 from app.health import get_health
 from app.main import app
 from app.meal_plan import router as meal_plan_router
+from app.module_settings import router as module_settings_router
 from app.routine_definitions import EDITOR_ROLES
 from app.routines import ROUTINE_ROLES, router as routines_router
 from app.safety_status import status_item
@@ -34,6 +35,7 @@ app.include_router(family_tasks_router)
 app.include_router(routines_router)
 app.include_router(safety_status_router)
 app.include_router(family_visibility_router)
+app.include_router(module_settings_router)
 app.include_router(screen_router)
 
 ROUTINE_WRITE_ACTIONS = {"complete", "back", "reset"}

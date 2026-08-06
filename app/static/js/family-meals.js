@@ -1,4 +1,5 @@
 (() => {
+  if (!familyModuleEnabled("meal_plan")) return;
   const weekdayFormatter = new Intl.DateTimeFormat("da-DK", { weekday: "short" });
   const dateFormatter = new Intl.DateTimeFormat("da-DK", { day: "numeric", month: "short" });
 

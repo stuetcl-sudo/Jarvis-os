@@ -1,4 +1,5 @@
 (() => {
+  if (!familyModuleEnabled("tasks")) return;
   const dueDateFormatter = new Intl.DateTimeFormat("da-DK", {
     weekday: "short",
     day: "numeric",

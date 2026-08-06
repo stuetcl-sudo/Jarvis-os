@@ -381,4 +381,4 @@ function initializeRoutineEditor() {
   });
 }
 
-initializeRoutineEditor();
+if (familyModuleEnabled("routines")) initializeRoutineEditor();

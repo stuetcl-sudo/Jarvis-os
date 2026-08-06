@@ -289,6 +289,8 @@ function initializeRoutineControls() {
   });
 }
 
-initializeRoutineControls();
-loadRoutines();
-setInterval(loadRoutines, 30000);
+if (familyModuleEnabled("routines")) {
+  initializeRoutineControls();
+  loadRoutines();
+  setInterval(loadRoutines, 30000);
+}

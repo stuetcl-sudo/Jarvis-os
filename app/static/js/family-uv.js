@@ -1,4 +1,5 @@
 (() => {
+  if (!familyModuleEnabled("weather")) return;
   const badge = document.getElementById("weatherUv");
   const valueElement = document.getElementById("weatherUvValue");
   const labelElement = document.getElementById("weatherUvLabel");
