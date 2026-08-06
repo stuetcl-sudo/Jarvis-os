@@ -10,10 +10,30 @@ from app import config, integration_status as status_service
 from app.auth.service import auth_service, initialize_auth_tables
 from app.db import init_db
 from app.main_auth import app
+from app.home_assistant import HomeAssistantUnavailable
 
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKED = datetime(2026, 8, 6, 12, 0, tzinfo=timezone.utc)
+
+
+class ProbeClient:
+    def __init__(self, response=None, error=None, requests=None, **_kwargs):
+        self.response = response
+        self.error = error
+        self.requests = requests if requests is not None else []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def get(self, url):
+        self.requests.append(url)
+        if self.error:
+            raise self.error
+        return self.response
 
 
 def credential():
@@ -88,7 +108,8 @@ def test_safe_state_mapping_and_failures():
     assert scrypted["summary"] == "Scrypted er ikke konfigureret"
 
     connected = {"state": "connected"}
-    with patch("app.integration_status.home_entity_settings.load_entity_settings", return_value={"electricity_price_entity": "sensor.price"}):
+    with patch("app.integration_status.home_entity_settings.load_entity_settings", return_value={"electricity_price_entity": "sensor.price"}), patch("app.integration_status.load_home_assistant_connection", return_value=object()), patch("app.integration_status.HomeAssistantClient") as client_type:
+        client_type.return_value.get_json.return_value = {"state": "1.25"}
         electricity = status_service._electricity_prices(checked, connected)
     assert electricity["state"] == "healthy"
     assert electricity["summary"] == "Strømpriser er klar"
@@ -97,6 +118,94 @@ def test_safe_state_mapping_and_failures():
         jarvis = status_service._jarvis(checked)
     assert jarvis["state"] == "healthy"
     assert jarvis["summary"] == "Jarvis kører normalt"
+
+
+def test_home_assistant_probe_classes_are_safe():
+    checked = CHECKED.isoformat()
+    connection = object()
+    private = "token-and-private-diagnostic"
+    with patch("app.integration_status.load_home_assistant_connection", return_value=connection), patch("app.integration_status.HomeAssistantClient") as client_type:
+        client_type.return_value.get_json.return_value = {"message": "API running."}
+        assert status_service._home_assistant(checked)["state"] == "connected"
+        client_type.return_value.get_json.side_effect = HomeAssistantUnavailable(private, "authentication")
+        auth = status_service._home_assistant(checked)
+        assert auth["state"] == "degraded"
+        assert auth["summary"] == "Home Assistant-login kræver opmærksomhed"
+        client_type.return_value.get_json.side_effect = HomeAssistantUnavailable(private, "transport")
+        transport = status_service._home_assistant(checked)
+        assert transport["state"] == "unavailable"
+    assert private not in repr(auth) + repr(transport)
+
+
+def test_scrypted_response_mapping_and_privacy():
+    checked = CHECKED.isoformat()
+    private_url = "https://scrypted.example/private-path"
+    private_body = "private-response-body"
+
+    def result(status_code, headers=None):
+        response = type("Response", (), {
+            "status_code": status_code,
+            "is_redirect": 300 <= status_code < 400,
+            "text": private_body,
+        })()
+        requests = []
+        with patch.dict(os.environ, {"SCRYPTED_URL": private_url}), patch("app.integration_status.httpx.Client", side_effect=lambda **kwargs: ProbeClient(response=response, requests=requests, **kwargs)) as client_type:
+            value = status_service._scrypted(checked)
+        assert client_type.call_args.kwargs["follow_redirects"] is False
+        assert requests == [private_url + "/"]
+        assert private_url not in repr(value) and private_body not in repr(value)
+        return value
+
+    assert result(200)["state"] == "connected"
+    for code in (401, 403):
+        value = result(code)
+        assert value["state"] == "degraded" and value["summary"] == "Scrypted-login kræver opmærksomhed"
+    assert result(404)["state"] == "degraded"
+    assert result(429)["state"] == "degraded"
+    assert result(503)["state"] == "unavailable"
+    assert result(302)["state"] == "degraded"
+
+    with patch.dict(os.environ, {"SCRYPTED_URL": private_url}), patch("app.integration_status.httpx.Client", side_effect=lambda **kwargs: ProbeClient(error=status_service.httpx.ConnectError("private"), **kwargs)):
+        assert status_service._scrypted(checked)["state"] == "unavailable"
+    with patch.dict(os.environ, {"SCRYPTED_URL": "https://user:private@scrypted.example"}):
+        invalid = status_service._scrypted(checked)
+    assert invalid["state"] == "degraded" and "user" not in repr(invalid) and "private" not in repr(invalid)
+
+
+def test_electricity_entity_probe_mapping_and_privacy():
+    checked = CHECKED.isoformat()
+    connected = {"state": "connected"}
+    private_entity = "sensor.private_price"
+
+    def probe(result=None, error=None):
+        with patch("app.integration_status.home_entity_settings.load_entity_settings", return_value={"electricity_price_entity": private_entity}), patch("app.integration_status.load_home_assistant_connection", return_value=object()), patch("app.integration_status.HomeAssistantClient") as client_type:
+            client_type.return_value.get_json.return_value = result
+            client_type.return_value.get_json.side_effect = error
+            value = status_service._electricity_prices(checked, connected)
+        assert private_entity not in repr(value)
+        return value
+
+    assert probe({"state": "1.25"})["state"] == "healthy"
+    for state in ("unknown", "unavailable"):
+        assert probe({"state": state})["state"] == "degraded"
+    assert probe(error=HomeAssistantUnavailable(response_class="not_found"))["state"] == "degraded"
+    assert probe(error=HomeAssistantUnavailable(response_class="transport"))["state"] == "unavailable"
+    with patch("app.integration_status.home_entity_settings.load_entity_settings", return_value={"electricity_price_entity": private_entity}):
+        outage = status_service._electricity_prices(checked, {"state": "unavailable"})
+    assert outage["state"] == "unavailable" and private_entity not in repr(outage)
+
+
+def test_jarvis_degraded_mappings():
+    checked = CHECKED.isoformat()
+    with patch("app.integration_status.get_health", return_value={"status": "ok", "warnings": ["private warning"]}):
+        warning = status_service._jarvis(checked)
+    assert warning["state"] == "degraded" and warning["technical_detail"]["warning_count"] == 1
+    assert "private warning" not in repr(warning)
+    with patch("app.integration_status.get_health", return_value={"status": "critical", "warnings": []}):
+        assert status_service._jarvis(checked)["state"] == "degraded"
+    with patch("app.integration_status.get_health", side_effect=RuntimeError("private")):
+        failed = status_service._jarvis(checked)
+    assert failed["state"] == "degraded" and "private" not in repr(failed)
 
 
 def test_contract_and_technical_detail_allowlist():
@@ -135,6 +244,10 @@ def test_admin_frontend_contract():
 def test():
     test_owner_only_api_access()
     test_safe_state_mapping_and_failures()
+    test_home_assistant_probe_classes_are_safe()
+    test_scrypted_response_mapping_and_privacy()
+    test_electricity_entity_probe_mapping_and_privacy()
+    test_jarvis_degraded_mappings()
     test_contract_and_technical_detail_allowlist()
     test_admin_frontend_contract()
     print("Admin integration status tests OK")

@@ -12,7 +12,9 @@ class HomeAssistantConfigurationError(ValueError):
 
 
 class HomeAssistantUnavailable(RuntimeError):
-    pass
+    def __init__(self, message="Home Assistant is unavailable", response_class="unavailable"):
+        super().__init__(message)
+        self.response_class = response_class
 
 
 @dataclass(frozen=True)
@@ -64,13 +66,23 @@ class HomeAssistantClient:
                     json=json_body,
                 )
                 if not response.is_success:
-                    raise HomeAssistantUnavailable("Home Assistant is unavailable")
+                    if response.status_code in {401, 403}:
+                        response_class = "authentication"
+                    elif response.status_code == 404:
+                        response_class = "not_found"
+                    elif response.status_code == 429:
+                        response_class = "rate_limited"
+                    elif 500 <= response.status_code <= 599:
+                        response_class = "server"
+                    else:
+                        response_class = "response"
+                    raise HomeAssistantUnavailable(response_class=response_class)
                 try:
                     return response.json()
                 except (ValueError, TypeError) as exc:
                     raise HomeAssistantUnavailable("Home Assistant is unavailable") from exc
         except httpx.HTTPError as exc:
-            raise HomeAssistantUnavailable("Home Assistant is unavailable") from exc
+            raise HomeAssistantUnavailable(response_class="transport") from exc
 
     def get_json(self, path, *, params=None):
         return self.request_json("GET", path, params=params)

@@ -2,7 +2,7 @@
 
 import os
 from datetime import datetime, timezone
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit, urlunsplit
 
 import httpx
 
@@ -17,7 +17,7 @@ from app.home_assistant import (
 
 
 ALLOWED_STATES = frozenset({"connected", "unavailable", "not_configured", "degraded", "healthy"})
-TECHNICAL_KEYS = frozenset({"check", "configured", "warning_count"})
+TECHNICAL_KEYS = frozenset({"check", "configured", "warning_count", "response_class"})
 
 
 def _item(key, name, state, summary, checked_at, technical_detail=None):
@@ -40,12 +40,18 @@ def _home_assistant(checked_at):
         connection = load_home_assistant_connection()
         if connection is None:
             return _item("home_assistant", "Home Assistant", "not_configured", "Home Assistant er ikke konfigureret", checked_at, {"configured": False})
-        HomeAssistantClient(connection).get_json("/api/")
+        payload = HomeAssistantClient(connection).get_json("/api/")
+        if not isinstance(payload, dict) or payload.get("message") != "API running.":
+            raise HomeAssistantUnavailable(response_class="response")
         return _item("home_assistant", "Home Assistant", "connected", "Home Assistant er forbundet", checked_at, {"configured": True, "check": "api"})
     except HomeAssistantConfigurationError:
         return _item("home_assistant", "Home Assistant", "degraded", "Home Assistant-konfigurationen kræver opmærksomhed", checked_at, {"configured": True, "check": "configuration"})
-    except (HomeAssistantUnavailable, OSError, RuntimeError, ValueError):
-        return _item("home_assistant", "Home Assistant", "unavailable", "Home Assistant svarer ikke", checked_at, {"configured": True, "check": "api"})
+    except HomeAssistantUnavailable as exc:
+        if exc.response_class == "authentication":
+            return _item("home_assistant", "Home Assistant", "degraded", "Home Assistant-login kræver opmærksomhed", checked_at, {"configured": True, "check": "api", "response_class": "authentication"})
+        return _item("home_assistant", "Home Assistant", "unavailable", "Home Assistant svarer ikke", checked_at, {"configured": True, "check": "api", "response_class": "transport" if exc.response_class == "transport" else "response"})
+    except (OSError, RuntimeError, ValueError):
+        return _item("home_assistant", "Home Assistant", "unavailable", "Home Assistant svarer ikke", checked_at, {"configured": True, "check": "api", "response_class": "transport"})
 
 
 def _scrypted(checked_at):
@@ -56,13 +62,23 @@ def _scrypted(checked_at):
         parsed = urlsplit(raw_url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
             raise ValueError("invalid configuration")
+        base_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", ""))
+        probe_url = f"{base_url}/"
         with httpx.Client(timeout=2, follow_redirects=False) as client:
-            response = client.get(raw_url)
-        if response.status_code >= 500:
-            raise RuntimeError("unavailable")
-        return _item("scrypted", "Scrypted", "connected", "Scrypted er forbundet", checked_at, {"configured": True, "check": "http"})
+            response = client.get(probe_url)
+        if 200 <= response.status_code <= 299:
+            return _item("scrypted", "Scrypted", "connected", "Scrypted er forbundet", checked_at, {"configured": True, "check": "http", "response_class": "success"})
+        if response.status_code in {401, 403}:
+            return _item("scrypted", "Scrypted", "degraded", "Scrypted-login kræver opmærksomhed", checked_at, {"configured": True, "check": "http", "response_class": "authentication"})
+        if response.status_code == 404:
+            return _item("scrypted", "Scrypted", "degraded", "Scrypted-forbindelsen kræver opsætning", checked_at, {"configured": True, "check": "http", "response_class": "not_found"})
+        if response.status_code == 429:
+            return _item("scrypted", "Scrypted", "degraded", "Scrypted svarer med en midlertidig begrænsning", checked_at, {"configured": True, "check": "http", "response_class": "rate_limited"})
+        if 500 <= response.status_code <= 599:
+            return _item("scrypted", "Scrypted", "unavailable", "Scrypted svarer ikke", checked_at, {"configured": True, "check": "http", "response_class": "server"})
+        return _item("scrypted", "Scrypted", "degraded", "Scrypted-forbindelsen kræver opsætning", checked_at, {"configured": True, "check": "http", "response_class": "redirect" if response.is_redirect else "response"})
     except (httpx.HTTPError, OSError, RuntimeError):
-        return _item("scrypted", "Scrypted", "unavailable", "Scrypted svarer ikke", checked_at, {"configured": True, "check": "http"})
+        return _item("scrypted", "Scrypted", "unavailable", "Scrypted svarer ikke", checked_at, {"configured": True, "check": "http", "response_class": "transport"})
     except ValueError:
         return _item("scrypted", "Scrypted", "degraded", "Scrypted-konfigurationen kræver opmærksomhed", checked_at, {"configured": True, "check": "configuration"})
 
@@ -74,9 +90,23 @@ def _electricity_prices(checked_at, home_assistant):
         return _item("electricity_prices", "Strømpriser", "degraded", "Strømpriser kunne ikke kontrolleres", checked_at, {"configured": False, "check": "entity"})
     if not entity:
         return _item("electricity_prices", "Strømpriser", "not_configured", "Strømpriser er ikke konfigureret", checked_at, {"configured": False})
-    if home_assistant["state"] == "connected":
-        return _item("electricity_prices", "Strømpriser", "healthy", "Strømpriser er klar", checked_at, {"configured": True, "check": "entity"})
-    return _item("electricity_prices", "Strømpriser", "unavailable", "Strømpriser er midlertidigt utilgængelige", checked_at, {"configured": True, "check": "entity"})
+    if home_assistant["state"] != "connected":
+        return _item("electricity_prices", "Strømpriser", "unavailable", "Strømpriser er midlertidigt utilgængelige", checked_at, {"configured": True, "check": "entity", "response_class": "upstream"})
+    try:
+        connection = load_home_assistant_connection()
+        if connection is None:
+            raise HomeAssistantUnavailable(response_class="transport")
+        payload = HomeAssistantClient(connection).get_json(f"/api/states/{quote(entity, safe='')}")
+        state = str(payload.get("state") if isinstance(payload, dict) else "").strip().lower()
+        if state in {"", "unknown", "unavailable"}:
+            return _item("electricity_prices", "Strømpriser", "degraded", "Strømpriser kræver opmærksomhed", checked_at, {"configured": True, "check": "entity", "response_class": "state"})
+        return _item("electricity_prices", "Strømpriser", "healthy", "Strømpriser er klar", checked_at, {"configured": True, "check": "entity", "response_class": "success"})
+    except HomeAssistantUnavailable as exc:
+        if exc.response_class == "transport":
+            return _item("electricity_prices", "Strømpriser", "unavailable", "Strømpriser er midlertidigt utilgængelige", checked_at, {"configured": True, "check": "entity", "response_class": "transport"})
+        return _item("electricity_prices", "Strømpriser", "degraded", "Strømpriser kræver opmærksomhed", checked_at, {"configured": True, "check": "entity", "response_class": "not_found" if exc.response_class == "not_found" else "response"})
+    except (OSError, RuntimeError, ValueError, TypeError):
+        return _item("electricity_prices", "Strømpriser", "degraded", "Strømpriser kunne ikke kontrolleres", checked_at, {"configured": True, "check": "entity", "response_class": "response"})
 
 
 def _jarvis(checked_at):
