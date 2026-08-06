@@ -275,6 +275,7 @@ def test_guidance_is_fixed_complete_and_private():
 def test_admin_frontend_contract():
     html = (ROOT / "app/static/admin.html").read_text(encoding="utf-8")
     javascript = (ROOT / "app/static/js/admin-connections.js").read_text(encoding="utf-8")
+    page_javascript = (ROOT / "app/static/js/admin-page.js").read_text(encoding="utf-8")
     combined = html + javascript
     assert 'id="integrationStatusCards"' in html
     for label in ("Home Assistant", "Scrypted", "Strømpriser", "Jarvis"):
@@ -303,6 +304,36 @@ def test_admin_frontend_contract():
     assert "Sidst opdateret" in javascript
     for forbidden in ("innerHTML", "insertAdjacentHTML", "onclick=", "onchange=", "eval("):
         assert forbidden not in javascript
+
+    assert javascript.count('getJson("/api/admin/integrations/status", { credentials: "same-origin" })') == 1
+    assert "updateIntegrationAttention(result.integrations)" in javascript
+    catch_block = javascript.split("} catch (_error) {", 1)[1].split("} finally {", 1)[0]
+    assert "updateIntegrationAttention" not in catch_block
+    assert "target.replaceChildren" in catch_block and "if (!hasValidIntegrationStatus)" in catch_block
+
+    assert 'unavailable: { rank: 0, tone: "critical", label: "Kritisk" }' in page_javascript
+    assert 'degraded: { rank: 1, tone: "warning", label: "Advarsel" }' in page_javascript
+    assert 'not_configured: { rank: 2, tone: "information", label: "Information" }' in page_javascript
+    assert "connected:" not in page_javascript.split("const integrationAttentionSeverity", 1)[1].split("};", 1)[0]
+    assert "healthy:" not in page_javascript.split("const integrationAttentionSeverity", 1)[1].split("};", 1)[0]
+    for ordered_name in ('"Home Assistant": 0', "Scrypted: 1", "Strømpriser: 2", "Jarvis: 3"):
+        assert ordered_name in page_javascript
+    assert "left.severity.rank - right.severity.rank" in page_javascript
+    assert "integrationAttentionNameOrder[left.displayName] - integrationAttentionNameOrder[right.displayName]" in page_javascript
+    assert 'const { display_name: displayName, state, summary, action_label: actionLabel, action_hint: actionHint }' in page_javascript
+    assert "technical_detail" not in page_javascript
+    assert "response_class" not in page_javascript
+    assert "item.state" not in page_javascript
+    assert 'element("span", "", `${item.severity.label}: ${item.summary}`)' in page_javascript
+    assert 'element("span", "", item.actionLabel)' in page_javascript
+    assert 'element("span", "", item.actionHint)' in page_javascript
+    assert 'element("button", "secondary attention-action", "Åbn forbindelser")' in page_javascript
+    assert 'button.setAttribute("aria-label", `Åbn forbindelser for ${item.displayName}`)' in page_javascript
+    assert 'button.addEventListener("click", () => showAdminSection("connections"))' in page_javascript
+    assert "overviewAttentionBaseItems = items.slice(0, 4)" in page_javascript
+    assert "const nodes = [...baseNodes, ...integrationNodes]" in page_javascript
+    for forbidden in ("innerHTML", "insertAdjacentHTML", "onclick=", "onchange=", "eval("):
+        assert forbidden not in page_javascript
 
 
 def test():

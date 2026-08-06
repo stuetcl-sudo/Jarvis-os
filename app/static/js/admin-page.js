@@ -93,6 +93,73 @@ function renderOverviewBanner(data) {
   banner.replaceChildren(element("strong", "", title), element("span", "", detail));
 }
 
+let overviewAttentionBaseItems = [];
+let integrationAttentionItems = [];
+
+const integrationAttentionSeverity = {
+  unavailable: { rank: 0, tone: "critical", label: "Kritisk" },
+  degraded: { rank: 1, tone: "warning", label: "Advarsel" },
+  not_configured: { rank: 2, tone: "information", label: "Information" },
+};
+
+const integrationAttentionNameOrder = {
+  "Home Assistant": 0,
+  Scrypted: 1,
+  Strømpriser: 2,
+  Jarvis: 3,
+};
+
+function renderCombinedOverviewAttention() {
+  const baseNodes = overviewAttentionBaseItems.map((item) => {
+    const row = element("div", "attention-item");
+    const text = document.createElement("div");
+    text.append(element("strong", "", item.title), element("span", "", item.detail));
+    const button = element("button", "secondary attention-action", item.label);
+    button.type = "button";
+    button.addEventListener("click", () => showAdminSection(item.section));
+    row.append(text, button);
+    return row;
+  });
+  const integrationNodes = integrationAttentionItems.map((item) => {
+    const row = element("div", `attention-item ${item.severity.tone}`);
+    const text = document.createElement("div");
+    text.append(
+      element("strong", "", item.displayName),
+      element("span", "", `${item.severity.label}: ${item.summary}`),
+    );
+    if (item.actionLabel) text.append(element("span", "", item.actionLabel));
+    if (item.actionHint) text.append(element("span", "", item.actionHint));
+    const button = element("button", "secondary attention-action", "Åbn forbindelser");
+    button.type = "button";
+    button.setAttribute("aria-label", `Åbn forbindelser for ${item.displayName}`);
+    button.addEventListener("click", () => showAdminSection("connections"));
+    row.append(text, button);
+    return row;
+  });
+  const nodes = [...baseNodes, ...integrationNodes];
+  replaceContent("overviewAttention", nodes.length ? nodes : [emptyState("Der er ikke noget, som kræver din opmærksomhed lige nu.")]);
+}
+
+function updateIntegrationAttention(integrations) {
+  integrationAttentionItems = (Array.isArray(integrations) ? integrations : [])
+    .map((item) => {
+      const { display_name: displayName, state, summary, action_label: actionLabel, action_hint: actionHint } = item || {};
+      const severity = integrationAttentionSeverity[state];
+      if (!severity || !Object.hasOwn(integrationAttentionNameOrder, displayName) || typeof summary !== "string") return null;
+      return {
+        displayName,
+        summary,
+        actionLabel: typeof actionLabel === "string" ? actionLabel : "",
+        actionHint: typeof actionHint === "string" ? actionHint : "",
+        severity,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.severity.rank - right.severity.rank
+      || integrationAttentionNameOrder[left.displayName] - integrationAttentionNameOrder[right.displayName]);
+  renderCombinedOverviewAttention();
+}
+
 function renderOverviewAttention(data, brain) {
   const items = [];
   const pending = actionRows.filter((action) => ["waiting_approval", "queued", "approved"].includes(action.status));
@@ -128,17 +195,8 @@ function renderOverviewAttention(data, brain) {
       label: "Se anbefalinger",
     });
   }
-  const nodes = items.slice(0, 4).map((item) => {
-    const row = element("div", "attention-item");
-    const text = document.createElement("div");
-    text.append(element("strong", "", item.title), element("span", "", item.detail));
-    const button = element("button", "secondary attention-action", item.label);
-    button.type = "button";
-    button.addEventListener("click", () => showAdminSection(item.section));
-    row.append(text, button);
-    return row;
-  });
-  replaceContent("overviewAttention", nodes.length ? nodes : [emptyState("Der er ikke noget, som kræver din opmærksomhed lige nu.")]);
+  overviewAttentionBaseItems = items.slice(0, 4);
+  renderCombinedOverviewAttention();
 }
 
 function renderSystemHealth(health) {
