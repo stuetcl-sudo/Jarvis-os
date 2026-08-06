@@ -8,7 +8,7 @@ readonly APP_URL="http://127.0.0.1:18088"
 
 branch_allowed() {
   case "$1" in
-    main|fix/*|test/*) return 0 ;;
+    main|fix/*|test/*|release/*) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -156,7 +156,7 @@ cd "$ROOT_DIR"
 repository_root="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "must run inside the Jarvis-os repository"
 [[ "$(cd "$repository_root" && pwd -P)" == "$(pwd -P)" ]] || fail "script root is not the Jarvis-os repository root"
 current_branch="$(git symbolic-ref --quiet --short HEAD)" || fail "detached HEAD is not allowed"
-branch_allowed "$current_branch" || fail "branch '$current_branch' is not allowed; use main, fix/*, or test/*"
+branch_allowed "$current_branch" || fail "branch '$current_branch' is not allowed; use main, fix/*, test/*, or release/*"
 [[ "$(docker compose -p "$PROJECT" -f "$COMPOSE_FILE" config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')" == "$PROJECT" ]] || fail "Compose project name mismatch"
 rendered="$(compose_config)"
 [[ "$rendered" != *'/var/run/docker.sock'* ]] || fail "host Docker socket mount found"

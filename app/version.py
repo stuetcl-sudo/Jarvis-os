@@ -1,3 +1,3 @@
 """Jarvis-os release and build version information."""
 
-VERSION = "0.20.0-alpha.1"
+VERSION = "0.20.0-alpha.2"
