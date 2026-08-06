@@ -479,6 +479,7 @@ async function loadIntegrationStatus({ manual = false } = {}) {
   try {
     const result = await getJson("/api/admin/integrations/status", { credentials: "same-origin" });
     target.replaceChildren(...result.integrations.map(integrationCard));
+    updateIntegrationAttention(result.integrations);
     hasValidIntegrationStatus = true;
     if (manual) feedback.textContent = "Status er opdateret.";
   } catch (_error) {
