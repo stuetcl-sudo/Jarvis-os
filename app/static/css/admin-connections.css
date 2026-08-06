@@ -18,6 +18,25 @@ body {
   gap: 14px;
 }
 
+.integration-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.integration-status-card {
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background: rgba(148, 163, 184, 0.05);
+}
+
+.integration-status-card h4,
+.integration-status-card p { margin: 0; }
+.integration-status-card .status { margin-left: 8px; }
+.integration-status-card details { margin-top: 12px; }
+.integration-status-card time { display: block; margin-top: 10px; color: var(--admin-muted); font-size: 13px; }
+
 .connection-setup-form > .filter-label,
 .connection-setup-form input,
 .connection-setup-form select {
