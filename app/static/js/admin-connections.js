@@ -391,6 +391,37 @@ const supportedIntegrationNames = {
   jarvis: "Jarvis",
 };
 
+const technicalKeyLabels = {
+  configured: "Konfigureret",
+  check: "Kontrol",
+  warning_count: "Antal advarsler",
+  response_class: "Svarstatus",
+};
+
+const technicalValueLabels = {
+  configured: { true: "Ja", false: "Nej" },
+  check: { api: "Home Assistant API", http: "Forbindelseskontrol", entity: "Sensorkontrol", health: "Systemkontrol", configuration: "Konfiguration" },
+  response_class: {
+    success: "Svar modtaget",
+    authentication: "Login kræver opmærksomhed",
+    not_found: "Ikke fundet",
+    rate_limited: "Midlertidigt begrænset",
+    server: "Tjenesten svarer med fejl",
+    redirect: "Viderestilling afvist",
+    response: "Uventet svar",
+    transport: "Forbindelse mislykkedes",
+    upstream: "Afhænger af en utilgængelig tjeneste",
+    state: "Ugyldig sensorstatus",
+  },
+};
+
+function safeTechnicalValue(key, value) {
+  if (!Object.hasOwn(technicalKeyLabels, key)) return null;
+  if (key === "warning_count" && Number.isInteger(value) && value >= 0) return String(value);
+  if ((typeof value !== "string" && typeof value !== "boolean") || !Object.hasOwn(technicalValueLabels[key] || {}, String(value))) return null;
+  return technicalValueLabels[key][String(value)];
+}
+
 function relativeChecked(value) {
   const checked = Date.parse(value);
   if (!Number.isFinite(checked)) return "Sidst opdateret: ukendt";
@@ -405,34 +436,61 @@ function integrationCard(item) {
   const heading = element("h4", "", supportedIntegrationNames[item.key] || item.display_name);
   heading.append(element("span", `status ${safeClassToken(item.state)}`, integrationStateLabels[item.state] || "Ukendt"));
   const summary = element("p", "large-text", item.summary);
+  const guidance = item.action_label && item.action_hint
+    ? element("div", "integration-guidance")
+    : null;
+  if (guidance) guidance.append(element("strong", "", item.action_label), element("p", "panel-help", item.action_hint));
   const checked = element("time", "", relativeChecked(item.last_checked));
   checked.dateTime = item.last_checked;
-  card.append(heading, summary, checked);
+  card.append(heading, summary);
+  if (guidance) card.append(guidance);
+  card.append(checked);
   if (item.technical_detail) {
     const details = element("details");
-    details.append(element("summary", "", "Vis tekniske detaljer"));
+    details.append(element("summary", "", "Tekniske detaljer"));
     const list = element("dl", "access-list");
     Object.entries(item.technical_detail).forEach(([key, value]) => {
+      const safeValue = safeTechnicalValue(key, value);
+      if (safeValue === null) return;
       const row = element("div");
-      row.append(element("dt", "", key), element("dd", "", value));
+      row.append(element("dt", "", technicalKeyLabels[key]), element("dd", "", safeValue));
       list.append(row);
     });
-    details.append(list);
-    card.append(details);
+    if (list.childElementCount > 0) {
+      details.append(list);
+      card.append(details);
+    }
   }
   return card;
 }
 
-async function loadIntegrationStatus() {
+let integrationRefreshActive = false;
+let hasValidIntegrationStatus = false;
+
+async function loadIntegrationStatus({ manual = false } = {}) {
+  if (integrationRefreshActive) return;
   const target = document.getElementById("integrationStatusCards");
+  const button = document.getElementById("integrationRefreshButton");
+  const feedback = document.getElementById("integrationRefreshFeedback");
+  integrationRefreshActive = true;
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  if (manual) feedback.textContent = "Opdaterer status…";
   try {
-    const result = await getJson("/api/admin/integrations/status");
+    const result = await getJson("/api/admin/integrations/status", { credentials: "same-origin" });
     target.replaceChildren(...result.integrations.map(integrationCard));
+    hasValidIntegrationStatus = true;
+    if (manual) feedback.textContent = "Status er opdateret.";
   } catch (_error) {
-    target.replaceChildren(element("p", "muted", "Integrationsstatus kunne ikke hentes."));
+    if (!hasValidIntegrationStatus) target.replaceChildren(element("p", "muted", "Integrationsstatus kunne ikke hentes."));
+    if (manual) feedback.textContent = "Status kunne ikke opdateres. Prøv igen senere.";
+  } finally {
+    integrationRefreshActive = false;
+    button.disabled = false;
+    button.setAttribute("aria-busy", "false");
   }
 }
 
 initializeHomeAssistantSetup();
 loadIntegrationStatus();
-document.getElementById("refreshButton").addEventListener("click", loadIntegrationStatus);
+document.getElementById("integrationRefreshButton").addEventListener("click", () => loadIntegrationStatus({ manual: true }));

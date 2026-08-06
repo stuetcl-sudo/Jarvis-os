@@ -18,6 +18,33 @@ from app.home_assistant import (
 
 ALLOWED_STATES = frozenset({"connected", "unavailable", "not_configured", "degraded", "healthy"})
 TECHNICAL_KEYS = frozenset({"check", "configured", "warning_count", "response_class"})
+ALLOWED_RESPONSE_CLASSES = frozenset({
+    "success",
+    "authentication",
+    "not_found",
+    "rate_limited",
+    "server",
+    "redirect",
+    "response",
+    "transport",
+    "upstream",
+    "state",
+})
+
+GUIDANCE = {
+    ("home_assistant", "not_configured", None): ("Opsæt Home Assistant", "Tilføj forbindelsen under opsætning."),
+    ("home_assistant", "degraded", "authentication"): ("Kontrollér login", "Forbindelsen er gemt, men loginoplysningerne skal kontrolleres."),
+    ("home_assistant", "degraded", None): ("Kontrollér opsætningen", "Kontrollér den gemte Home Assistant-opsætning."),
+    ("home_assistant", "unavailable", None): ("Kontrollér forbindelsen", "Kontrollér at Home Assistant kører og kan nås fra Jarvis."),
+    ("scrypted", "not_configured", None): ("Opsæt Scrypted", "Tilføj Scrypted-forbindelsen under opsætning."),
+    ("scrypted", "degraded", "authentication"): ("Kontrollér login", "Forbindelsen er gemt, men loginoplysningerne skal kontrolleres."),
+    ("scrypted", "degraded", None): ("Kontrollér opsætningen", "Kontrollér den gemte Scrypted-opsætning."),
+    ("scrypted", "unavailable", None): ("Kontrollér Scrypted", "Kontrollér at Scrypted kører og kan nås fra Jarvis."),
+    ("electricity_prices", "not_configured", None): ("Vælg strømprissensor", "Vælg den sensor, der leverer strømpriser."),
+    ("electricity_prices", "degraded", None): ("Kontrollér sensoren", "Kontrollér at den valgte strømprissensor leverer en gyldig værdi."),
+    ("electricity_prices", "unavailable", None): ("Kontrollér Home Assistant", "Kontrollér Home Assistant-forbindelsen, før strømpriser kontrolleres igen."),
+    ("jarvis", "degraded", None): ("Se systemstatus", "Se systemstatus for flere sikre oplysninger."),
+}
 
 
 def _item(key, name, state, summary, checked_at, technical_detail=None):
@@ -25,14 +52,22 @@ def _item(key, name, state, summary, checked_at, technical_detail=None):
         field: value for field, value in (technical_detail or {}).items()
         if field in TECHNICAL_KEYS and isinstance(value, (str, int, bool))
     }
-    return {
+    if detail.get("response_class") not in ALLOWED_RESPONSE_CLASSES:
+        detail.pop("response_class", None)
+    safe_state = state if state in ALLOWED_STATES else "unavailable"
+    response_class = detail.get("response_class")
+    guidance = GUIDANCE.get((key, safe_state, response_class)) or GUIDANCE.get((key, safe_state, None))
+    item = {
         "key": key,
         "display_name": name,
-        "state": state if state in ALLOWED_STATES else "unavailable",
+        "state": safe_state,
         "summary": summary,
         "last_checked": checked_at,
         "technical_detail": detail or None,
     }
+    if guidance:
+        item["action_label"], item["action_hint"] = guidance
+    return item
 
 
 def _home_assistant(checked_at):
