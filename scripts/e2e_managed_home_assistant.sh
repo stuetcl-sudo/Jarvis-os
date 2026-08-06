@@ -2,10 +2,23 @@
 set -Eeuo pipefail
 
 readonly PROJECT="jarvis-managed-ha-e2e"
-readonly EXPECTED_BRANCH="fix/v0.20.0-alpha.2-managed-ha-labels"
 readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly COMPOSE_FILE="$ROOT_DIR/compose.e2e-managed-home-assistant.yml"
 readonly APP_URL="http://127.0.0.1:18088"
+
+branch_allowed() {
+  case "$1" in
+    main|fix/*|test/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+if [[ "${1:-}" == "--check-branch" ]]; then
+  [[ $# -eq 2 ]] || { printf 'Usage: %s --check-branch BRANCH\n' "$0" >&2; exit 2; }
+  branch_allowed "$2"
+  exit $?
+fi
+
 readonly COOKIE_FILE="$(mktemp)"
 readonly HEADER_FILE="$(mktemp)"
 readonly RESPONSE_FILE="$(mktemp)"
@@ -140,7 +153,10 @@ PY
 }
 
 cd "$ROOT_DIR"
-[[ "$(git branch --show-current)" == "$EXPECTED_BRANCH" ]] || fail "must run on $EXPECTED_BRANCH"
+repository_root="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "must run inside the Jarvis-os repository"
+[[ "$(cd "$repository_root" && pwd -P)" == "$(pwd -P)" ]] || fail "script root is not the Jarvis-os repository root"
+current_branch="$(git symbolic-ref --quiet --short HEAD)" || fail "detached HEAD is not allowed"
+branch_allowed "$current_branch" || fail "branch '$current_branch' is not allowed; use main, fix/*, or test/*"
 [[ "$(docker compose -p "$PROJECT" -f "$COMPOSE_FILE" config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')" == "$PROJECT" ]] || fail "Compose project name mismatch"
 rendered="$(compose_config)"
 [[ "$rendered" != *'/var/run/docker.sock'* ]] || fail "host Docker socket mount found"
