@@ -96,6 +96,34 @@ check_live_redirect() {
   echo "OK: ${path} redirects to ${expected_location}"
 }
 
+check_live_login() {
+  local response_file="/tmp/jarvis-validate-login-page.txt"
+  local headers_file="/tmp/jarvis-validate-login-headers.txt"
+  local code
+  local location
+
+  code=$(curl -sS -D "$headers_file" -o "$response_file" -w "%{http_code}" --max-time 10 "${APP_URL}/login" || true)
+  if [ "$code" = "200" ]; then
+    if ! grep -Fq -- "Log ind på Jarvis" "$response_file"; then
+      echo "ERROR: ${APP_URL}/login returned HTTP 200 without the expected login-page content."
+      return 1
+    fi
+    echo "OK: login page returned HTTP 200 with expected marker"
+    return 0
+  fi
+  if [ "$code" = "303" ]; then
+    location=$(awk 'BEGIN {IGNORECASE=1} /^Location:/ {sub(/\r$/, "", $2); print $2}' "$headers_file" | tail -n 1)
+    if [ "$location" = "/bootstrap" ]; then
+      echo "OK: login redirects to /bootstrap for initial setup"
+      return 0
+    fi
+    echo "ERROR: ${APP_URL}/login returned unapproved Location ${location:-missing}."
+    return 1
+  fi
+  echo "ERROR: ${APP_URL}/login returned HTTP ${code}; expected 200 or approved 303."
+  return 1
+}
+
 if command -v python3 >/dev/null 2>&1; then
   PYTHON_BIN="python3"
 elif command -v python >/dev/null 2>&1; then
@@ -103,6 +131,11 @@ elif command -v python >/dev/null 2>&1; then
 else
   PYTHON_BIN=""
   echo "WARNING: no host Python found; endpoint checks continue."
+fi
+
+if [ "${VALIDATE_LOGIN_ONLY:-false}" = "true" ]; then
+  check_live_login
+  exit $?
 fi
 
 echo "[1/10] Running privacy check"
@@ -181,7 +214,7 @@ check_live_json_status "/api/family/weather" "family weather API" "weather"
 check_live_json_status "/api/family/calendar" "family calendar API" "calendar"
 check_live_route "/api/family/routines" "family routines API" '"status":"authentication_required"'
 check_live_status_code "/api/family/safety-status" "401" "protected family safety API"
-check_live_route "/login" "login page" "Log ind på Jarvis"
+check_live_login || fail "Live login route check failed."
 check_live_redirect "/admin" "/login?next=/admin"
 check_live_redirect "/setup" "/login?next=/setup"
 check_live_route "/static/admin.html" "home administration static page" "Hjemmets administration"

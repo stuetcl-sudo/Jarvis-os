@@ -376,4 +376,63 @@ function initializeHomeAssistantSetup() {
   loadHomeAssistantSummary();
 }
 
+const integrationStateLabels = {
+  connected: "Forbundet",
+  unavailable: "Utilgængelig",
+  not_configured: "Ikke konfigureret",
+  degraded: "Kræver opmærksomhed",
+  healthy: "Klar",
+};
+
+const supportedIntegrationNames = {
+  home_assistant: "Home Assistant",
+  scrypted: "Scrypted",
+  electricity_prices: "Strømpriser",
+  jarvis: "Jarvis",
+};
+
+function relativeChecked(value) {
+  const checked = Date.parse(value);
+  if (!Number.isFinite(checked)) return "Sidst opdateret: ukendt";
+  const minutes = Math.max(0, Math.floor((Date.now() - checked) / 60000));
+  if (minutes === 0) return "Sidst opdateret lige nu";
+  if (minutes === 1) return "Sidst opdateret for 1 minut siden";
+  return `Sidst opdateret for ${minutes} minutter siden`;
+}
+
+function integrationCard(item) {
+  const card = element("article", "integration-status-card");
+  const heading = element("h4", "", supportedIntegrationNames[item.key] || item.display_name);
+  heading.append(element("span", `status ${safeClassToken(item.state)}`, integrationStateLabels[item.state] || "Ukendt"));
+  const summary = element("p", "large-text", item.summary);
+  const checked = element("time", "", relativeChecked(item.last_checked));
+  checked.dateTime = item.last_checked;
+  card.append(heading, summary, checked);
+  if (item.technical_detail) {
+    const details = element("details");
+    details.append(element("summary", "", "Vis tekniske detaljer"));
+    const list = element("dl", "access-list");
+    Object.entries(item.technical_detail).forEach(([key, value]) => {
+      const row = element("div");
+      row.append(element("dt", "", key), element("dd", "", value));
+      list.append(row);
+    });
+    details.append(list);
+    card.append(details);
+  }
+  return card;
+}
+
+async function loadIntegrationStatus() {
+  const target = document.getElementById("integrationStatusCards");
+  try {
+    const result = await getJson("/api/admin/integrations/status");
+    target.replaceChildren(...result.integrations.map(integrationCard));
+  } catch (_error) {
+    target.replaceChildren(element("p", "muted", "Integrationsstatus kunne ikke hentes."));
+  }
+}
+
 initializeHomeAssistantSetup();
+loadIntegrationStatus();
+document.getElementById("refreshButton").addEventListener("click", loadIntegrationStatus);
