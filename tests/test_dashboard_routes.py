@@ -196,7 +196,8 @@ def test_validation_script_checks_protected_live_v010_deployment():
     assert 'check_live_json_status "/api/family/calendar" "family calendar API" "calendar"' in script
     assert '"status":"not_configured"' not in script
     assert 'check_live_route "/api/family/routines" "family routines API" \'"status":"authentication_required"\'' in script
-    assert 'check_live_route "/login" "login page" "Log ind på Jarvis"' in script
+    assert 'check_live_login || fail "Live login route check failed."' in script
+    assert 'if [ "$location" = "/bootstrap" ]' in script
     assert 'check_live_redirect "/admin" "/login?next=/admin"' in script
     assert 'check_live_route "/static/admin.html" "home administration static page" "Hjemmets administration"' in script
     assert '"weather": {"ok", "stale", "not_configured", "unavailable"}' in helper
