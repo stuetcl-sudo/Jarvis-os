@@ -368,6 +368,90 @@ def test_managed_install_plan_access_csrf_fixed_values_and_setup_state():
         cleanup(folder, previous_path, previous_secure, client)
 
 
+def test_managed_onboarding_access_fixed_url_token_security_and_readiness():
+    for role, expected in ((None, 401), ("adult", 403)):
+        values = build_client(role)
+        folder, previous_path, previous_secure, client, user = values
+        try:
+            headers = {"X-CSRF-Token": user["csrf_token"]} if user else {}
+            assert client.get(
+                "/api/admin/setup/home-assistant/managed/onboarding"
+            ).status_code == expected
+            assert client.post(
+                "/api/admin/setup/home-assistant/managed/test",
+                headers=headers,
+                json={"token": "example"},
+            ).status_code == expected
+        finally:
+            cleanup(folder, previous_path, previous_secure, client)
+
+    values = build_client("owner")
+    folder, previous_path, previous_secure, client, user = values
+    headers = {"X-CSRF-Token": user["csrf_token"]}
+    previous_master_key = os.environ.get("CONFIG_MASTER_KEY")
+    os.environ["CONFIG_MASTER_KEY"] = "managed-access-test-key"
+    token = "managed-example-secret"
+    try:
+        home_setup.save_home_settings("Mit hjem", "Europe/Copenhagen", "Ejer", db_path=config.DB_PATH)
+        home_setup.complete_setup(db_path=config.DB_PATH)
+        settings_store.set_setting(
+            managed_home_assistant_installer.STATE_SETTING,
+            managed_home_assistant_installer.INSTALLED,
+            db_path=config.DB_PATH,
+        )
+        assert client.get("/api/admin/setup/status").json()["state"] == "home_assistant_required"
+        assert client.post(
+            "/api/admin/setup/home-assistant/managed/save", json={"token": token}
+        ).status_code == 403
+
+        seen_urls = []
+
+        def valid_connection(base_url, supplied_token, timeout_seconds):
+            seen_urls.append(base_url)
+            assert supplied_token == token
+            return {"connected": True, "code": "connected", "message": "Forbindelsen virker"}
+
+        with patch(
+            "app.setup_routes.home_assistant_setup.test_connection",
+            side_effect=valid_connection,
+        ):
+            tested = client.post(
+                "/api/admin/setup/home-assistant/managed/test",
+                headers=headers,
+                json={"token": token},
+            )
+            saved = client.post(
+                "/api/admin/setup/home-assistant/managed/save",
+                headers=headers,
+                json={"token": token},
+            )
+        assert tested.status_code == 200
+        assert saved.status_code == 200
+        assert seen_urls == [
+            managed_home_assistant_installer.EXPECTED_LOCAL_URL,
+            managed_home_assistant_installer.EXPECTED_LOCAL_URL,
+        ]
+        assert token not in tested.text
+        assert token not in saved.text
+        assert saved.json()["setup"]["state"] == "ready"
+        assert settings_store.get_setting("home_assistant.base_url", db_path=config.DB_PATH) == managed_home_assistant_installer.EXPECTED_LOCAL_URL
+        assert settings_store.get_secret("home_assistant.token", db_path=config.DB_PATH) == token
+
+        override = client.post(
+            "/api/admin/setup/home-assistant/managed/test",
+            headers=headers,
+            json={"token": token, "base_url": "https://attacker.example"},
+        )
+        assert override.status_code == 400
+        assert override.json()["detail"]["code"] == "managed_token_request_invalid"
+    finally:
+        if previous_master_key is None:
+            os.environ.pop("CONFIG_MASTER_KEY", None)
+        else:
+            os.environ["CONFIG_MASTER_KEY"] = previous_master_key
+        cleanup(folder, previous_path, previous_secure, client)
+
+
 def test():
     test_anonymous_setup_access_is_rejected()
     test_family_roles_cannot_access_setup()
@@ -376,6 +460,7 @@ def test():
     test_home_assistant_api_errors_are_stable_safe_and_do_not_overwrite()
     test_valid_save_is_secret_free_persists_and_makes_setup_ready()
     test_managed_install_plan_access_csrf_fixed_values_and_setup_state()
+    test_managed_onboarding_access_fixed_url_token_security_and_readiness()
     print("Setup access tests OK")
 
 

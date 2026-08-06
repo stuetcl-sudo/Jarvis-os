@@ -7,6 +7,7 @@ from app import (
     home_entity_settings,
     home_setup,
     managed_home_assistant_installer,
+    managed_home_assistant_onboarding,
     settings_store,
 )
 from app.setup_state import setup_status
@@ -40,6 +41,20 @@ class HomeSettingsPayload(BaseModel):
     home_name: str
     timezone: str
     owner_name: str
+
+
+def _managed_token(payload):
+    if not isinstance(payload, dict) or set(payload) != {"token"}:
+        raise home_assistant_setup.HomeAssistantSetupError(
+            "managed_token_request_invalid",
+            "Anmodningen må kun indeholde Home Assistant-tokenet.",
+        )
+    token = payload.get("token")
+    if not isinstance(token, str):
+        raise home_assistant_setup.HomeAssistantSetupError(
+            "token_invalid", "Home Assistant-tokenet er ugyldigt"
+        )
+    return token
 
 
 def _connection_values(payload=None):
@@ -131,6 +146,20 @@ def managed_home_assistant_status():
         ) from exc
 
 
+@router.get("/home-assistant/managed/onboarding")
+def managed_home_assistant_onboarding_status():
+    try:
+        return managed_home_assistant_onboarding.managed_onboarding_status(db_path=config.DB_PATH)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "managed_onboarding_status_unavailable",
+                "message": "Onboardingstatus for Home Assistant kunne ikke hentes.",
+            },
+        ) from exc
+
+
 @router.post("/home-assistant/managed/plan")
 def request_managed_home_assistant_plan(payload: object = Body(default=None)):
     try:
@@ -167,6 +196,38 @@ def request_managed_home_assistant_installation(payload: object = Body(default=N
                 "message": "Installationsanmodningen kunne ikke gemmes.",
             },
         ) from exc
+
+
+@router.post("/home-assistant/managed/test")
+def test_managed_home_assistant_connection(payload: object = Body(...)):
+    try:
+        token = _managed_token(payload)
+        return home_assistant_setup.test_connection(
+            managed_home_assistant_onboarding.MANAGED_URL,
+            token,
+            managed_home_assistant_onboarding.PROBE_TIMEOUT_SECONDS,
+        )
+    except (ValueError, RuntimeError) as exc:
+        _ha_error(exc)
+
+
+@router.post("/home-assistant/managed/save")
+def save_managed_home_assistant_connection(payload: object = Body(...)):
+    try:
+        token = _managed_token(payload)
+        result = home_assistant_setup.test_connection(
+            managed_home_assistant_onboarding.MANAGED_URL,
+            token,
+            managed_home_assistant_onboarding.PROBE_TIMEOUT_SECONDS,
+        )
+        summary = home_assistant_setup.save_connection(
+            managed_home_assistant_onboarding.MANAGED_URL,
+            token,
+            db_path=config.DB_PATH,
+        )
+    except (ValueError, RuntimeError) as exc:
+        _ha_error(exc)
+    return {**summary, **result, "setup": setup_status(db_path=config.DB_PATH)}
 
 
 def _ha_error(exc):

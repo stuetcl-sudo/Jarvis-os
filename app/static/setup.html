@@ -91,6 +91,25 @@
           <div class="summary-card"><dt>Forventet lokal adresse</dt><dd id="setupManagedUrl"></dd></div>
           <div class="summary-card"><dt>Afgrænsning</dt><dd id="setupManagedIsolation"></dd></div>
         </dl>
+        <section id="setupManagedOnboarding" hidden>
+          <h3>Gør Home Assistant klar</h3>
+          <p id="setupManagedOnboardingStatus" class="setup-inline-status"></p>
+          <a id="setupManagedOpenHomeAssistant" class="button-link secondary-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Åbn Home Assistant i en ny fane</a>
+          <ol id="setupManagedOnboardingSteps" class="setup-help" hidden>
+            <li>Åbn Home Assistant og opret den første ejerkonto. Adgangskoden bliver kun hos Home Assistant.</li>
+            <li>Når onboarding er færdig, åbn din brugerprofil nederst i Home Assistant-menuen.</li>
+            <li>Find “Langtidsadgangstokens”, vælg “Opret token”, og kopiér tokenet.</li>
+            <li>Vend tilbage til Jarvis, indsæt tokenet nedenfor, test det, og gem forbindelsen.</li>
+          </ol>
+          <label id="setupManagedTokenLabel" hidden>Langtidsadgangstoken
+            <input id="setupManagedHaToken" type="password" autocomplete="new-password" placeholder="Indsæt token fra Home Assistant" />
+          </label>
+          <p id="setupManagedTokenStatus" class="setup-inline-status" hidden>Tokenet vises eller udfyldes aldrig igen.</p>
+          <div id="setupManagedTokenActions" class="setup-actions left" hidden>
+            <button id="setupManagedTestTokenButton" type="button" class="secondary">Test token</button>
+            <button id="setupManagedSaveTokenButton" type="button">Gem og fortsæt</button>
+          </div>
+        </section>
       </div>
     </section>
 
