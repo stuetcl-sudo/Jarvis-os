@@ -1,10 +1,22 @@
-# Jarvis-os v0.20.0-alpha.2
+# Jarvis-os v0.21.0
 
 Jarvis-os is a local, private home dashboard with family views, local authentication, calendar, weather, routines, Home Assistant family content, Docker monitoring, system health and a safety-first Action Engine.
 
 The product direction for v1.0 is a flexible home dashboard that works without AI. Jarvis AI remains an optional future module rather than a requirement for the dashboard.
 
-Current development version: `0.20.0-alpha.2`.
+Current release version: `0.21.0`.
+
+## What is new in v0.21.0
+
+v0.21.0 adds safe, owner-only integration visibility to Administration without introducing automatic corrective actions.
+
+- Home Assistant, Scrypted, electricity prices and Jarvis have consistent, privacy-preserving status cards.
+- Status is based on actual service and configured-entity health checks rather than configuration presence alone.
+- Fixed Danish guidance explains safe next steps without exposing URLs, credentials, entity IDs or raw errors.
+- Owners can refresh integration status manually with same-origin credentials; no automatic integration polling is added.
+- Allowlisted technical details are available in secondary, collapsed sections.
+- Integration problems appear in the admin overview with deterministic severity and integration ordering.
+- Existing owner-only access, session protections and privacy boundaries remain unchanged.
 
 ## What is new in v0.20.0-alpha.1
 
