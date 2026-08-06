@@ -215,16 +215,61 @@ def test_contract_and_technical_detail_allowlist():
     for item in payload["integrations"]:
         assert item["state"] in status_service.ALLOWED_STATES
         datetime.fromisoformat(item["last_checked"])
-        assert set(item) == {"key", "display_name", "state", "summary", "last_checked", "technical_detail"}
+        base_fields = {"key", "display_name", "state", "summary", "last_checked", "technical_detail"}
+        assert base_fields <= set(item)
+        assert set(item) <= base_fields | {"action_label", "action_hint"}
     filtered = status_service._item("jarvis", "Jarvis", "healthy", "Jarvis kører normalt", CHECKED.isoformat(), {"check": "health", "url": "private", "token": "private"})
     assert filtered["technical_detail"] == {"check": "health"}
     assert "private" not in repr(filtered)
+
+    for response_class in status_service.ALLOWED_RESPONSE_CLASSES:
+        approved = status_service._item("scrypted", "Scrypted", "degraded", "Safe summary", CHECKED.isoformat(), {"response_class": response_class})
+        assert approved["technical_detail"]["response_class"] == response_class
 
     private = "unexpected-private-diagnostic"
     with patch("app.integration_status._home_assistant", side_effect=Exception(private)):
         fallback = status_service.integration_status(now=CHECKED)
     assert fallback["integrations"][0]["state"] == "unavailable"
     assert private not in repr(fallback)
+
+
+def test_guidance_is_fixed_complete_and_private():
+    checked = CHECKED.isoformat()
+    cases = [
+        ("home_assistant", "not_configured", None, "Opsæt Home Assistant"),
+        ("home_assistant", "degraded", "authentication", "Kontrollér login"),
+        ("home_assistant", "degraded", "response", "Kontrollér opsætningen"),
+        ("home_assistant", "unavailable", "transport", "Kontrollér forbindelsen"),
+        ("scrypted", "not_configured", None, "Opsæt Scrypted"),
+        ("scrypted", "degraded", "authentication", "Kontrollér login"),
+        ("scrypted", "degraded", "not_found", "Kontrollér opsætningen"),
+        ("scrypted", "degraded", "rate_limited", "Kontrollér opsætningen"),
+        ("scrypted", "unavailable", "server", "Kontrollér Scrypted"),
+        ("electricity_prices", "not_configured", None, "Vælg strømprissensor"),
+        ("electricity_prices", "degraded", "state", "Kontrollér sensoren"),
+        ("electricity_prices", "unavailable", "upstream", "Kontrollér Home Assistant"),
+        ("jarvis", "degraded", None, "Se systemstatus"),
+    ]
+    approved_labels = {value[0] for value in status_service.GUIDANCE.values()}
+    approved_hints = {value[1] for value in status_service.GUIDANCE.values()}
+    private_values = ("https://private.example", "secret-token", "sensor.private", "raw exception")
+    for key, state, response_class, expected_label in cases:
+        detail = {"response_class": response_class} if response_class else None
+        item = status_service._item(key, key, state, "Safe summary", checked, detail)
+        assert item["action_label"] == expected_label
+        assert item["action_label"] in approved_labels
+        assert item["action_hint"] in approved_hints
+        assert not any(private in item["action_label"] + item["action_hint"] for private in private_values)
+
+    for key, state in (("home_assistant", "connected"), ("scrypted", "connected"), ("electricity_prices", "healthy"), ("jarvis", "healthy")):
+        item = status_service._item(key, key, state, "Safe summary", checked)
+        assert "action_label" not in item and "action_hint" not in item
+
+    unapproved = status_service._item("scrypted", "Scrypted", "degraded", "Safe summary", checked, {"response_class": private_values[3]})
+    assert unapproved["action_label"] == "Kontrollér opsætningen"
+    assert private_values[3] not in unapproved["action_label"] + unapproved["action_hint"]
+    assert unapproved["technical_detail"] is None
+    assert private_values[3] not in repr(unapproved)
 
 
 def test_admin_frontend_contract():
@@ -234,8 +279,27 @@ def test_admin_frontend_contract():
     assert 'id="integrationStatusCards"' in html
     for label in ("Home Assistant", "Scrypted", "Strømpriser", "Jarvis"):
         assert label in combined
-    assert 'getJson("/api/admin/integrations/status")' in javascript
-    assert "Vis tekniske detaljer" in javascript
+    assert 'id="integrationRefreshButton"' in html
+    assert 'aria-label="Opdater status for integrationer"' in html
+    assert 'aria-busy="false"' in html
+    assert 'id="integrationRefreshFeedback"' in html
+    assert 'aria-live="polite"' in html
+    assert 'getJson("/api/admin/integrations/status", { credentials: "same-origin" })' in javascript
+    assert "if (integrationRefreshActive) return" in javascript
+    assert "button.disabled = true" in javascript
+    assert 'button.setAttribute("aria-busy", "true")' in javascript
+    assert "if (!hasValidIntegrationStatus)" in javascript
+    assert "Status kunne ikke opdateres. Prøv igen senere." in javascript
+    assert "_error.message" not in javascript
+    assert "Tekniske detaljer" in javascript
+    assert 'const details = element("details")' in javascript
+    assert ".open" not in javascript
+    assert "technicalKeyLabels" in javascript
+    assert "safeTechnicalValue" in javascript
+    assert "if (!Object.hasOwn(technicalKeyLabels, key)) return null" in javascript
+    assert "if (safeValue === null) return" in javascript
+    for key in ("configured", "check", "warning_count", "response_class"):
+        assert key in javascript
     assert "Sidst opdateret" in javascript
     for forbidden in ("innerHTML", "insertAdjacentHTML", "onclick=", "onchange=", "eval("):
         assert forbidden not in javascript
@@ -249,6 +313,7 @@ def test():
     test_electricity_entity_probe_mapping_and_privacy()
     test_jarvis_degraded_mappings()
     test_contract_and_technical_detail_allowlist()
+    test_guidance_is_fixed_complete_and_private()
     test_admin_frontend_contract()
     print("Admin integration status tests OK")
 

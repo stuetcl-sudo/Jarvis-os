@@ -36,6 +36,8 @@ body {
 .integration-status-card .status { margin-left: 8px; }
 .integration-status-card details { margin-top: 12px; }
 .integration-status-card time { display: block; margin-top: 10px; color: var(--admin-muted); font-size: 13px; }
+.integration-guidance { margin-top: 12px; }
+.integration-guidance p { margin-top: 4px; }
 
 .connection-setup-form > .filter-label,
 .connection-setup-form input,
