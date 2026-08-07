@@ -2,6 +2,7 @@
   if (!familyModuleEnabled("meal_plan")) return;
   const weekdayFormatter = new Intl.DateTimeFormat("da-DK", { weekday: "short" });
   const dateFormatter = new Intl.DateTimeFormat("da-DK", { day: "numeric", month: "short" });
+  const mealPlanDays = Math.max(1, Math.min(7, Number(document.body.dataset.mealPlanDays) || 7));
 
   function setState(message) {
     const state = document.getElementById("mealPlanState");
@@ -83,7 +84,7 @@
     const days = document.getElementById("mealPlanDays");
     if (days) {
       days.replaceChildren();
-      (plan.days || []).slice(1).forEach((day) => days.append(createDay(day)));
+      (plan.days || []).slice(1, mealPlanDays).forEach((day) => days.append(createDay(day)));
     }
 
     const notice = document.getElementById("mealPlanNotice");

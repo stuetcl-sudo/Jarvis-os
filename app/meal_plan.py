@@ -3,6 +3,7 @@ from datetime import date, datetime, time as datetime_time, timedelta
 from fastapi import APIRouter, Request
 
 from app import config
+from app.module_settings import load_module_config
 from app.calendar import (
     CALENDAR_ENTITY_RE,
     CalendarConfigurationError,
@@ -138,7 +139,7 @@ class MealPlanService:
     def clear_cache(self):
         self.calendar_service.clear_cache()
 
-    def get_meal_plan(self, current_user=None):
+    def get_meal_plan(self, current_user=None, display_days=None):
         if family_feature_hidden(current_user, "meal"):
             return empty_meal_plan("hidden")
         authenticated = (
@@ -154,6 +155,8 @@ class MealPlanService:
         except CalendarConfigurationError:
             settings = None
         lookahead_days = settings.lookahead_days if settings is not None else 7
+        if isinstance(display_days, int) and not isinstance(display_days, bool):
+            lookahead_days = max(1, min(lookahead_days, display_days))
 
         if snapshot["status"] in {"not_configured", "unavailable", "hidden"}:
             return {
@@ -179,4 +182,7 @@ router = APIRouter()
 @router.get("/api/family/meal-plan")
 def family_meal_plan(request: Request):
     current_user = getattr(request.state, "current_user", None)
-    return meal_plan_service.get_meal_plan(current_user)
+    days = None
+    if isinstance(current_user, dict) and current_user.get("role") != "wall_display":
+        days = load_module_config(db_path=config.DB_PATH)["meal_plan_days"]
+    return meal_plan_service.get_meal_plan(current_user, display_days=days)

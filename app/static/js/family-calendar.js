@@ -4,7 +4,7 @@ const calendarDateFormatter = new Intl.DateTimeFormat("da-DK", {
   month: "short",
 });
 
-let calendarVisibleDays = 3;
+let calendarVisibleDays = Math.max(1, Math.min(7, Number(document.body.dataset.calendarDays) || 3));
 let latestCalendarSnapshot = null;
 
 function calendarKeyFromDate(date) {
@@ -173,7 +173,7 @@ renderAuthenticatedCalendar = function renderAuthenticatedCalendarRange(calendar
   const controls = document.getElementById("calendarRangeControls");
 
   if (summary) summary.hidden = true;
-  if (controls) controls.hidden = false;
+  if (controls) controls.hidden = true;
   if (legend) {
     legend.hidden = false;
     legend.replaceChildren();
