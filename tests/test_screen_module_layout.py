@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from app import config
-from app.screen_registry import get_screen, upsert_screen
+from app.screen_registry import SCREEN_TYPES, get_screen, list_screens, normalize_screen_type, upsert_screen
 from app.wall_view import render_wall_page
 
 
@@ -52,6 +52,39 @@ def test_screen_registry_persists_module_size_layout_and_display_options():
         assert reloaded["display_options"] == created["display_options"]
         assert reloaded["modules"] == ["calendar", "weather", "meal"]
         assert reloaded["wall_user_id"] == "wall-user-stuen"
+
+
+def test_multiple_screen_profiles_coexist_with_independent_modules():
+    with screen_environment():
+        kitchen = upsert_screen("Køkken", "koekken", "wall-ipad", ["calendar", "meal", "tasks"])
+        hallway = upsert_screen("Entré", "entre", "wall-surface", ["routine", "weather", "home"])
+        screens = {screen["slug"]: screen for screen in list_screens()}
+        assert {"wall", "koekken", "entre"}.issubset(screens)
+        assert kitchen["modules"] == ["calendar", "meal", "tasks"]
+        assert hallway["modules"] == ["routine", "weather", "home"]
+        assert kitchen["url"] == "/wall/koekken"
+        assert hallway["url"] == "/wall/entre"
+
+        kitchen_page = render_wall_page({"role": "owner"}, "koekken")
+        hallway_page = render_wall_page({"role": "owner"}, "entre")
+        assert '[data-family-card="routine"]{display:none!important}' in kitchen_page
+        assert '[data-family-card="weather"]{display:none!important}' in kitchen_page
+        assert '[data-family-card="calendar"]{display:none!important}' in hallway_page
+        assert '[data-family-card="meal"]{display:none!important}' in hallway_page
+        assert '[data-family-card="tasks"]{display:none!important}' in hallway_page
+        assert '[data-family-card="home"]{display:none!important}' not in hallway_page
+
+
+def test_all_supported_screen_types_normalize_without_device_detection():
+    assert SCREEN_TYPES == {"wall-large", "wall-surface", "wall-ipad", "wall-tablet", "wall-square", "mobile"}
+    for screen_type in SCREEN_TYPES:
+        assert normalize_screen_type(f" {screen_type.upper()} ") == screen_type
+    try:
+        normalize_screen_type("surface-pro-9")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("device-specific screen type accepted")
 
 
 def test_wall_screen_binding_isolated_between_wall_users():
@@ -145,6 +178,8 @@ if __name__ == "__main__":
     for test in [
         test_default_wall_layout_uses_equal_module_sizes,
         test_screen_registry_persists_module_size_layout_and_display_options,
+        test_multiple_screen_profiles_coexist_with_independent_modules,
+        test_all_supported_screen_types_normalize_without_device_detection,
         test_wall_screen_binding_isolated_between_wall_users,
         test_screen_registry_rejects_invalid_module_size,
         test_wall_page_applies_configured_module_size_css_and_status_badge,

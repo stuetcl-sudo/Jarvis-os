@@ -4,7 +4,7 @@
   function preferredProfile() {
     return {
       "wall-surface": "surface",
-      "wall-ipad": "ipad",
+      "wall-ipad": "tablet",
       "wall-tablet": "tablet",
       "wall-square": "square",
       mobile: "mobile",
@@ -12,11 +12,11 @@
   }
 
   function profileFor(width, height) {
-    const preferred = preferredProfile();
-    if (preferred) return preferred;
     if (width <= 640) return "mobile";
     const ratio = height > 0 ? width / height : 1;
-    if (ratio < 1.15 || width <= 920) return "square";
+    if (ratio < 1.05 || width <= 920) return "square";
+    const preferred = preferredProfile();
+    if (preferred) return preferred;
     if (width <= 1180) return "tablet";
     return "wide";
   }

@@ -136,9 +136,14 @@ def test_named_wall_screen_access_policy_and_missing_screen():
         assert anonymous.headers["location"] == "/login?next=/wall/stuen"
 
     with wall_environment() as client:
-        login(client, "adult")
+        csrf = login(client, "adult")
         assert client.get("/wall/unknown").status_code == 404
         assert client.get("/api/admin/screens").status_code == 403
+        assert client.post(
+            "/api/admin/screens",
+            headers={"X-CSRF-Token": csrf},
+            json={"name": "Ikke tilladt", "slug": "ikke-tilladt", "modules": ["weather"]},
+        ).status_code == 403
 
 
 
@@ -154,6 +159,20 @@ def test_admin_screen_ui_supports_separate_wall_accounts():
     assert '"Fast vægkonto"' in source
     assert "wall_user_id:" in source
     assert '"wall_users": wall_users' in routes
+    for label in ["Stor skærm", "Surface / 3:2 tablet", "iPad", "Tablet", "Kvadratisk skærm", "Mobil"]:
+        assert label in source
+    assert "slug.disabled = Boolean(screen)" in source
+
+
+def test_screen_profile_keeps_viewport_fallbacks_separate_from_saved_type():
+    javascript = (ROOT / "app/static/js/wall-mode.js").read_text(encoding="utf-8")
+    compact = javascript.replace(" ", "").replace("\n", "")
+    assert 'if(width<=640)return"mobile"' in compact
+    assert 'if(ratio<1.05||width<=920)return"square"' in compact
+    assert compact.index('if(width<=640)return"mobile"') < compact.index("constpreferred=preferredProfile()")
+    assert '"wall-ipad":"tablet"' in compact
+    assert "userAgent" not in javascript
+    assert "navigator" not in javascript
 
 
 def test_wall_family_assets_are_available():
@@ -284,6 +303,7 @@ if __name__ == "__main__":
     test_named_wall_screens_store_visibility_options_and_render_them()
     test_named_wall_screen_access_policy_and_missing_screen()
     test_admin_screen_ui_supports_separate_wall_accounts()
+    test_screen_profile_keeps_viewport_fallbacks_separate_from_saved_type()
     test_wall_family_assets_are_available()
     test_wall_mode_frontend_is_read_only_and_role_safe()
     test_calendar_day_selection_does_not_resize_routine_card_on_wall()
