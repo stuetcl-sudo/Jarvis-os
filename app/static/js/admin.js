@@ -321,6 +321,7 @@ function loadAdminScript(path) {
 loadAdminScript("/static/js/admin-render.js")
   .then(() => loadAdminScript("/static/js/admin-page.js"))
   .then(() => loadAdminScript("/static/js/admin-connections.js"))
+  .then(() => loadAdminScript("/static/js/admin-modules.js"))
   .then(() => loadAdminScript("/static/js/admin-safety-connections.js"))
   .then(() => loadAdminScript("/static/js/admin-screens.js"))
   .then(() => loadAdminScript("/static/js/admin-role-visibility.js"))

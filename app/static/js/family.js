@@ -17,6 +17,12 @@ const longWeekdayFormatter = new Intl.DateTimeFormat("da-DK", {
 });
 let renderAuthenticatedCalendar = null;
 
+function familyModuleEnabled(module) {
+  const configured = document.body.dataset.familyModules;
+  if (typeof configured !== "string") return true;
+  return configured.split(",").includes(module);
+}
+
 const supportedRoles = new Set(["anonymous", "owner", "adult", "child", "wall_display"]);
 const pageRole = supportedRoles.has(document.body.dataset.familyRole)
   ? document.body.dataset.familyRole
@@ -527,8 +533,12 @@ async function refreshSource(url, onSuccess, onFailure) {
 async function refresh() {
   await Promise.allSettled([
     refreshSource("/api/mission", renderMission, renderUnavailable),
-    refreshSource("/api/family/weather", renderWeather, renderWeatherFailure),
-    refreshSource("/api/family/calendar", renderCalendar, renderCalendarFailure),
+    familyModuleEnabled("weather")
+      ? refreshSource("/api/family/weather", renderWeather, renderWeatherFailure)
+      : Promise.resolve(),
+    familyModuleEnabled("calendar")
+      ? refreshSource("/api/family/calendar", renderCalendar, renderCalendarFailure)
+      : Promise.resolve(),
     refreshSource("/api/health", renderHealth, () => {}),
   ]);
 }

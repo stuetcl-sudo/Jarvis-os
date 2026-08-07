@@ -26,7 +26,7 @@
   <link rel="stylesheet" href="/static/css/wall-compact.css" />
   <link rel="stylesheet" href="/static/css/wall-surface.css?v=v0.17.5-wall-uv-structure" />
 </head>
-<body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false" data-family-label="Fælles overblik" data-family-subtitle="Her er et roligt overblik over hjemmet.">
+<body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false" data-family-label="Fælles overblik" data-family-subtitle="Her er et roligt overblik over hjemmet." data-family-modules="calendar,tasks,routines,meal_plan,weather,safety">
   <main class="family-shell">
     <header class="family-header" aria-labelledby="greeting">
       <div>
@@ -44,6 +44,7 @@
 <!-- FAMILY_TECHNICAL_STATUS -->
 
     <section class="family-grid" aria-label="Familiens oversigt">
+<!-- MODULE:routines:START -->
       <article class="family-card routine-card" data-family-card="routine" hidden>
         <div class="card-icon" aria-hidden="true">✓</div>
         <div class="card-heading"><p class="card-eyebrow">Min rutine</p><h2>Det næste trin</h2></div>
@@ -75,7 +76,9 @@
           </div>
         </div>
       </article>
+<!-- MODULE:routines:END -->
 
+<!-- MODULE:calendar:START -->
       <article class="family-card calendar-card" data-family-card="calendar">
         <div class="card-icon" aria-hidden="true">📅</div>
         <div class="card-heading"><p class="card-eyebrow">Kalender</p><h2>Familiens kalender</h2></div>
@@ -101,7 +104,9 @@
           </div>
         </div>
       </article>
+<!-- MODULE:calendar:END -->
 
+<!-- MODULE:weather:START -->
       <article class="family-card weather-card" data-family-card="weather">
         <div class="card-icon" id="weatherCardIcon" aria-hidden="true">☁️</div>
         <div class="card-heading"><p class="card-eyebrow">Vejr</p><h2>Dagens vejr</h2></div>
@@ -131,9 +136,11 @@
           </div>
         </div>
       </article>
+<!-- MODULE:weather:END -->
 
 <!-- FAMILY_HOME_CARD -->
 
+<!-- MODULE:meal_plan:START -->
       <article class="family-card meal-card" data-family-card="meal">
         <div class="card-icon" aria-hidden="true">🍽️</div>
         <div class="card-heading"><p class="card-eyebrow">Madplan</p><h2>Aftensmad</h2></div>
@@ -146,7 +153,9 @@
           </div>
         </div>
       </article>
+<!-- MODULE:meal_plan:END -->
 
+<!-- MODULE:tasks:START -->
       <article class="family-card family-tasks-card" data-family-card="tasks">
         <div class="card-icon" aria-hidden="true">✏️</div>
         <div class="card-heading"><p class="card-eyebrow">Lektier og opgaver</p><h2>Det næste</h2></div>
@@ -164,10 +173,12 @@
           </div>
         </div>
       </article>
+<!-- MODULE:tasks:END -->
 
 <!-- FAMILY_TECHNICAL_CARD -->
     </section>
 
+<!-- MODULE:safety:START -->
     <section class="wall-safety-strip" id="wallSafetyStrip" aria-label="Tryghedsstatus for hjemmet" aria-live="polite">
       <article class="wall-safety-item ok" data-wall-safety-item="internet"><span class="wall-safety-icon" aria-hidden="true">🌐</span><span class="wall-safety-text">Online</span></article>
       <article class="wall-safety-item ok" data-wall-safety-item="doors"><span class="wall-safety-icon" aria-hidden="true">🚪</span><span class="wall-safety-text">Lukket</span></article>
@@ -177,10 +188,12 @@
       <article class="wall-safety-item unknown" data-wall-safety-item="humidity"><span class="wall-safety-icon" aria-hidden="true">💧</span><span class="wall-safety-text">Ikke valgt</span></article>
       <article class="wall-safety-item unknown" data-wall-safety-item="electricity-price"><span class="wall-safety-icon" aria-hidden="true">⚡</span><span class="wall-safety-text">Ikke valgt</span></article>
     </section>
+<!-- MODULE:safety:END -->
 
     <footer class="family-footer"><p>Familievisningen tilpasser sig den aktive rolle. Administrative kontroller kræver en ejerkonto.</p><!-- FAMILY_NAVIGATION --></footer>
   </main>
 
+<!-- MODULE:routines:START -->
   <dialog class="routine-editor" id="routineEditor" aria-labelledby="routineEditorTitle">
     <form method="dialog" class="routine-editor-shell" id="routineEditorForm">
       <header class="routine-editor-header"><div><p class="card-eyebrow">Familierutiner</p><h2 id="routineEditorTitle">Rediger rutine</h2></div><button type="button" id="routineEditorClose" aria-label="Luk editor">×</button></header>
@@ -192,6 +205,7 @@
       <footer class="routine-editor-footer"><button type="button" class="danger" id="routineEditorRestore">Gendan standard</button><span></span><button type="button" id="routineEditorCancel">Annuller</button><button type="submit" class="primary" id="routineEditorSave">Gem ændringer</button></footer>
     </form>
   </dialog>
+<!-- MODULE:routines:END -->
 
   <script src="/static/js/family.js?v=v0.17.5" defer></script>
   <script src="/static/js/family-uv.js?v=v0.17.5" defer></script>
