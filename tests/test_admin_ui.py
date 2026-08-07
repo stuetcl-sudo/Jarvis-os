@@ -127,6 +127,13 @@ def test_admin_screen_management_ui_is_plain_and_safe():
     assert "deleteScreen" in SCREEN_JAVASCRIPT
     assert 'method: "DELETE"' in SCREEN_JAVASCRIPT
     assert "innerHTML" not in SCREEN_JAVASCRIPT
+    assert '["system", "Systemstatus"]' not in SCREEN_JAVASCRIPT
+    assert 'system: "Teknisk modul (skjult)"' in SCREEN_JAVASCRIPT
+    assert '"Den normale familieoversigt"' in SCREEN_JAVASCRIPT
+    assert '"Her vælger du moduler til den normale familieoversigt."' in SCREEN_JAVASCRIPT
+    assert '"Her vælger du moduler særskilt for hver væg- eller tabletskærm."' in SCREEN_JAVASCRIPT
+    assert "legacyModules" in SCREEN_JAVASCRIPT
+    assert "selectedScreen?.module_layout?.[module]" in SCREEN_JAVASCRIPT
 
 
 def test_admin_role_visibility_ui_is_plain_and_safe():
