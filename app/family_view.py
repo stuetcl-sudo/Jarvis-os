@@ -3,7 +3,7 @@ from pathlib import Path
 
 from app import config
 from app.family_visibility import load_visibility_rules, role_can_see
-from app.module_settings import MODULES, load_module_settings
+from app.module_settings import MODULES, load_module_config, load_module_settings
 
 FAMILY_TEMPLATE = Path(__file__).resolve().parent / "static" / "index.html"
 FAMILY_ROLES = {"owner", "adult", "child", "wall_display"}
@@ -141,6 +141,7 @@ def visibility_style(role):
 def render_family_page(current_user, wall_actions=""):
     context = resolve_family_context(current_user)
     module_settings = load_module_settings(db_path=config.DB_PATH)
+    module_config = load_module_config(db_path=config.DB_PATH)
     enabled_modules = ",".join(module for module in MODULES if module_settings[module])
     page = FAMILY_TEMPLATE.read_text(encoding="utf-8")
     body = (
@@ -149,7 +150,9 @@ def render_family_page(current_user, wall_actions=""):
         f'data-family-view="{context["view"]}" data-family-kiosk="{context["kiosk"]}" '
         f'data-family-label="{escape(context["label"], quote=True)}" '
         f'data-family-subtitle="{escape(context["subtitle"], quote=True)}" '
-        f'data-family-modules="{enabled_modules}">'
+        f'data-family-modules="{enabled_modules}" data-calendar-days="{module_config["calendar_days"]}" '
+        f'data-meal-plan-days="{module_config["meal_plan_days"]}" '
+        f'data-weather-uv-enabled="{str(module_config["weather_uv_enabled"]).lower()}">'
     )
     page = page.replace(
         '<body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false" data-family-label="Fælles overblik" data-family-subtitle="Her er et roligt overblik over hjemmet." data-family-modules="calendar,tasks,routines,meal_plan,weather,safety">',

@@ -1,16 +1,20 @@
 import tempfile
 from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
 from app import config
+from app.calendar import calendar_window
 from app.auth.service import auth_service, initialize_auth_tables
 from app.db import init_db
 from app.family_view import render_family_page
 from app.family_visibility import save_visibility_rules
 from app.main_auth import app
-from app.module_settings import MODULES, load_module_settings, save_module_settings
+from app.meal_plan import MealPlanService
+from app.module_settings import DEFAULT_MODULE_CONFIG, MODULES, load_module_config, load_module_settings, save_module_config, save_module_settings
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,6 +52,7 @@ def test_all_modules_are_enabled_by_default():
         settings = load_module_settings(db_path=config.DB_PATH)
         assert tuple(settings) == MODULES
         assert all(settings.values())
+        assert load_module_config(db_path=config.DB_PATH) == DEFAULT_MODULE_CONFIG
         page = render_family_page({"role": "owner", "display_name": "Owner"})
         for selector in ('data-family-card="calendar"', 'data-family-card="tasks"', 'data-family-card="routine"', 'data-family-card="meal"', 'data-family-card="weather"', 'id="wallSafetyStrip"'):
             assert selector in page
@@ -59,10 +64,13 @@ def test_owner_can_read_and_update_module_settings():
         try:
             response = client.get("/api/admin/modules")
             assert response.status_code == 200 and all(response.json()["modules"].values())
+            assert response.json()["config"] == DEFAULT_MODULE_CONFIG
             modules = {module: module not in {"tasks", "weather"} for module in MODULES}
-            saved = client.post("/api/admin/modules", json={"modules": modules}, headers={"X-CSRF-Token": csrf})
+            module_config = {"calendar_days": 5, "meal_plan_days": 4, "weather_uv_enabled": False}
+            saved = client.post("/api/admin/modules", json={"modules": modules, "config": module_config}, headers={"X-CSRF-Token": csrf})
             assert saved.status_code == 200
             assert saved.json()["modules"] == modules
+            assert saved.json()["config"] == module_config
             assert client.get("/api/admin/modules").json()["modules"] == modules
         finally:
             client.close()
@@ -76,11 +84,12 @@ def test_non_owner_cannot_read_or_update_module_settings():
                 assert client.get("/api/admin/modules").status_code == 403
                 response = client.post(
                     "/api/admin/modules",
-                    json={"modules": {module: False for module in MODULES}},
+                    json={"modules": {module: False for module in MODULES}, "config": {"calendar_days": 1}},
                     headers={"X-CSRF-Token": csrf},
                 )
                 assert response.status_code == 403
                 assert all(load_module_settings(db_path=config.DB_PATH).values())
+                assert load_module_config(db_path=config.DB_PATH) == DEFAULT_MODULE_CONFIG
             finally:
                 client.close()
 
@@ -94,6 +103,54 @@ def test_disabled_modules_are_omitted_from_family_page():
         assert 'data-family-card="weather"' in page
         for selector in ('data-family-card="tasks"', 'data-family-card="routine"', 'data-family-card="meal"', 'id="wallSafetyStrip"', 'id="routineEditor"'):
             assert selector not in page
+
+
+def test_module_config_is_bounded_and_applied_to_family_page():
+    with module_environment():
+        assert save_module_config({"calendar_days": 99, "meal_plan_days": -2, "weather_uv_enabled": False}, db_path=config.DB_PATH) == {
+            "calendar_days": 7, "meal_plan_days": 1, "weather_uv_enabled": False,
+        }
+        page = render_family_page({"role": "owner", "display_name": "Owner"})
+        assert 'data-calendar-days="7"' in page
+        assert 'data-meal-plan-days="1"' in page
+        assert 'data-weather-uv-enabled="false"' in page
+
+
+def test_calendar_days_control_the_requested_window():
+    start, end, _, _ = calendar_window(5, datetime(2026, 8, 7, 12, tzinfo=timezone.utc))
+    assert end - start == timedelta(days=5)
+    calendar_frontend = (ROOT / "app/static/js/family-calendar.js").read_text(encoding="utf-8")
+    assert "Number(document.body.dataset.calendarDays) || 3" in calendar_frontend
+    assert "calendarRangeKeys(calendarVisibleDays, now)" in calendar_frontend
+
+
+def test_meal_plan_days_limit_output():
+    now = datetime(2026, 8, 7, 12, tzinfo=timezone.utc)
+    events = []
+    for offset in range(7):
+        start = now.replace(hour=18) + timedelta(days=offset)
+        events.append({"title": f"Ret {offset}", "start": start.isoformat(), "end": (start + timedelta(hours=1)).isoformat(), "all_day": False})
+
+    class CalendarStub:
+        def get_calendar(self, _user):
+            return {"status": "ok", "events": events, "stale": False}
+
+    service = MealPlanService(
+        calendar_service=CalendarStub(),
+        settings_loader=lambda: SimpleNamespace(lookahead_days=7),
+        now_provider=lambda: now,
+    )
+    result = service.get_meal_plan({"role": "owner"}, display_days=2)
+    assert len(result["days"]) == 2
+    assert result["today"] == ["Ret 0"]
+
+
+def test_uv_can_be_disabled_before_frontend_fetching():
+    uv = (ROOT / "app/static/js/family-uv.js").read_text(encoding="utf-8")
+    toggle = uv.index('document.body.dataset.weatherUvEnabled === "false"')
+    fetch = uv.index('fetch("/api/family/weather"')
+    assert toggle < fetch
+    assert "return;" in uv[toggle:fetch]
 
 
 def test_disabled_modules_have_frontend_fetch_guards():
@@ -131,6 +188,10 @@ def test():
     test_owner_can_read_and_update_module_settings()
     test_non_owner_cannot_read_or_update_module_settings()
     test_disabled_modules_are_omitted_from_family_page()
+    test_module_config_is_bounded_and_applied_to_family_page()
+    test_calendar_days_control_the_requested_window()
+    test_meal_plan_days_limit_output()
+    test_uv_can_be_disabled_before_frontend_fetching()
     test_disabled_modules_have_frontend_fetch_guards()
     test_existing_visibility_and_frontend_safety_are_preserved()
     print("Module settings tests OK")

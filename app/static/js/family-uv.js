@@ -1,6 +1,10 @@
 (() => {
   if (!familyModuleEnabled("weather")) return;
   const badge = document.getElementById("weatherUv");
+  if (document.body.dataset.weatherUvEnabled === "false") {
+    if (badge) badge.hidden = true;
+    return;
+  }
   const valueElement = document.getElementById("weatherUvValue");
   const labelElement = document.getElementById("weatherUvLabel");
   const UV_REFRESH_INTERVAL_MS = 120000;
