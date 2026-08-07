@@ -1,7 +1,9 @@
 (() => {
   const screenTypes = [
-    ["wall-large", "Stor vægskærm"],
-    ["wall-tablet", "Tablet / køkken"],
+    ["wall-large", "Stor skærm"],
+    ["wall-surface", "Surface / 3:2 tablet"],
+    ["wall-ipad", "iPad"],
+    ["wall-tablet", "Tablet"],
     ["wall-square", "Kvadratisk skærm"],
     ["mobile", "Mobil"],
   ];
@@ -120,8 +122,8 @@
     if (!name || !slug || !type || !active) return;
     name.value = screen?.name || "";
     slug.value = screen?.slug || "";
-    slug.disabled = screen?.slug === "wall";
-    type.value = screen?.screen_type || "wall-large";
+    slug.disabled = Boolean(screen);
+    type.value = screen?.screen_type || "wall-surface";
     active.checked = screen?.is_active !== false;
     const displayOptions = { ...defaultDisplayOptions, ...(screen?.display_options || {}) };
     if (adminLink) adminLink.checked = displayOptions.show_admin_link === true;
@@ -145,6 +147,7 @@
     const title = element("strong", "", screen.name);
     const url = element("span", "", screen.url);
     const detail = element("small", "", `${screenTypes.find(([key]) => key === screen.screen_type)?.[1] || screen.screen_type} · ${moduleLabels(screen.modules)}`);
+    const state = element("small", screen.is_active === false ? "muted" : "", screen.is_active === false ? "Inaktiv" : "Aktiv");
     const layout = element("small", "", moduleLayoutLabels(screen));
     const display = element("small", "", displayLabels(screen));
     const assignedUser = wallUsers.find(
@@ -175,7 +178,7 @@
       remove.addEventListener("click", () => deleteScreen(screen));
       actions.append(remove);
     }
-    card.append(title, url, detail, layout, display, binding, actions);
+    card.append(title, url, state, detail, layout, display, binding, actions);
     return card;
   }
 
@@ -369,7 +372,7 @@
     const text = document.createElement("div");
     text.append(
       element("h3", "", "Skærme"),
-      element("p", "panel-help", "Opret faste links til stue, køkken, børneskærm eller andre vægvisninger. Vælg både moduler og hvor meget plads hvert modul skal have."),
+      element("p", "panel-help", "Opret selvstændige skærme til fx køkken, entré eller stue. Skærmtypen giver et enkelt udgangspunkt, mens visningen fortsat tilpasser sig den plads, der faktisk er til rådighed."),
     );
     const reset = element("button", "secondary", "Ny skærm");
     reset.type = "button";

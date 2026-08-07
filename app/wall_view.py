@@ -148,8 +148,11 @@ def wall_actions_for(role, screen):
 
 def module_visibility_style(screen):
     modules = set(screen.get("modules") or [])
-    hidden = ['body[data-wall-dashboard="true"] [data-family-card="home"]{display:none!important}']
-    for module in ["routine", "calendar", "weather", "meal", "tasks", "system"]:
+    hidden = []
+    for module in ["routine", "calendar", "weather", "meal", "tasks", "home", "system"]:
+        if module == "home" and screen.get("slug") == "wall":
+            hidden.append('body[data-wall-dashboard="true"] [data-family-card="home"]{display:none!important}')
+            continue
         if module not in modules:
             hidden.append(f'body[data-wall-dashboard="true"] [data-family-card="{module}"]{{display:none!important}}')
     if not screen_option(screen, "show_safety_status", True):
@@ -162,7 +165,7 @@ def module_layout_rules(screen, breakpoint):
     modules = set(screen.get("modules") or [])
     layout = screen.get("module_layout") or {}
     styles = MODULE_SIZE_STYLES[breakpoint]
-    for module in ["routine", "calendar", "weather", "meal", "tasks", "system"]:
+    for module in ["routine", "calendar", "weather", "meal", "tasks", "home", "system"]:
         if module not in modules:
             continue
         selector = MODULE_CARD_SELECTORS.get(module)
