@@ -14,8 +14,8 @@
     ["meal", "Madplan"],
     ["tasks", "Opgaver"],
     ["home", "Hjem"],
-    ["system", "Systemstatus"],
   ];
+  const legacyModuleLabels = { system: "Teknisk modul (skjult)" };
   const moduleSizes = [
     ["small", "Lille"],
     ["medium", "Normal"],
@@ -42,14 +42,14 @@
 
   function moduleLabels(values) {
     const lookup = Object.fromEntries(modules);
-    return (values || []).map((key) => lookup[key] || key).join(", ") || "Ingen moduler";
+    return (values || []).map((key) => lookup[key] || legacyModuleLabels[key] || key).join(", ") || "Ingen moduler";
   }
 
   function moduleLayoutLabels(screen) {
     const sizeLookup = Object.fromEntries(moduleSizes);
     const layout = screen?.module_layout || {};
     return (screen?.modules || [])
-      .map((key) => `${modules.find(([module]) => module === key)?.[1] || key}: ${sizeLookup[layout[key] || defaultModuleLayout[key] || "medium"]}`)
+      .map((key) => `${modules.find(([module]) => module === key)?.[1] || legacyModuleLabels[key] || key}: ${sizeLookup[layout[key] || defaultModuleLayout[key] || "medium"]}`)
       .join(" · ");
   }
 
@@ -76,7 +76,10 @@
   }
 
   function selectedModules() {
-    return Array.from(document.querySelectorAll("[data-screen-module]:checked")).map((input) => input.value);
+    const selected = Array.from(document.querySelectorAll("[data-screen-module]:checked")).map((input) => input.value);
+    const pickerModules = new Set(modules.map(([key]) => key));
+    const legacyModules = (selectedScreen?.modules || []).filter((key) => !pickerModules.has(key));
+    return [...selected, ...legacyModules];
   }
 
   function selectedModuleLayout() {
@@ -85,6 +88,11 @@
     document.querySelectorAll("[data-screen-module-size]").forEach((select) => {
       const module = select.dataset.screenModuleSize;
       if (activeModules.has(module)) layout[module] = select.value;
+    });
+    (selectedScreen?.modules || []).forEach((module) => {
+      if (!(module in layout) && selectedScreen?.module_layout?.[module]) {
+        layout[module] = selectedScreen.module_layout[module];
+      }
     });
     return layout;
   }
@@ -366,13 +374,17 @@
   function createScreensPanel() {
     const target = document.getElementById("section-modules");
     if (!target || document.getElementById("screenAdminPanel")) return;
+    const familyHeading = target.querySelector(".section-heading h2");
+    const familyHelp = target.querySelector(".section-heading p:not(.section-kicker)");
+    if (familyHeading) familyHeading.textContent = "Den normale familieoversigt";
+    if (familyHelp) familyHelp.textContent = "Her vælger du moduler til den normale familieoversigt.";
     const panel = element("section", "panel screen-admin-panel");
     panel.id = "screenAdminPanel";
     const heading = element("div", "panel-head");
     const text = document.createElement("div");
     text.append(
       element("h3", "", "Skærme"),
-      element("p", "panel-help", "Opret selvstændige skærme til fx køkken, entré eller stue. Skærmtypen giver et enkelt udgangspunkt, mens visningen fortsat tilpasser sig den plads, der faktisk er til rådighed."),
+      element("p", "panel-help", "Her vælger du moduler særskilt for hver væg- eller tabletskærm."),
     );
     const reset = element("button", "secondary", "Ny skærm");
     reset.type = "button";

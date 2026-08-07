@@ -54,6 +54,14 @@ def test_screen_registry_persists_module_size_layout_and_display_options():
         assert reloaded["wall_user_id"] == "wall-user-stuen"
 
 
+def test_existing_system_module_remains_registry_compatible():
+    with screen_environment():
+        created = upsert_screen("Ældre skærm", "aeldre", "wall-tablet", ["weather", "system"])
+        assert created["modules"] == ["weather", "system"]
+        assert created["module_layout"]["system"] == "small"
+        assert get_screen("aeldre")["modules"] == ["weather", "system"]
+
+
 def test_multiple_screen_profiles_coexist_with_independent_modules():
     with screen_environment():
         kitchen = upsert_screen("Køkken", "koekken", "wall-ipad", ["calendar", "meal", "tasks"])
@@ -178,6 +186,7 @@ if __name__ == "__main__":
     for test in [
         test_default_wall_layout_uses_equal_module_sizes,
         test_screen_registry_persists_module_size_layout_and_display_options,
+        test_existing_system_module_remains_registry_compatible,
         test_multiple_screen_profiles_coexist_with_independent_modules,
         test_all_supported_screen_types_normalize_without_device_detection,
         test_wall_screen_binding_isolated_between_wall_users,
