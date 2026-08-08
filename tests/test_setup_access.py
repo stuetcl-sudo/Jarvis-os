@@ -125,6 +125,94 @@ def test_home_assistant_endpoints_are_owner_only_and_require_csrf():
         cleanup(folder, previous_path, previous_secure, client)
 
 
+def test_entity_settings_api_preserves_legacy_values_until_explicitly_changed():
+    values = build_client("owner")
+    folder, previous_path, previous_secure, client, user = values
+    headers = {"X-CSRF-Token": user["csrf_token"]}
+    legacy = {
+        "HOME_ASSISTANT_WEATHER_ENTITY": "weather.legacy_home",
+        "HOME_ASSISTANT_CALENDARS": "calendar.family|Familiekalender|violet,calendar.work|Arbejde|yellow",
+        "HOME_ASSISTANT_MEAL_CALENDAR": "calendar.legacy_meals",
+        "HOME_ASSISTANT_TASK_LISTS": "todo.shopping_list|Indkøb,todo.familieopgaver|Husopgaver",
+    }
+    try:
+        with patch.dict(os.environ, legacy):
+            loaded = client.get("/api/admin/setup/home-assistant/entity-settings")
+            assert loaded.status_code == 200
+            form = loaded.json()
+            assert form["weather_entity"] == "weather.legacy_home"
+            assert form["calendar_entities"] == ["calendar.family", "calendar.work"]
+            assert form["meal_calendar"] == "calendar.legacy_meals"
+            assert form["task_entities"] == ["todo.shopping_list", "todo.familieopgaver"]
+
+            form["electricity_price_entity"] = "sensor.current_price"
+            form.pop("calendar_entities")
+            form.pop("task_entities")
+            saved = client.post(
+                "/api/admin/setup/home-assistant/entity-settings",
+                headers=headers,
+                json=form,
+            )
+            assert saved.status_code == 200
+            assert client.get("/api/admin/setup/home-assistant/entity-settings").json()["weather_entity"] == "weather.legacy_home"
+            missing = object()
+            assert settings_store.get_setting(
+                "home_assistant.calendar_entities", missing, db_path=config.DB_PATH
+            ) is missing
+            assert settings_store.get_setting(
+                "home_assistant.task_entities", missing, db_path=config.DB_PATH
+            ) is missing
+
+            changed = client.post(
+                "/api/admin/setup/home-assistant/entity-settings",
+                headers=headers,
+                json={"weather_entity": "weather.database_home"},
+            )
+            assert changed.status_code == 200
+            assert client.get("/api/admin/setup/home-assistant/entity-settings").json()["weather_entity"] == "weather.database_home"
+
+            cleared = client.post(
+                "/api/admin/setup/home-assistant/entity-settings",
+                headers=headers,
+                json={"meal_calendar": ""},
+            )
+            assert cleared.status_code == 200
+            assert client.get("/api/admin/setup/home-assistant/entity-settings").json()["meal_calendar"] == ""
+
+            os.environ["HOME_ASSISTANT_CALENDARS"] = ""
+            os.environ["HOME_ASSISTANT_TASK_LISTS"] = ""
+            empty_form = client.get("/api/admin/setup/home-assistant/entity-settings").json()
+            assert empty_form["calendar_entities"] == []
+            assert empty_form["task_entities"] == []
+            unrelated = client.post(
+                "/api/admin/setup/home-assistant/entity-settings",
+                headers=headers,
+                json={"power_entity": "sensor.current_power"},
+            )
+            assert unrelated.status_code == 200
+            missing = object()
+            assert settings_store.get_setting(
+                "home_assistant.calendar_entities", missing, db_path=config.DB_PATH
+            ) is missing
+            assert settings_store.get_setting(
+                "home_assistant.task_entities", missing, db_path=config.DB_PATH
+            ) is missing
+
+            explicit_clear = client.post(
+                "/api/admin/setup/home-assistant/entity-settings",
+                headers=headers,
+                json={"calendar_entities": [], "task_entities": []},
+            )
+            assert explicit_clear.status_code == 200
+            os.environ["HOME_ASSISTANT_CALENDARS"] = "calendar.future|Future|yellow"
+            os.environ["HOME_ASSISTANT_TASK_LISTS"] = "todo.future|Future"
+            after_environment_change = client.get("/api/admin/setup/home-assistant/entity-settings").json()
+            assert after_environment_change["calendar_entities"] == []
+            assert after_environment_change["task_entities"] == []
+    finally:
+        cleanup(folder, previous_path, previous_secure, client)
+
+
 def test_home_assistant_api_errors_are_stable_safe_and_do_not_overwrite():
     values = build_client("owner")
     folder, previous_path, previous_secure, client, user = values
@@ -500,6 +588,7 @@ def test():
     test_family_roles_cannot_access_setup()
     test_owner_write_requires_csrf()
     test_home_assistant_endpoints_are_owner_only_and_require_csrf()
+    test_entity_settings_api_preserves_legacy_values_until_explicitly_changed()
     test_home_assistant_api_errors_are_stable_safe_and_do_not_overwrite()
     test_valid_save_is_secret_free_persists_and_makes_setup_ready()
     test_managed_install_plan_access_csrf_fixed_values_and_setup_state()

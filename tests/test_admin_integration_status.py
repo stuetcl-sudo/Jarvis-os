@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+import httpx
 from fastapi.testclient import TestClient
 
 from app import config, integration_status as status_service
@@ -147,6 +148,7 @@ def test_scrypted_response_mapping_and_privacy():
             "status_code": status_code,
             "is_redirect": 300 <= status_code < 400,
             "text": private_body,
+            "headers": headers or {},
         })()
         requests = []
         with patch.dict(os.environ, {"SCRYPTED_URL": private_url}), patch("app.integration_status.httpx.Client", side_effect=lambda **kwargs: ProbeClient(response=response, requests=requests, **kwargs)) as client_type:
@@ -170,6 +172,85 @@ def test_scrypted_response_mapping_and_privacy():
     with patch.dict(os.environ, {"SCRYPTED_URL": "https://user:private@scrypted.example"}):
         invalid = status_service._scrypted(checked)
     assert invalid["state"] == "degraded" and "user" not in repr(invalid) and "private" not in repr(invalid)
+
+
+def test_scrypted_follows_only_safe_same_origin_redirects():
+    checked = CHECKED.isoformat()
+    root = "https://scrypted.example:10443"
+
+    def probe(responses, configured=root):
+        requests = []
+
+        class SequenceClient(ProbeClient):
+            def get(self, url):
+                requests.append(url)
+                return responses.pop(0)
+
+        with patch.dict(os.environ, {"SCRYPTED_URL": configured}), patch(
+            "app.integration_status.httpx.Client", side_effect=lambda **kwargs: SequenceClient(**kwargs)
+        ):
+            return status_service._scrypted(checked), requests
+
+    redirect = httpx.Response(302, headers={"location": "/endpoint/@scrypted/core/public/"})
+    connected, requests = probe([redirect, httpx.Response(200)])
+    assert connected["state"] == "connected"
+    assert requests == [root + "/", root + "/endpoint/@scrypted/core/public/"]
+
+    https_explicit, requests = probe([
+        httpx.Response(302, headers={"location": "https://scrypted.example:443/public/"}),
+        httpx.Response(200),
+    ], configured="https://scrypted.example")
+    assert https_explicit["state"] == "connected"
+    assert requests[-1] == "https://scrypted.example:443/public/"
+
+    https_implicit, requests = probe([
+        httpx.Response(302, headers={"location": "https://scrypted.example/public/"}),
+        httpx.Response(200),
+    ], configured="https://scrypted.example:443")
+    assert https_implicit["state"] == "connected"
+    assert requests[-1] == "https://scrypted.example/public/"
+
+    http_explicit, requests = probe([
+        httpx.Response(302, headers={"location": "http://scrypted.example:80/public/"}),
+        httpx.Response(200),
+    ], configured="http://scrypted.example")
+    assert http_explicit["state"] == "connected"
+    assert requests[-1] == "http://scrypted.example:80/public/"
+
+    wrong_port, requests = probe([
+        httpx.Response(302, headers={"location": "https://scrypted.example:10444/public/"})
+    ])
+    assert wrong_port["state"] == "degraded"
+    assert len(requests) == 1
+
+    wrong_scheme, requests = probe([
+        httpx.Response(302, headers={"location": "http://scrypted.example:10443/public/"})
+    ])
+    assert wrong_scheme["state"] == "degraded"
+    assert len(requests) == 1
+
+    external, requests = probe([httpx.Response(302, headers={"location": "https://other.example/public/"})])
+    assert external["state"] == "degraded"
+    assert requests == [root + "/"]
+
+    credentials, requests = probe([httpx.Response(302, headers={"location": "https://user:secret@scrypted.example:10443/public/"})])
+    assert credentials["state"] == "degraded"
+    assert "user" not in repr(credentials) and "secret" not in repr(credentials)
+    assert requests == [root + "/"]
+
+    loop, requests = probe([
+        httpx.Response(302, headers={"location": "/loop"}),
+        httpx.Response(302, headers={"location": "/"}),
+    ])
+    assert loop["state"] == "degraded"
+    assert len(requests) == 2
+
+    excessive, requests = probe([
+        httpx.Response(302, headers={"location": f"/redirect-{index}"})
+        for index in range(1, 5)
+    ])
+    assert excessive["state"] == "degraded"
+    assert len(requests) == 4
 
 
 def test_electricity_entity_probe_mapping_and_privacy():
@@ -273,7 +354,7 @@ def test_guidance_is_fixed_complete_and_private():
 
 
 def test_admin_frontend_contract():
-    html = (ROOT / "app/static/admin.html").read_text(encoding="utf-8")
+    html = (ROOT / "app/admin.html").read_text(encoding="utf-8")
     javascript = (ROOT / "app/static/js/admin-connections.js").read_text(encoding="utf-8")
     page_javascript = (ROOT / "app/static/js/admin-page.js").read_text(encoding="utf-8")
     combined = html + javascript
@@ -341,6 +422,7 @@ def test():
     test_safe_state_mapping_and_failures()
     test_home_assistant_probe_classes_are_safe()
     test_scrypted_response_mapping_and_privacy()
+    test_scrypted_follows_only_safe_same_origin_redirects()
     test_electricity_entity_probe_mapping_and_privacy()
     test_jarvis_degraded_mappings()
     test_contract_and_technical_detail_allowlist()

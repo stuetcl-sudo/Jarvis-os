@@ -10,7 +10,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from app import config
+from app import config, home_entity_settings
 from app.family_people import list_family_people
 from app.family_task_assignments import FamilyTaskAssignmentStore
 from app.family_visibility import role_can_do
@@ -115,13 +115,30 @@ def parse_task_sources(raw_value):
     return tuple(sources)
 
 
+def task_sources_from_entities(entity_ids):
+    return tuple(
+        TaskSource(
+            entity_id,
+            _source_key(entity_id),
+            _plain_label(entity_id.split(".", 1)[1].replace("_", " ").title()),
+        )
+        for entity_id in entity_ids
+    )
+
+
 def load_family_tasks_settings():
     try:
         values = config.family_tasks_configuration()
-    except ValueError as exc:
+        saved_sources = home_entity_settings.runtime_entity_setting(
+            "task_entities", None, db_path=config.DB_PATH
+        )
+        if saved_sources is None:
+            sources = parse_task_sources(values["sources"]) if values["sources"] else ()
+        else:
+            sources = task_sources_from_entities(saved_sources)
+    except (OSError, RuntimeError, ValueError) as exc:
         raise FamilyTasksConfigurationError("Task list configuration is invalid") from exc
-    raw_sources = values["sources"]
-    if not raw_sources:
+    if not sources:
         return None
     try:
         connection = load_home_assistant_connection()
@@ -133,7 +150,7 @@ def load_family_tasks_settings():
         raise FamilyTasksConfigurationError("FAMILY_TASKS_STALE_SECONDS must be at least FAMILY_TASKS_CACHE_SECONDS")
     return FamilyTasksSettings(
         connection=connection,
-        sources=parse_task_sources(raw_sources),
+        sources=sources,
         cache_seconds=values["cache_seconds"],
         stale_seconds=values["stale_seconds"],
         max_items=values["max_items"],

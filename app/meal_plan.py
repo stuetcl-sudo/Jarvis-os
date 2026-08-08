@@ -2,7 +2,7 @@ from datetime import date, datetime, time as datetime_time, timedelta
 
 from fastapi import APIRouter, Request
 
-from app import config
+from app import config, home_entity_settings
 from app.module_settings import load_module_config
 from app.calendar import (
     CALENDAR_ENTITY_RE,
@@ -24,10 +24,12 @@ WEEKDAY_LABELS = ("Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag",
 def load_meal_plan_settings():
     try:
         values = config.meal_plan_configuration()
-    except ValueError as exc:
+        entity_id = home_entity_settings.runtime_entity_setting(
+            "meal_calendar", values["entity_id"], db_path=config.DB_PATH
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
         raise CalendarConfigurationError("Meal plan configuration is invalid") from exc
 
-    entity_id = values["entity_id"]
     if not entity_id:
         return None
     if not CALENDAR_ENTITY_RE.fullmatch(entity_id):

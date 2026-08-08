@@ -13,6 +13,7 @@ const setupSelections = {
   temperature_entities: new Set(),
   humidity_entities: new Set(),
 };
+const setupEntityListDirty = new Set();
 
 async function setupJson(url, options = {}) {
   const method = String(options.method || "GET").toUpperCase();
@@ -376,6 +377,7 @@ function createSetupCheckboxPicker(id, key, label, filter) {
       checkbox.addEventListener("change", () => {
         if (checkbox.checked) setupSelections[key].add(item.entity_id);
         else setupSelections[key].delete(item.entity_id);
+        if (["calendar_entities", "task_entities"].includes(key)) setupEntityListDirty.add(key);
       });
       const text = createElement("span", "entity-checkbox-text");
       text.append(createElement("strong", "", setupEntityTitle(item)), createElement("small", "", item.entity_id));
@@ -394,8 +396,8 @@ function readSingleValue(id) {
   return document.getElementById(id)?.value || "";
 }
 
-function currentEntitySettings() {
-  return {
+function currentEntitySettings(includeUnchangedLists = false) {
+  const payload = {
     calendar_entities: Array.from(setupSelections.calendar_entities),
     meal_calendar: readSingleValue("setupMealCalendar"),
     task_entities: Array.from(setupSelections.task_entities),
@@ -406,9 +408,12 @@ function currentEntitySettings() {
     temperature_entities: Array.from(setupSelections.temperature_entities),
     humidity_entities: Array.from(setupSelections.humidity_entities),
   };
+  if (!includeUnchangedLists && !setupEntityListDirty.has("calendar_entities")) delete payload.calendar_entities;
+  if (!includeUnchangedLists && !setupEntityListDirty.has("task_entities")) delete payload.task_entities;
+  return payload;
 }
 
-function applyEntitySettings(settings) {
+function applyEntitySettings(settings, resetDirty = true) {
   ["calendar_entities", "task_entities", "temperature_entities", "humidity_entities"].forEach((key) => {
     setupSelections[key] = new Set(settings[key] || []);
   });
@@ -423,9 +428,10 @@ function applyEntitySettings(settings) {
     const node = document.getElementById(id);
     if (node) node.value = value || "";
   });
+  if (resetDirty) setupEntityListDirty.clear();
 }
 
-function renderSetupSelectors(settings = currentEntitySettings()) {
+function renderSetupSelectors(settings = currentEntitySettings(true)) {
   const grid = document.getElementById("setupEntitySelectorGrid");
   if (!grid) return;
   grid.replaceChildren(
@@ -440,7 +446,7 @@ function renderSetupSelectors(settings = currentEntitySettings()) {
     createSetupCheckboxPicker("setupHumidityEntities", "humidity_entities", "Luftfugtighed", { domain: "sensor", deviceClass: "humidity" }),
   );
   grid.hidden = false;
-  applyEntitySettings(settings);
+  applyEntitySettings(settings, false);
 }
 
 async function discoverSetupEntities() {
@@ -473,6 +479,7 @@ async function saveEntitySettings() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(currentEntitySettings()),
   });
+  setupEntityListDirty.clear();
 }
 
 function summaryCard(title, value) {

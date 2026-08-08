@@ -12,7 +12,7 @@ from urllib.parse import quote
 import httpx
 from fastapi import APIRouter, Request
 
-from app import config
+from app import config, home_entity_settings
 from app.family_visibility import family_feature_hidden
 from app.home_assistant import (
     HomeAssistantClient,
@@ -98,10 +98,12 @@ def load_weather_settings():
     try:
         values = config.weather_configuration()
         connection = load_home_assistant_connection()
-    except (ValueError, HomeAssistantConfigurationError) as exc:
+        entity_id = home_entity_settings.runtime_entity_setting(
+            "weather_entity", values["entity_id"], db_path=config.DB_PATH
+        )
+    except (OSError, RuntimeError, ValueError, HomeAssistantConfigurationError) as exc:
         raise WeatherConfigurationError("Home Assistant weather configuration is invalid") from exc
 
-    entity_id = values["entity_id"]
     uv_entity_id = os.getenv("HOME_ASSISTANT_UV_ENTITY", DEFAULT_UV_ENTITY).strip()
     uv_max_entity_id = os.getenv("HOME_ASSISTANT_UV_MAX_ENTITY", DEFAULT_UV_MAX_ENTITY).strip()
     if connection is None and not entity_id:

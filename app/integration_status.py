@@ -2,7 +2,7 @@
 
 import os
 from datetime import datetime, timezone
-from urllib.parse import quote, urlsplit, urlunsplit
+from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 
 import httpx
 
@@ -45,6 +45,12 @@ GUIDANCE = {
     ("electricity_prices", "unavailable", None): ("Kontrollér Home Assistant", "Kontrollér Home Assistant-forbindelsen, før strømpriser kontrolleres igen."),
     ("jarvis", "degraded", None): ("Se systemstatus", "Se systemstatus for flere sikre oplysninger."),
 }
+
+
+def _effective_port(parsed):
+    if parsed.port is not None:
+        return parsed.port
+    return 443 if parsed.scheme == "https" else 80
 
 
 def _item(key, name, state, summary, checked_at, technical_detail=None):
@@ -100,7 +106,34 @@ def _scrypted(checked_at):
         base_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", ""))
         probe_url = f"{base_url}/"
         with httpx.Client(timeout=2, follow_redirects=False) as client:
-            response = client.get(probe_url)
+            response = None
+            next_url = probe_url
+            visited = set()
+            for _redirect in range(4):
+                if next_url in visited:
+                    response = None
+                    break
+                visited.add(next_url)
+                response = client.get(next_url)
+                if not response.is_redirect:
+                    break
+                location = response.headers.get("location", "").strip()
+                candidate = urlsplit(urljoin(next_url, location))
+                if (
+                    not location
+                    or candidate.scheme != parsed.scheme
+                    or candidate.hostname != parsed.hostname
+                    or _effective_port(candidate) != _effective_port(parsed)
+                    or candidate.username
+                    or candidate.password
+                ):
+                    response = None
+                    break
+                next_url = urlunsplit((candidate.scheme, candidate.netloc, candidate.path, candidate.query, ""))
+            else:
+                response = None
+        if response is None:
+            return _item("scrypted", "Scrypted", "degraded", "Scrypted-forbindelsen kræver opsætning", checked_at, {"configured": True, "check": "http", "response_class": "redirect"})
         if 200 <= response.status_code <= 299:
             return _item("scrypted", "Scrypted", "connected", "Scrypted er forbundet", checked_at, {"configured": True, "check": "http", "response_class": "success"})
         if response.status_code in {401, 403}:

@@ -1,4 +1,5 @@
 import json
+import os
 import re
 
 from app import settings_store
@@ -25,6 +26,11 @@ LIST_FIELDS = {
     "safety_camera_entities": ("home_assistant.safety_camera_entities", {"camera"}),
 }
 
+LEGACY_TASK_SOURCES = (
+    "todo.familieopgaver|Familieopgaver,todo.lektier|Lektier,"
+    "todo.shopping_list|Indkøbsliste"
+)
+
 
 def _validate_entity_id(value, allowed_types):
     entity_id = str(value or "").strip()
@@ -48,6 +54,63 @@ def _load_list(key, db_path=None):
     if not isinstance(value, list):
         return []
     return [str(item) for item in value if isinstance(item, str)]
+
+
+def runtime_entity_setting(field, fallback, db_path=None):
+    """Return a saved entity selection, falling back only when no DB row exists."""
+    definitions = {**SINGLE_FIELDS, **LIST_FIELDS}
+    if field not in definitions:
+        raise KeyError(field)
+    key = definitions[field][0]
+    missing = object()
+    raw = settings_store.get_setting(key, missing, db_path=db_path)
+    if raw is missing:
+        return fallback
+    if field in SINGLE_FIELDS:
+        return str(raw or "").strip()
+    try:
+        value = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return []
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if isinstance(item, str) and item.strip()]
+
+
+def _legacy_list(raw_value, allowed_types):
+    result = []
+    for entry in str(raw_value or "").split(","):
+        entity_id = entry.split("|", 1)[0].strip()
+        if (
+            entity_id
+            and ENTITY_ID_PATTERN.fullmatch(entity_id)
+            and entity_id.split(".", 1)[0] in allowed_types
+            and entity_id not in result
+        ):
+            result.append(entity_id)
+    return result
+
+
+def legacy_entity_settings():
+    weather = os.getenv("HOME_ASSISTANT_WEATHER_ENTITY", "").strip()
+    meal = os.getenv("HOME_ASSISTANT_MEAL_CALENDAR", "calendar.madplan").strip()
+    return {
+        "meal_calendar": meal if ENTITY_ID_PATTERN.fullmatch(meal) and meal.startswith("calendar.") else "",
+        "weather_entity": weather if ENTITY_ID_PATTERN.fullmatch(weather) and weather.startswith("weather.") else "",
+        "calendar_entities": _legacy_list(os.getenv("HOME_ASSISTANT_CALENDARS", ""), {"calendar"}),
+        "task_entities": _legacy_list(os.getenv("HOME_ASSISTANT_TASK_LISTS", LEGACY_TASK_SOURCES), {"todo"}),
+    }
+
+
+def load_effective_entity_settings(db_path=None):
+    """Return values for editing without turning absent legacy settings into clears."""
+    legacy = legacy_entity_settings()
+    result = {}
+    for field in SINGLE_FIELDS:
+        result[field] = runtime_entity_setting(field, legacy.get(field, ""), db_path=db_path)
+    for field in LIST_FIELDS:
+        result[field] = runtime_entity_setting(field, legacy.get(field, []), db_path=db_path)
+    return result
 
 
 def load_entity_settings(db_path=None):
