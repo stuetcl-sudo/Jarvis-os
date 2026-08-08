@@ -203,6 +203,18 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
+On first use Jarvis generates `/data/config-master.key` inside the persistent
+`jarvis_data` volume. This key encrypts locally stored integration tokens. Back
+up the volume and do not delete or replace the key after saving secrets.
+
+Jarvis reads Docker only through its restricted, read-only socket proxy. The
+default `DOCKER_SOCKET_PATH=/var/run/docker.sock` matches normal Debian/Ubuntu
+Docker Engine installations. If `docker context inspect` reports a different
+Unix socket (for example rootless Docker under `/run/user/<uid>/docker.sock`),
+set that host path in `.env` before starting Jarvis. A missing or incorrect path
+now stops the proxy at startup instead of creating a directory and later
+reporting a misleading 502 response.
+
 Open the family dashboard:
 
 ```text

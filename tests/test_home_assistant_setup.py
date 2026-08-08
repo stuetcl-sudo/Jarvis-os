@@ -82,14 +82,14 @@ def test_discovery_returns_sorted_plain_entity_metadata():
     assert entities[1]["unit"] == "°C"
 
 
-def test_save_connection_stores_token_encrypted_and_returns_only_summary():
+def test_fresh_install_save_connection_generates_key_and_encrypts_token():
     test_url = "http://" + "homeassistant" + ".local:8123"
     with tempfile.TemporaryDirectory() as folder:
         db_path = os.path.join(folder, "jarvis.db")
         master_key_name = "CONFIG_MASTER_" + "KEY"
         old_master_key = os.environ.get(master_key_name)
         try:
-            os.environ[master_key_name] = "test-master-key"
+            os.environ.pop(master_key_name, None)
             summary = home_assistant_setup.save_connection(
                 test_url + "/",
                 "saved-token",
@@ -101,6 +101,7 @@ def test_save_connection_stores_token_encrypted_and_returns_only_summary():
             }
             assert "saved-token" not in repr(summary)
             assert settings_store.get_secret("home_assistant.token", db_path=db_path) == "saved-token"
+            assert os.path.isfile(os.path.join(folder, "config-master.key"))
         finally:
             if old_master_key is None:
                 os.environ.pop(master_key_name, None)
@@ -163,7 +164,7 @@ def test():
     test_connection_accepts_valid_home_assistant_response()
     test_connection_rejects_bad_token()
     test_discovery_returns_sorted_plain_entity_metadata()
-    test_save_connection_stores_token_encrypted_and_returns_only_summary()
+    test_fresh_install_save_connection_generates_key_and_encrypts_token()
     test_invalid_url_is_rejected()
     test_safe_connection_failures_are_classified()
     print("Home Assistant setup tests OK")

@@ -7,6 +7,7 @@ from app import config
 from app.auth.context import reset_current_actor, set_current_actor
 from app.auth.routes import router as auth_router
 from app.auth.service import SESSION_COOKIE_NAME, auth_service
+from app.admin_user_routes import router as admin_user_router
 from app.bootstrap_routes import router as bootstrap_router
 from app.calendar import router as calendar_router
 from app.db import log_action
@@ -37,6 +38,7 @@ app.include_router(safety_status_router)
 app.include_router(family_visibility_router)
 app.include_router(module_settings_router)
 app.include_router(screen_router)
+app.include_router(admin_user_router)
 
 ROUTINE_WRITE_ACTIONS = {"complete", "back", "reset"}
 OWNER_DOCUMENTATION_PATHS = {"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"}
