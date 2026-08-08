@@ -44,18 +44,22 @@ def environment(**values):
         "CALENDAR_MAX_EVENTS",
     ]
     previous = {name: os.environ.get(name) for name in names}
-    try:
-        for name in names:
-            os.environ.pop(name, None)
-        for name, value in values.items():
-            os.environ[name] = str(value)
-        yield
-    finally:
-        for name, value in previous.items():
-            if value is None:
+    previous_db = config.DB_PATH
+    with tempfile.TemporaryDirectory() as folder:
+        try:
+            config.DB_PATH = str(Path(folder) / "calendar-settings.db")
+            for name in names:
                 os.environ.pop(name, None)
-            else:
-                os.environ[name] = value
+            for name, value in values.items():
+                os.environ[name] = str(value)
+            yield
+        finally:
+            config.DB_PATH = previous_db
+            for name, value in previous.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
 
 
 @contextmanager

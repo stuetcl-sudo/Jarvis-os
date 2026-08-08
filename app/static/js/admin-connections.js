@@ -1,5 +1,6 @@
 let discoveredHomeAssistantEntities = [];
 let showTechnicalHomeAssistantEntities = false;
+const homeAssistantEntityListDirty = new Set();
 
 function ensureHomeAssistantPanel() {
   const section = document.querySelector('[data-admin-section="connections"]');
@@ -81,9 +82,9 @@ function ensureHomeAssistantPanel() {
     technicalToggle.textContent = showTechnicalHomeAssistantEntities
       ? "Skjul tekniske sensorer"
       : "Vis tekniske sensorer";
-    const settings = homeAssistantEntitySettingsPayload();
+    const settings = homeAssistantEntitySettingsPayload(true);
     renderHomeAssistantSelectors();
-    applyHomeAssistantEntitySettings(settings);
+    applyHomeAssistantEntitySettings(settings, false);
   });
   pickerToolbar.append(technicalToggle);
   selectorPanel.append(pickerToolbar);
@@ -183,6 +184,10 @@ function createCheckboxPicker(id, label, filter) {
   const list = element("div", "entity-checkbox-list");
   list.id = id;
   list.dataset.picker = "true";
+  list.addEventListener("change", () => {
+    if (id === "haCalendarEntities") homeAssistantEntityListDirty.add("calendar_entities");
+    if (id === "haTaskEntities") homeAssistantEntityListDirty.add("task_entities");
+  });
   const items = matchingEntities(filter);
 
   function render(query = "") {
@@ -249,7 +254,7 @@ function setSelectedValues(id, values) {
   });
 }
 
-function applyHomeAssistantEntitySettings(settings) {
+function applyHomeAssistantEntitySettings(settings, resetDirty = true) {
   document.getElementById("haMealCalendar").value = settings.meal_calendar || "";
   document.getElementById("haWeatherEntity").value = settings.weather_entity || "";
   document.getElementById("haElectricityPriceEntity").value = settings.electricity_price_entity || "";
@@ -259,10 +264,11 @@ function applyHomeAssistantEntitySettings(settings) {
   setSelectedValues("haTaskEntities", settings.task_entities);
   setSelectedValues("haTemperatureEntities", settings.temperature_entities);
   setSelectedValues("haHumidityEntities", settings.humidity_entities);
+  if (resetDirty) homeAssistantEntityListDirty.clear();
 }
 
-function homeAssistantEntitySettingsPayload() {
-  return {
+function homeAssistantEntitySettingsPayload(includeUnchangedLists = false) {
+  const payload = {
     calendar_entities: selectedValues("haCalendarEntities"),
     meal_calendar: document.getElementById("haMealCalendar")?.value || "",
     task_entities: selectedValues("haTaskEntities"),
@@ -273,6 +279,9 @@ function homeAssistantEntitySettingsPayload() {
     temperature_entities: selectedValues("haTemperatureEntities"),
     humidity_entities: selectedValues("haHumidityEntities"),
   };
+  if (!includeUnchangedLists && !homeAssistantEntityListDirty.has("calendar_entities")) delete payload.calendar_entities;
+  if (!includeUnchangedLists && !homeAssistantEntityListDirty.has("task_entities")) delete payload.task_entities;
+  return payload;
 }
 
 async function loadHomeAssistantSummary() {
@@ -359,6 +368,7 @@ async function saveHomeAssistantSelections() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(homeAssistantEntitySettingsPayload()),
     });
+    homeAssistantEntityListDirty.clear();
     showNotice("De valgte Home Assistant-funktioner er gemt.", "success");
   } catch (error) {
     showNotice(`Valgene kunne ikke gemmes: ${error.message}`, "error", 0);

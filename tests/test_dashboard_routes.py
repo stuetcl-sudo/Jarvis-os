@@ -38,27 +38,13 @@ def test_root_returns_anonymous_family_dashboard():
     assert "/static/css/weather.css" in response.text
 
 
-def test_admin_requires_login_and_static_home_administration_is_preserved():
+def test_admin_requires_login_and_static_document_is_not_public():
     response = client.get("/admin")
     assert response.status_code == 303
     assert response.headers["location"] == "/login?next=/admin"
     static_admin = client.get("/static/admin.html")
-    assert static_admin.status_code == 200
-    for expected in [
-        "Hjemmets administration",
-        "Oversigt",
-        "Hjemmet",
-        "Funktioner",
-        "Forbindelser",
-        "Brugere og adgang",
-        "Systemstatus",
-        "Avanceret",
-        "Handlinger og godkendelser",
-        "Automatiske regler",
-        "Docker og tekniske tjenester",
-    ]:
-        assert expected in static_admin.text
-    assert "/static/js/admin.js" in static_admin.text
+    assert static_admin.status_code == 404
+    assert "Hjemmets administration" not in static_admin.text
 
 
 def test_login_page_and_assets_load():
@@ -199,7 +185,7 @@ def test_validation_script_checks_protected_live_v010_deployment():
     assert 'check_live_login || fail "Live login route check failed."' in script
     assert 'if [ "$location" = "/bootstrap" ]' in script
     assert 'check_live_redirect "/admin" "/login?next=/admin"' in script
-    assert 'check_live_route "/static/admin.html" "home administration static page" "Hjemmets administration"' in script
+    assert 'check_live_status_code "/static/admin.html" "404" "private administration document"' in script
     assert '"weather": {"ok", "stale", "not_configured", "unavailable"}' in helper
     assert '"calendar": {"ok", "partial", "stale", "not_configured", "unavailable"}' in helper
     for asset in [
@@ -216,7 +202,7 @@ def test_validation_script_checks_protected_live_v010_deployment():
 if __name__ == "__main__":
     for test in [
         test_root_returns_anonymous_family_dashboard,
-        test_admin_requires_login_and_static_home_administration_is_preserved,
+        test_admin_requires_login_and_static_document_is_not_public,
         test_login_page_and_assets_load,
         test_family_page_contains_no_action_engine_write_controls,
         test_existing_api_routes_remain_available,

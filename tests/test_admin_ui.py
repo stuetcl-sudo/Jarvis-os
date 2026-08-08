@@ -3,7 +3,7 @@ from pathlib import Path
 from app import config
 
 ROOT = Path(__file__).resolve().parents[1]
-HTML = (ROOT / "app/static/admin.html").read_text(encoding="utf-8")
+HTML = (ROOT / "app/admin.html").read_text(encoding="utf-8")
 ADMIN_SCRIPTS = [
     (ROOT / "app/static/js/admin.js").read_text(encoding="utf-8"),
     (ROOT / "app/static/js/admin-render.js").read_text(encoding="utf-8"),
@@ -175,6 +175,9 @@ def test_home_assistant_safety_picker_is_admin_configured():
     ]:
         assert marker in CONNECTION_JAVASCRIPT
     assert "admin-safety-connections.js" in CORE_JAVASCRIPT
+    assert "homeAssistantEntityListDirty" in CONNECTION_JAVASCRIPT
+    assert "delete payload.calendar_entities" in CONNECTION_JAVASCRIPT
+    assert "delete payload.task_entities" in CONNECTION_JAVASCRIPT
 
 
 def test_admin_uses_inline_feedback_and_status_aware_actions():
@@ -190,9 +193,9 @@ def test_admin_uses_inline_feedback_and_status_aware_actions():
 
 
 def test_release_metadata_and_v010_admin_polish():
-    assert config.VERSION == "0.22.2"
-    assert README.startswith("# Jarvis-os v0.22.2")
-    assert "Current release version: `0.22.2`." in README
+    assert config.VERSION == "0.22.3"
+    assert README.startswith("# Jarvis-os v0.22.3")
+    assert "Current release version: `0.22.3`." in README
     assert "## What is new in v0.20.0-alpha.1" in README
     for expected in [
         'label: "Afventer godkendelse"',

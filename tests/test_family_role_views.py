@@ -189,6 +189,32 @@ def test_family_frontend_is_safe_read_only_and_admin_boundary_is_unchanged():
         assert client.get("/admin").status_code == 200
 
 
+def test_admin_document_has_no_static_or_non_owner_bypass():
+    with environment() as client:
+        anonymous_admin = client.get("/admin")
+        assert anonymous_admin.status_code == 303
+        assert anonymous_admin.headers["location"] == "/login?next=/admin"
+        assert client.get("/static/admin.html").status_code == 404
+
+    for role in ("adult", "child", "wall_display"):
+        with environment() as client:
+            create_and_login(client, role, f"{role} Test")
+            denied = client.get("/admin")
+            assert denied.status_code == 403
+            assert "Hjemmets administration" not in denied.text
+            static_document = client.get("/static/admin.html")
+            assert static_document.status_code == 404
+            assert "Hjemmets administration" not in static_document.text
+
+    with environment() as client:
+        create_and_login(client, "owner", "Ejer Test")
+        complete_ready_setup()
+        allowed = client.get("/admin")
+        assert allowed.status_code == 200
+        assert "Hjemmets administration" in allowed.text
+        assert client.get("/static/admin.html").status_code == 404
+
+
 if __name__ == "__main__":
     for test in [
         test_anonymous_family_view_is_public_and_non_technical,
@@ -198,6 +224,7 @@ if __name__ == "__main__":
         test_wall_display_is_shared_kiosk_without_personal_name,
         test_role_cannot_be_changed_by_query_and_invalid_role_falls_back,
         test_family_frontend_is_safe_read_only_and_admin_boundary_is_unchanged,
+        test_admin_document_has_no_static_or_non_owner_bypass,
     ]:
         test()
     print("Family role view tests OK")

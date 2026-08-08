@@ -290,7 +290,7 @@ def discover_home_assistant_entities(payload: object = Body(...)):
 
 @router.get("/home-assistant/entity-settings")
 def get_home_assistant_entity_settings():
-    return home_entity_settings.load_entity_settings(db_path=config.DB_PATH)
+    return home_entity_settings.load_effective_entity_settings(db_path=config.DB_PATH)
 
 
 @router.post("/home-assistant/entity-settings")

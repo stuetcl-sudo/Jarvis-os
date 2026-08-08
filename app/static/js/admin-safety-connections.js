@@ -114,8 +114,8 @@ renderHomeAssistantSelectors = function renderHomeAssistantSelectorsWithSafety()
 };
 
 const baseApplyHomeAssistantEntitySettings = applyHomeAssistantEntitySettings;
-applyHomeAssistantEntitySettings = function applyHomeAssistantEntitySettingsWithSafety(settings) {
-  baseApplyHomeAssistantEntitySettings(settings);
+applyHomeAssistantEntitySettings = function applyHomeAssistantEntitySettingsWithSafety(settings, resetDirty = true) {
+  baseApplyHomeAssistantEntitySettings(settings, resetDirty);
   const internetSelect = document.getElementById("haInternetStatusEntity");
   if (internetSelect) internetSelect.value = settings.internet_status_entity || "";
   setSelectedValues("haSafetyDoorEntities", settings.safety_door_entities);
@@ -124,9 +124,9 @@ applyHomeAssistantEntitySettings = function applyHomeAssistantEntitySettingsWith
 };
 
 const baseHomeAssistantEntitySettingsPayload = homeAssistantEntitySettingsPayload;
-homeAssistantEntitySettingsPayload = function homeAssistantEntitySettingsPayloadWithSafety() {
+homeAssistantEntitySettingsPayload = function homeAssistantEntitySettingsPayloadWithSafety(includeUnchangedLists = false) {
   return {
-    ...baseHomeAssistantEntitySettingsPayload(),
+    ...baseHomeAssistantEntitySettingsPayload(includeUnchangedLists),
     internet_status_entity: document.getElementById("haInternetStatusEntity")?.value || "",
     safety_door_entities: selectedValues("haSafetyDoorEntities"),
     safety_motion_entities: selectedValues("haSafetyMotionEntities"),

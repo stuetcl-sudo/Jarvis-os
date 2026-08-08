@@ -41,7 +41,7 @@ def test_shared_frontend_foundation_files_exist_and_define_primitives():
 
 def test_core_pages_load_foundation_before_page_specific_styles():
     pages = [
-        STATIC / "admin.html",
+        ROOT / "app" / "admin.html",
         STATIC / "index.html",
         STATIC / "login.html",
         STATIC / "wall.html",

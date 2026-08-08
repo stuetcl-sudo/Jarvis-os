@@ -217,7 +217,7 @@ check_live_status_code "/api/family/safety-status" "401" "protected family safet
 check_live_login || fail "Live login route check failed."
 check_live_redirect "/admin" "/login?next=/admin"
 check_live_redirect "/setup" "/login?next=/setup"
-check_live_route "/static/admin.html" "home administration static page" "Hjemmets administration"
+check_live_status_code "/static/admin.html" "404" "private administration document"
 check_live_route "/static/setup.html" "first-run setup static page" "Gør Jarvis klar til hjemmet"
 check_live_route "/static/js/login.js" "login JavaScript"
 check_live_route "/static/js/family.js" "family dashboard JavaScript"

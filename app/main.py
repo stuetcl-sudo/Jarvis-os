@@ -1,7 +1,7 @@
 import asyncio
 from collections import Counter
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -94,8 +94,11 @@ def family_ui():
 
 
 @app.get("/admin")
-def admin_ui():
-    return FileResponse("app/static/admin.html")
+def admin_ui(request: Request):
+    current_user = getattr(request.state, "current_user", None)
+    if not current_user or current_user.get("role") != "owner":
+        raise HTTPException(status_code=403, detail="Owner role required")
+    return FileResponse("app/admin.html")
 
 
 @app.get("/setup")

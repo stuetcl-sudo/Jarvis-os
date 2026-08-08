@@ -14,6 +14,9 @@ def test_setup_entity_picker_contract():
     assert 'credentials = "same-origin"' in source
     assert "setupSelections[key].add" in source
     assert "setupSelections[key].delete" in source
+    assert "setupEntityListDirty" in source
+    assert "delete payload.calendar_entities" in source
+    assert "delete payload.task_entities" in source
     assert "Vis tekniske sensorer" in source
     assert ".entity-selector-grid" in stylesheet
     assert ".entity-checkbox-row" in stylesheet

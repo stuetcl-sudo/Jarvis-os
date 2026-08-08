@@ -11,7 +11,7 @@ from urllib.parse import quote
 import httpx
 from fastapi import APIRouter, Request
 
-from app import config
+from app import config, home_entity_settings
 from app.family_visibility import family_feature_hidden
 from app.home_assistant import (
     HomeAssistantClient,
@@ -104,13 +104,33 @@ def parse_calendar_sources(raw_value):
     return tuple(sources)
 
 
+def calendar_sources_from_entities(entity_ids):
+    colors = ("green", "blue", "violet", "yellow")
+    used_keys = set()
+    return tuple(
+        CalendarSource(
+            entity_id,
+            _calendar_key(entity_id.split(".", 1)[1].replace("_", " ").title(), used_keys),
+            entity_id.split(".", 1)[1].replace("_", " ").title(),
+            colors[index % len(colors)],
+        )
+        for index, entity_id in enumerate(entity_ids)
+    )
+
+
 def load_calendar_settings():
     try:
         values = config.calendar_configuration()
-    except ValueError as exc:
+        saved_calendars = home_entity_settings.runtime_entity_setting(
+            "calendar_entities", None, db_path=config.DB_PATH
+        )
+        if saved_calendars is None:
+            calendars = parse_calendar_sources(values["calendars"]) if values["calendars"] else ()
+        else:
+            calendars = calendar_sources_from_entities(saved_calendars)
+    except (OSError, RuntimeError, ValueError) as exc:
         raise CalendarConfigurationError("Calendar configuration is invalid") from exc
-    raw_calendars = values["calendars"]
-    if not raw_calendars:
+    if not calendars:
         return None
     try:
         connection = load_home_assistant_connection()
@@ -122,7 +142,7 @@ def load_calendar_settings():
         raise CalendarConfigurationError("CALENDAR_STALE_SECONDS must be at least CALENDAR_CACHE_SECONDS")
     return CalendarSettings(
         connection=connection,
-        calendars=parse_calendar_sources(raw_calendars),
+        calendars=calendars,
         lookahead_days=values["lookahead_days"],
         cache_seconds=values["cache_seconds"],
         stale_seconds=values["stale_seconds"],
