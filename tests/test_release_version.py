@@ -8,7 +8,7 @@ from app.main_auth import app
 from app.version import VERSION
 
 
-EXPECTED_VERSION = "0.22.1"
+EXPECTED_VERSION = "0.22.2"
 
 
 def test_release_version_has_one_authoritative_source():

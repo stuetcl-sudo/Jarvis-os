@@ -144,6 +144,7 @@ def run_check_once():
             create_incident("critical", "docker", "Docker kan ikke læses", docker_error)
             log_action("worker_check", "docker", "error", docker_error)
             raise RuntimeError(docker_error)
+        resolve_incident("docker", "Docker kan ikke læses")
 
         summary = summarize_containers(containers)
         evaluate_incidents(containers, health)

@@ -190,9 +190,9 @@ def test_admin_uses_inline_feedback_and_status_aware_actions():
 
 
 def test_release_metadata_and_v010_admin_polish():
-    assert config.VERSION == "0.22.1"
-    assert README.startswith("# Jarvis-os v0.22.1")
-    assert "Current release version: `0.22.1`." in README
+    assert config.VERSION == "0.22.2"
+    assert README.startswith("# Jarvis-os v0.22.2")
+    assert "Current release version: `0.22.2`." in README
     assert "## What is new in v0.20.0-alpha.1" in README
     for expected in [
         'label: "Afventer godkendelse"',

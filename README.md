@@ -1,10 +1,14 @@
-# Jarvis-os v0.22.1
+# Jarvis-os v0.22.2
 
 Jarvis-os is a local, private home dashboard with family views, local authentication, calendar, weather, routines, Home Assistant family content, Docker monitoring, system health and a safety-first Action Engine.
 
 The product direction for v1.0 is a flexible home dashboard that works without AI. Jarvis AI remains an optional future module rather than a requirement for the dashboard.
 
-Current release version: `0.22.1`.
+Current release version: `0.22.2`.
+
+## What is new in v0.22.2
+
+v0.22.2 resolves a Docker-read incident after a later successful Docker inventory check. Resolved incidents remain in history, while current Docker read failures continue to be reported as active problems.
 
 ## What is new in v0.22.0
 
