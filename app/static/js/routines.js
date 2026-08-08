@@ -107,6 +107,7 @@ function renderRoutinePeople() {
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.routinePerson = person.user_id;
+    if (person.display_color) button.dataset.personColor = person.display_color;
     button.textContent = person.display_name || "Person";
     button.setAttribute("aria-pressed", String(person.user_id === activePersonId));
     button.disabled = routineRequestPending;

@@ -183,6 +183,10 @@ def test_anonymous_and_authenticated_role_api_behavior():
     for role in ["owner", "adult", "child", "wall_display"]:
         with routine_environment() as (client, _, _):
             csrf = login(client, role)
+            if role == "owner":
+                auth_service.create_user(
+                    "routine-child", "Routine Child", "child", "Routine-Child-Pass-42!"
+                )
             response = client.get("/api/family/routines?role=anonymous")
             assert response.status_code == 200
             assert response.json()["routines"]["morning"]["current_task"]["title"] == "Vågne op"

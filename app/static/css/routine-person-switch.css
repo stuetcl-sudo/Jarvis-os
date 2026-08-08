@@ -75,6 +75,22 @@
   box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
+.routine-person-switch button[data-person-color="blue"] { --routine-person-color: #3d7fd8; }
+.routine-person-switch button[data-person-color="green"] { --routine-person-color: #2f8b57; }
+.routine-person-switch button[data-person-color="violet"] { --routine-person-color: #7650b5; }
+.routine-person-switch button[data-person-color="orange"] { --routine-person-color: #b85f18; }
+.routine-person-switch button[data-person-color="pink"] { --routine-person-color: #ad3f72; }
+.routine-person-switch button[data-person-color="teal"] { --routine-person-color: #167d79; }
+
+.routine-person-switch button[data-person-color] {
+  border-color: var(--routine-person-color);
+}
+
+.routine-person-switch button[data-person-color][aria-pressed="true"] {
+  background: var(--routine-person-color);
+  color: #fff;
+}
+
 .routine-person-switch button:disabled {
   cursor: wait;
   opacity: 0.58;

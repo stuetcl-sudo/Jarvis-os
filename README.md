@@ -1,10 +1,16 @@
-# Jarvis-os v0.22.3
+# Jarvis-os v0.23.0
 
 Jarvis-os is a local, private home dashboard with family views, local authentication, calendar, weather, routines, Home Assistant family content, Docker monitoring, system health and a safety-first Action Engine.
 
 The product direction for v1.0 is a flexible home dashboard that works without AI. Jarvis AI remains an optional future module rather than a requirement for the dashboard.
 
-Current release version: `0.22.3`.
+Current release version: `0.23.0`.
+
+## What is new in v0.23.0
+
+- Owners can safely delete adult, child and wall-display accounts and reset their passwords; affected sessions are invalidated immediately.
+- Family profiles now have a bounded display color used by person-oriented routine and task controls.
+- Owners can choose which owner, adult and child profiles appear on family and wall person surfaces. Existing adults and children remain visible, while owners and wall-display accounts stay hidden by default.
 
 ## What is new in v0.22.3
 

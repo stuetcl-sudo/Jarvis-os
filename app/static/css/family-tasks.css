@@ -585,6 +585,18 @@ body[data-family-role="wall_display"] .family-task-assignee select {
   --task-person-color: #d7ad2f;
 }
 
+.family-task-person-button[data-calendar-color="orange"] {
+  --task-person-color: #b85f18;
+}
+
+.family-task-person-button[data-calendar-color="pink"] {
+  --task-person-color: #ad3f72;
+}
+
+.family-task-person-button[data-calendar-color="teal"] {
+  --task-person-color: #167d79;
+}
+
 .family-task-person-button[data-calendar-color] {
   border-color: color-mix(
     in srgb,

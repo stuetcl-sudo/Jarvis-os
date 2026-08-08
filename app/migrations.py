@@ -66,9 +66,24 @@ def _migration_2_bootstrap_and_managed_setup(connection: sqlite3.Connection) -> 
     )
 
 
+def _migration_3_user_profiles(connection: sqlite3.Connection) -> None:
+    """Add bounded family profile fields without exposing owners or wall accounts."""
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(auth_users)").fetchall()}
+    if "display_color" not in columns:
+        connection.execute("ALTER TABLE auth_users ADD COLUMN display_color TEXT NOT NULL DEFAULT 'blue'")
+    if "family_visible" not in columns:
+        connection.execute("ALTER TABLE auth_users ADD COLUMN family_visible INTEGER NOT NULL DEFAULT 0")
+        connection.execute("UPDATE auth_users SET family_visible = 1 WHERE role IN ('adult', 'child')")
+    connection.execute(
+        "UPDATE auth_users SET display_color = CASE role WHEN 'adult' THEN 'teal' WHEN 'child' THEN 'violet' ELSE 'blue' END WHERE display_color IS NULL OR display_color = 'blue'"
+    )
+    connection.execute("UPDATE auth_users SET family_visible = 0 WHERE role = 'wall_display'")
+
+
 MIGRATIONS: tuple[Migration, ...] = (
     (1, "v0.20 migration framework baseline", _migration_1_baseline),
     (2, "v0.20 bootstrap and managed setup tables", _migration_2_bootstrap_and_managed_setup),
+    (3, "v0.23 user profile colors and family visibility", _migration_3_user_profiles),
 )
 
 

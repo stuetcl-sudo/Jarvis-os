@@ -210,6 +210,10 @@ def test_definition_api_authorization_csrf_and_updates():
     for role in ["owner", "adult"]:
         with editor_environment() as (client, _, _, _):
             csrf = login(client, role)
+            if role == "owner":
+                auth_service.create_user(
+                    "editor-child", "Editor Child", "child", "Editor-Child-Pass-42!"
+                )
             definitions = client.get("/api/family/routines/definitions")
             assert definitions.status_code == 200
             assert definitions.json()["routines"]["evening"]["tasks"][5]["weekdays"] == [2, 6]
