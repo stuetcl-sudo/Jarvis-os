@@ -11,6 +11,7 @@ from app import config
 from app.db import connect, log_action
 
 ALLOWED_ROLES = {"owner", "adult", "child", "wall_display"}
+ALLOWED_DISPLAY_COLORS = {"blue", "green", "violet", "orange", "pink", "teal"}
 SESSION_COOKIE_NAME = "jarvis_session"
 CREDENTIAL_MIN_LENGTH = 12
 CREDENTIAL_MAX_LENGTH = 128
@@ -33,7 +34,9 @@ CREATE TABLE IF NOT EXISTS auth_users (
     disabled INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    last_login_at TEXT
+    last_login_at TEXT,
+    display_color TEXT NOT NULL DEFAULT 'blue',
+    family_visible INTEGER NOT NULL DEFAULT 0
 )
 """
 
@@ -120,7 +123,17 @@ def safe_user(row):
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
         "last_login_at": row["last_login_at"],
+        "display_color": row["display_color"],
+        "family_visible": bool(row["family_visible"]),
     }
+
+
+def default_user_color(role):
+    return {"adult": "teal", "child": "violet", "owner": "blue", "wall_display": "blue"}.get(role, "blue")
+
+
+def default_family_visibility(role):
+    return role in {"adult", "child"}
 
 
 def initialize_auth_tables():
@@ -223,9 +236,11 @@ class AuthService:
                     disabled,
                     created_at,
                     updated_at,
-                    last_login_at
+                    last_login_at,
+                    display_color,
+                    family_visible
                 )
-                VALUES (?, ?, ?, 'owner', ?, 0, ?, ?, ?)
+                VALUES (?, ?, ?, 'owner', ?, 0, ?, ?, ?, ?, 0)
                 """,
                 (
                     user_id,
@@ -235,6 +250,7 @@ class AuthService:
                     now,
                     now,
                     now,
+                    default_user_color("owner"),
                 ),
             )
 
@@ -288,6 +304,8 @@ class AuthService:
                 "created_at": now,
                 "updated_at": now,
                 "last_login_at": now,
+                "display_color": default_user_color("owner"),
+                "family_visible": False,
             },
             "session_value": session_value,
             "csrf_value": csrf_value,
@@ -309,8 +327,8 @@ class AuthService:
         conn = connect()
         try:
             conn.execute(
-                "INSERT INTO auth_users (user_id, username, display_name, role, password_hash, disabled, created_at, updated_at, last_login_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, NULL)",
-                (user_id, normalized, str(display_name).strip() or normalized, role, credential_hash, now, now),
+                "INSERT INTO auth_users (user_id, username, display_name, role, password_hash, disabled, created_at, updated_at, last_login_at, display_color, family_visible) VALUES (?, ?, ?, ?, ?, 0, ?, ?, NULL, ?, ?)",
+                (user_id, normalized, str(display_name).strip() or normalized, role, credential_hash, now, now, default_user_color(role), 1 if default_family_visibility(role) else 0),
             )
             conn.commit()
         except sqlite3.IntegrityError as exc:
@@ -374,6 +392,76 @@ class AuthService:
             conn.close()
         log_action("auth_password_reset", normalized, "ok")
         return self.get_user(normalized)
+
+    def reset_password_by_id(self, user_id, password):
+        initialize_auth_tables()
+        validate_password(password)
+        now = to_iso(utc_now())
+        credential_hash = CREDENTIAL_HASHER.hash(password)
+        conn = connect()
+        try:
+            row = conn.execute("SELECT username, role FROM auth_users WHERE user_id = ?", (user_id,)).fetchone()
+            if not row:
+                raise ValueError("User not found")
+            if row["role"] == "owner":
+                raise ValueError("Owner password cannot be changed here")
+            conn.execute("UPDATE auth_users SET password_hash = ?, updated_at = ? WHERE user_id = ?", (credential_hash, now, user_id))
+            conn.execute("DELETE FROM auth_sessions WHERE user_id = ?", (user_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        log_action("auth_password_reset", row["username"], "ok")
+        return self.get_user(row["username"])
+
+    def update_profile(self, user_id, display_color, family_visible):
+        initialize_auth_tables()
+        color = str(display_color or "").strip().lower()
+        if color not in ALLOWED_DISPLAY_COLORS:
+            raise ValueError("Invalid display color")
+        conn = connect()
+        try:
+            row = conn.execute("SELECT username, role FROM auth_users WHERE user_id = ?", (user_id,)).fetchone()
+            if not row:
+                raise ValueError("User not found")
+            visible = bool(family_visible) and row["role"] != "wall_display"
+            conn.execute(
+                "UPDATE auth_users SET display_color = ?, family_visible = ?, updated_at = ? WHERE user_id = ?",
+                (color, 1 if visible else 0, to_iso(utc_now()), user_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        log_action("auth_user_profile_updated", row["username"], "ok")
+        return self.get_user(row["username"])
+
+    def delete_user(self, user_id):
+        initialize_auth_tables()
+        conn = connect()
+        try:
+            conn.execute("PRAGMA foreign_keys = ON")
+            row = conn.execute("SELECT username, role FROM auth_users WHERE user_id = ?", (user_id,)).fetchone()
+            if not row:
+                raise ValueError("User not found")
+            if row["role"] == "owner":
+                raise ValueError("Owner cannot be deleted")
+            tables = {item["name"] for item in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()}
+            if "screens" in tables:
+                conn.execute("UPDATE screens SET wall_user_id = NULL WHERE wall_user_id = ?", (user_id,))
+            if "family_task_assignments" in tables:
+                conn.execute("UPDATE family_task_assignments SET assignee_id = NULL WHERE assignee_id = ?", (user_id,))
+            conn.execute("DELETE FROM auth_sessions WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM auth_users WHERE user_id = ?", (user_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        # Routine state is file-backed rather than relational. Remove only the
+        # deleted person's entries after the database transaction succeeds.
+        from app.routines import definition_store, routine_store
+
+        routine_store.delete_person(user_id)
+        definition_store.delete_person(user_id)
+        log_action("auth_user_deleted", row["username"], "ok", f"role={row['role']}")
+        return True
 
     def cleanup_expired_sessions(self, now=None, conn=None):
         current = to_iso(now or utc_now())

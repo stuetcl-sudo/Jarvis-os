@@ -335,6 +335,10 @@
   }
 
   function taskPersonCalendarColor(person) {
+    const profileColor = String(person?.display_color || "").trim().toLowerCase();
+    if (["blue", "green", "violet", "orange", "pink", "teal"].includes(profileColor)) {
+      return profileColor;
+    }
     const personName = normalizedPersonName(taskPersonLabel(person));
     const calendars =
       typeof latestCalendarSnapshot !== "undefined" &&

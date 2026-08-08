@@ -192,10 +192,26 @@ def test_admin_uses_inline_feedback_and_status_aware_actions():
     assert "Reglen stopper med at oprette nye automatiske forslag." in CORE_JAVASCRIPT
 
 
+def test_user_management_ui_is_bounded_and_requires_confirmation():
+    user_javascript = ADMIN_SCRIPTS[7]
+    for expected in [
+        "Vis på familie-/vægskærm",
+        "Gem profil",
+        "Skift adgangskode",
+        "Slet bruger",
+        "window.confirm(`Vil du slette",
+        'method: "DELETE"',
+        'method: "PUT"',
+    ]:
+        assert expected in user_javascript
+    assert "innerHTML" not in user_javascript
+    assert "password_hash" not in user_javascript
+
+
 def test_release_metadata_and_v010_admin_polish():
-    assert config.VERSION == "0.22.3"
-    assert README.startswith("# Jarvis-os v0.22.3")
-    assert "Current release version: `0.22.3`." in README
+    assert config.VERSION == "0.23.0"
+    assert README.startswith("# Jarvis-os v0.23.0")
+    assert "Current release version: `0.23.0`." in README
     assert "## What is new in v0.20.0-alpha.1" in README
     for expected in [
         'label: "Afventer godkendelse"',

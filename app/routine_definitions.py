@@ -341,3 +341,17 @@ class RoutineDefinitionStore:
             definitions[routine_id] = restored
             self._write_state_unlocked(state)
             return previous, restored
+
+    def delete_person(self, person_id):
+        person_id = _clean_person_id(person_id)
+        if not person_id:
+            return False
+        with self._lock:
+            if not self.path.exists():
+                return False
+            state = self._read_state_unlocked()
+            if person_id not in state["persons"]:
+                return False
+            del state["persons"][person_id]
+            self._write_state_unlocked(state)
+            return True

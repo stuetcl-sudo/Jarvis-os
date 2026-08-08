@@ -15,12 +15,13 @@ def test_empty_database_gets_baseline_migration():
     with tempfile.TemporaryDirectory() as folder:
         db_path = str(Path(folder) / "jarvis.db")
 
-        assert run_migrations(db_path) == [1, 2]
+        assert run_migrations(db_path) == [1, 2, 3]
 
         rows = applied_migrations(db_path)
         assert [(row["version"], row["name"]) for row in rows] == [
             (1, "v0.20 migration framework baseline"),
             (2, "v0.20 bootstrap and managed setup tables"),
+            (3, "v0.23 user profile colors and family visibility"),
         ]
 
         connection = sqlite3.connect(db_path)
@@ -45,9 +46,9 @@ def test_migrations_are_idempotent():
     with tempfile.TemporaryDirectory() as folder:
         db_path = str(Path(folder) / "jarvis.db")
 
-        assert run_migrations(db_path) == [1, 2]
+        assert run_migrations(db_path) == [1, 2, 3]
         assert run_migrations(db_path) == []
-        assert len(applied_migrations(db_path)) == 2
+        assert len(applied_migrations(db_path)) == 3
 
 
 def test_existing_database_data_is_preserved():
@@ -65,7 +66,7 @@ def test_existing_database_data_is_preserved():
         connection.commit()
         connection.close()
 
-        assert run_migrations(db_path) == [1, 2]
+        assert run_migrations(db_path) == [1, 2, 3]
 
         connection = sqlite3.connect(db_path)
         row = connection.execute(
@@ -85,7 +86,49 @@ def test_schema_creation_is_safe_before_first_migration():
         connection.commit()
         connection.close()
 
-        assert run_migrations(db_path) == [1, 2]
+        assert run_migrations(db_path) == [1, 2, 3]
+
+
+def test_v022_users_receive_safe_profile_defaults():
+    with tempfile.TemporaryDirectory() as folder:
+        db_path = str(Path(folder) / "jarvis.db")
+        connection = sqlite3.connect(db_path)
+        connection.executescript(
+            """
+            CREATE TABLE auth_users (
+                user_id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE,
+                display_name TEXT NOT NULL, role TEXT NOT NULL,
+                password_hash TEXT NOT NULL, disabled INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL, last_login_at TEXT
+            );
+            CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL
+            );
+            INSERT INTO schema_migrations VALUES (1, 'old', 'now');
+            INSERT INTO schema_migrations VALUES (2, 'old', 'now');
+            """
+        )
+        for user_id, role in [("owner-id", "owner"), ("adult-id", "adult"), ("child-id", "child"), ("wall-id", "wall_display")]:
+            connection.execute(
+                "INSERT INTO auth_users VALUES (?, ?, ?, ?, 'hash', 0, 'now', 'now', NULL)",
+                (user_id, role, role, role),
+            )
+        connection.commit()
+        connection.close()
+
+        assert run_migrations(db_path) == [3]
+        connection = sqlite3.connect(db_path)
+        rows = connection.execute(
+            "SELECT role, display_color, family_visible FROM auth_users ORDER BY role"
+        ).fetchall()
+        connection.close()
+        assert rows == [
+            ("adult", "teal", 1),
+            ("child", "violet", 1),
+            ("owner", "blue", 0),
+            ("wall_display", "blue", 0),
+        ]
+        assert run_migrations(db_path) == []
 
 
 def test_failed_migration_rolls_back_schema_and_version_record():
@@ -122,6 +165,7 @@ def test():
     test_migrations_are_idempotent()
     test_existing_database_data_is_preserved()
     test_schema_creation_is_safe_before_first_migration()
+    test_v022_users_receive_safe_profile_defaults()
     test_failed_migration_rolls_back_schema_and_version_record()
     print("Database migration tests OK")
 

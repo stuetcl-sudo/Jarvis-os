@@ -15,6 +15,7 @@ def _public_person(user):
         "user_id": user_id,
         "display_name": display_name,
         "role": role,
+        "display_color": user.get("display_color") or "blue",
     }
 
 
@@ -23,7 +24,7 @@ def list_family_people():
     people = []
     for user in users:
         role = user.get("role")
-        if role not in FAMILY_PERSON_ROLES or user.get("disabled"):
+        if role not in FAMILY_PERSON_ROLES or user.get("disabled") or not user.get("family_visible"):
             continue
         person = _public_person(user)
         if person is not None:

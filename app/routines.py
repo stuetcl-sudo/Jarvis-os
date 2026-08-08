@@ -333,6 +333,21 @@ class RoutineStore:
             self._write_unlocked(state)
             return self._response(state, current, person_id)
 
+    def delete_person(self, person_id):
+        person_id = _clean_person_id(person_id)
+        if not person_id:
+            return False
+        with self._lock:
+            raw = self._load_raw_unlocked()
+            if not isinstance(raw, dict) or raw.get("version") != STATE_VERSION:
+                return False
+            state = _safe_versioned_state(raw, str(raw.get("date") or ""))
+            if person_id not in state["persons"]:
+                return False
+            del state["persons"][person_id]
+            self._write_unlocked(state)
+            return True
+
     def _response(self, progress_state, current, person_id=None):
         routines = {}
         definitions = self.definitions.all(person_id)
