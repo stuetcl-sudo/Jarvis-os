@@ -12,6 +12,7 @@ ADMIN_SCRIPTS = [
     (ROOT / "app/static/js/admin-safety-connections.js").read_text(encoding="utf-8"),
     (ROOT / "app/static/js/admin-screens.js").read_text(encoding="utf-8"),
     (ROOT / "app/static/js/admin-role-visibility.js").read_text(encoding="utf-8"),
+    (ROOT / "app/static/js/admin-users.js").read_text(encoding="utf-8"),
 ]
 JAVASCRIPT = "\n".join(ADMIN_SCRIPTS)
 CORE_JAVASCRIPT = ADMIN_SCRIPTS[0]
@@ -100,6 +101,7 @@ def test_admin_keeps_existing_api_contract_and_security_helpers():
     assert '/static/js/admin-safety-connections.js' in CORE_JAVASCRIPT
     assert '/static/js/admin-screens.js' in CORE_JAVASCRIPT
     assert '/static/js/admin-role-visibility.js' in CORE_JAVASCRIPT
+    assert '/static/js/admin-users.js' in CORE_JAVASCRIPT
     assert 'options.credentials = "same-origin"' in CORE_JAVASCRIPT
     assert '"X-CSRF-Token": csrfToken' in CORE_JAVASCRIPT
     assert 'window.location.assign("/login?next=/admin")' in CORE_JAVASCRIPT

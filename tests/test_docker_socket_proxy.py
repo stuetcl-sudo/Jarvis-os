@@ -1,4 +1,7 @@
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
+
+import httpx
 
 from fastapi.testclient import TestClient
 
@@ -138,13 +141,53 @@ def test_proxy_rejects_forbidden_request_before_docker_socket_access():
 def test_main_application_has_no_direct_docker_socket_mount():
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     proxy_section, jarvis_section = compose.split("  jarvis-os:", 1)
-    assert "/var/run/docker.sock:/var/run/docker.sock:ro" in proxy_section
+    assert "source: ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}" in proxy_section
+    assert "target: /var/run/docker.sock" in proxy_section
+    assert "read_only: true" in proxy_section
+    assert "create_host_path: false" in proxy_section
     assert "/var/run/docker.sock" not in jarvis_section
     assert "DOCKER_HOST: tcp://docker-socket-proxy:2375" in jarvis_section
     assert "read_only: true" in proxy_section
     assert "read_only: true" in jarvis_section
     assert "cap_drop:" in proxy_section
     assert "cap_drop:" in jarvis_section
+
+
+def test_health_requires_ping_version_and_real_container_api():
+    responses = [
+        httpx.Response(200, text="OK"),
+        httpx.Response(200, json={"ApiVersion": "1.44"}),
+        httpx.Response(200, json=[]),
+    ]
+    with patch("app.docker_socket_proxy.docker_request", new=AsyncMock(side_effect=responses)) as request:
+        client = TestClient(app)
+        try:
+            response = client.get("/health")
+        finally:
+            client.close()
+    assert response.status_code == 200
+    assert [call.args[1] for call in request.await_args_list] == [
+        "/_ping",
+        "/version",
+        "/containers/json",
+    ]
+    assert request.await_args_list[-1].kwargs["query"] == [("all", "1"), ("limit", "1")]
+
+
+def test_health_rejects_ping_only_false_positive():
+    responses = [
+        httpx.Response(200, text="OK"),
+        httpx.Response(200, json={"ApiVersion": "1.44"}),
+        RuntimeError("Docker Engine is unavailable"),
+    ]
+    with patch("app.docker_socket_proxy.docker_request", new=AsyncMock(side_effect=responses)):
+        client = TestClient(app)
+        try:
+            response = client.get("/health")
+        finally:
+            client.close()
+    assert response.status_code == 503
+    assert response.json() == {"status": "unavailable"}
 
 
 def test():
@@ -155,6 +198,8 @@ def test():
     test_container_inspect_removes_environment_mounts_and_host_configuration()
     test_proxy_rejects_forbidden_request_before_docker_socket_access()
     test_main_application_has_no_direct_docker_socket_mount()
+    test_health_requires_ping_version_and_real_container_api()
+    test_health_rejects_ping_only_false_positive()
     print("Docker socket proxy tests OK")
 
 

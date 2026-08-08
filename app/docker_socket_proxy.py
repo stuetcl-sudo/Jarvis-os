@@ -142,12 +142,18 @@ async def docker_request(method, path, *, query=None, content=b""):
 
 @app.get("/health")
 async def health():
-    try:
-        response = await docker_request("GET", "/_ping")
-    except RuntimeError:
-        return JSONResponse({"status": "unavailable"}, status_code=503)
-    if not response.is_success:
-        return JSONResponse({"status": "unavailable"}, status_code=503)
+    checks = (
+        ("/_ping", None),
+        ("/version", None),
+        ("/containers/json", [("all", "1"), ("limit", "1")]),
+    )
+    for path, query in checks:
+        try:
+            response = await docker_request("GET", path, query=query)
+        except RuntimeError:
+            return JSONResponse({"status": "unavailable"}, status_code=503)
+        if not response.is_success:
+            return JSONResponse({"status": "unavailable"}, status_code=503)
     return {"status": "ok"}
 
 

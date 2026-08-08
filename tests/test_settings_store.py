@@ -1,6 +1,8 @@
 import os
 import sqlite3
 import tempfile
+import stat
+from pathlib import Path
 
 from app import config, settings_store
 
@@ -46,6 +48,32 @@ def test_wrong_master_key_is_rejected():
             assert "CONFIG_MASTER_KEY" in str(exc)
         else:
             raise AssertionError("A wrong master key must not decrypt stored secrets")
+
+
+def test_fresh_install_generates_and_reuses_private_master_key():
+    with tempfile.TemporaryDirectory() as folder:
+        db_path = os.path.join(folder, "jarvis.db")
+        old_master_key = os.environ.pop("CONFIG_MASTER_KEY", None)
+        old_key_file = os.environ.pop("CONFIG_MASTER_KEY_FILE", None)
+        try:
+            token = "".join(["fresh", "-install", "-token"])
+            settings_store.set_secret("home_assistant.token", token, db_path=db_path)
+            key_path = os.path.join(folder, "config-master.key")
+            assert os.path.isfile(key_path)
+            assert stat.S_IMODE(os.stat(key_path).st_mode) == 0o600
+            assert settings_store.get_secret("home_assistant.token", db_path=db_path) == token
+            conn = sqlite3.connect(db_path)
+            encrypted = conn.execute(
+                "SELECT encrypted_value FROM app_secrets WHERE key = ?", ("home_assistant.token",)
+            ).fetchone()[0]
+            conn.close()
+            assert token not in encrypted
+            assert token not in Path(key_path).read_text(encoding="utf-8")
+        finally:
+            if old_master_key is not None:
+                os.environ["CONFIG_MASTER_KEY"] = old_master_key
+            if old_key_file is not None:
+                os.environ["CONFIG_MASTER_KEY_FILE"] = old_key_file
 
 
 def test_home_assistant_configuration_prefers_store_and_keeps_env_fallback():
@@ -94,6 +122,7 @@ def test():
     test_plain_settings_round_trip()
     test_secrets_are_encrypted_and_not_exposed_in_summary()
     test_wrong_master_key_is_rejected()
+    test_fresh_install_generates_and_reuses_private_master_key()
     test_home_assistant_configuration_prefers_store_and_keeps_env_fallback()
     print("Settings store tests OK")
 

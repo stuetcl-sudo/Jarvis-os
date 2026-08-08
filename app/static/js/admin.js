@@ -324,5 +324,6 @@ loadAdminScript("/static/js/admin-render.js")
   .then(() => loadAdminScript("/static/js/admin-modules.js"))
   .then(() => loadAdminScript("/static/js/admin-safety-connections.js"))
   .then(() => loadAdminScript("/static/js/admin-screens.js"))
+  .then(() => loadAdminScript("/static/js/admin-users.js"))
   .then(() => loadAdminScript("/static/js/admin-role-visibility.js"))
   .catch((error) => showNotice(`Administrationen kunne ikke startes: ${error.message}`, "error", 0));

@@ -1,6 +1,6 @@
 # Local authentication
 
-Jarvis-os uses local SQLite-backed users and opaque server-side sessions. No default account is created and there is no web bootstrap endpoint.
+Jarvis-os uses local SQLite-backed users and opaque server-side sessions. No default account is created. On a fresh installation, `/bootstrap` creates the first owner; afterwards bootstrap closes permanently.
 
 ## Role matrix
 
@@ -35,6 +35,9 @@ disable-user --username NAME
 enable-user --username NAME
 reset-password --username NAME
 ```
+
+The owner can also create adult, child and wall-display users under
+**Administration → Brugere og adgang**. The UI cannot create another owner.
 
 `list-users` never prints password hashes. Disabling a user immediately removes all of that user's active sessions. Resetting a password also removes existing sessions.
 
