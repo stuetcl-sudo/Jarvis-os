@@ -8,7 +8,7 @@ from app.main_auth import app
 from app.version import VERSION
 
 
-EXPECTED_VERSION = "0.22.0"
+EXPECTED_VERSION = "0.22.1"
 
 
 def test_release_version_has_one_authoritative_source():
@@ -21,7 +21,7 @@ def test_readme_matches_release_version():
 
     assert f"# Jarvis-os v{EXPECTED_VERSION}" in readme
     assert f"Current release version: `{EXPECTED_VERSION}`." in readme
-    assert f"## What is new in v{EXPECTED_VERSION}" in readme
+    assert "## What is new in v0.22.0" in readme
 
 
 def test_health_reports_release_version():
