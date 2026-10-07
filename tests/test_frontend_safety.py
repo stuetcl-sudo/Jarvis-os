@@ -5,6 +5,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_NAMES = (
     "app-shell.js",
     "pets.js",
+    "medication.js",
+    "daily-overview.js",
     "home-modules.js",
     "login.js",
     "admin.js",

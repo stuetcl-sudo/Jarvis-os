@@ -14,6 +14,7 @@
     ["rutiner", "Rutiner", "sun", "routine"],
     ["madplan", "Madplan", "meal", "meal"],
     ["indkoeb", "Indkøb", "cart", "shopping"],
+    ["medicin", "Medicin", "check", "medication"],
     ["kaeledyr", "Kæledyr", "paw", "pets"],
     ["energi", "Energi", "energy", "energy"],
     ["kamera", "Kamera", "camera", "cameras"],
@@ -79,8 +80,9 @@
       else link.removeAttribute("aria-current");
     }
     cards.forEach((card) => {
-      card.classList.toggle("app-section-hidden", !overview && card.dataset.familyCard !== page[3]);
+      card.classList.toggle("app-section-hidden", overview || card.dataset.familyCard !== page[3]);
     });
+    window.dispatchEvent(new CustomEvent("jarvis:page-changed", {detail:page[0]}));
     title.hidden = overview;
     title.textContent = page[1];
     document.title = `Jarvis – ${page[1]}`;

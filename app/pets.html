@@ -33,9 +33,18 @@
       <label>Titel<input name="title" required maxlength="160" placeholder="Fx årlig vaccination"></label>
       <label>Type<select name="kind"><option value="vaccination">Vaccination</option><option value="medicine">Medicin</option><option value="vet">Dyrlæge</option><option value="other">Andet</option></select></label>
       <label>Dato<input name="due_date" type="date" required></label>
+      <div class="pets-form-pair"><label>Gentag<select name="interval_unit"><option value="none">Ingen gentagelse</option><option value="days">Dage</option><option value="weeks">Uger</option><option value="months">Måneder</option><option value="years">År</option></select></label><label>Hvert antal<input name="interval_count" type="number" min="1" max="365" value="1" required></label></div>
       <label>Noter<textarea name="notes" maxlength="1000" rows="3" placeholder="Fx aftalen med dyrlægen"></textarea></label>
       <p id="petReminderNotice" role="status"></p>
       <div class="pets-form-actions"><button type="button" data-pets-close="petReminderDialog">Annuller</button><button type="submit">Gem påmindelse</button></div>
     </form>
   </dialog>
+  <dialog id="petExpenseDialog"><form id="petExpenseForm" class="pets-form">
+    <h2>Registrér udgift</h2><label>Dato<input name="day" type="date" required></label>
+    <label>Beskrivelse<input name="title" required maxlength="160"></label>
+    <label>Kategori<select name="category"><option value="food">Foder</option><option value="vet">Dyrlæge</option><option value="medicine">Medicin</option><option value="insurance">Forsikring</option><option value="care">Pleje</option><option value="other">Andet</option></select></label>
+    <label>Beløb (kr.)<input name="amount" type="number" min="0.01" max="1000000" step="0.01" required></label>
+    <label>Noter<textarea name="notes" maxlength="1000" rows="2"></textarea></label>
+    <p id="petExpenseNotice" role="status"></p><div class="pets-form-actions"><button type="button" data-pets-close="petExpenseDialog">Annuller</button><button type="submit">Gem udgift</button></div>
+  </form></dialog>
 </article>

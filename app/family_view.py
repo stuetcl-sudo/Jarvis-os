@@ -2,6 +2,7 @@ from html import escape
 from pathlib import Path
 
 from app import config
+from app.home_setup import load_home_settings
 from app.family_visibility import load_visibility_rules, role_can_see
 from app.module_settings import MODULES, load_module_config, load_module_settings
 
@@ -10,7 +11,7 @@ FAMILY_ROLES = {"owner", "adult", "child", "wall_display"}
 PERSONALIZED_ROLES = {"owner", "adult", "child"}
 ROLE_COPY = {
     "anonymous": ("Fælles overblik", "Her er et roligt overblik over hjemmet."),
-    "owner": ("Familiens overblik", "Her er både familiens overblik og den tekniske status."),
+    "owner": ("Familiens overblik", "Her er dagens fælles information samlet roligt og enkelt."),
     "adult": ("Familiens dag", "Her er dagens fælles information samlet roligt og enkelt."),
     "child": ("Din dag", "Her kan du se dagens aftaler, vejr, madplan og opgaver."),
     "wall_display": ("Fælles husholdningsskærm", "Dagens fælles information til hele hjemmet."),
@@ -150,6 +151,7 @@ def render_family_page(current_user, wall_actions=""):
         f'data-family-view="{context["view"]}" data-family-kiosk="{context["kiosk"]}" '
         f'data-family-label="{escape(context["label"], quote=True)}" '
         f'data-family-subtitle="{escape(context["subtitle"], quote=True)}" '
+        f'data-home-timezone="{escape(load_home_settings(db_path=config.DB_PATH)["timezone"], quote=True)}" '
         f'data-family-modules="{enabled_modules}" data-calendar-days="{module_config["calendar_days"]}" '
         f'data-meal-plan-days="{module_config["meal_plan_days"]}" '
         f'data-weather-uv-enabled="{str(module_config["weather_uv_enabled"]).lower()}">'
@@ -183,5 +185,7 @@ def render_family_page(current_user, wall_actions=""):
         if context["role"] == "child":
             modules = modules.partition("<!-- ADULT_MODULES_START -->")[0]
     page = page.replace("<!-- FAMILY_HOME_MODULES -->", modules, 1)
+    medication = (FAMILY_TEMPLATE.parent.parent / "medication.html").read_text(encoding="utf-8") if context["role"] in {"owner", "adult"} else ""
+    page = page.replace("<!-- FAMILY_MEDICATION -->", medication, 1)
     page = page.replace("<!-- FAMILY_NAVIGATION -->", navigation_for(context["role"]), 1)
     return apply_module_settings(page, module_settings)

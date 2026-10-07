@@ -3,7 +3,8 @@ import base64
 import binascii
 import json
 from contextlib import closing
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from calendar import monthrange
 from typing import Literal
 from zoneinfo import ZoneInfo
 
@@ -31,6 +32,12 @@ SCHEMA = (
 def initialize_pets(conn):
     for statement in SCHEMA:
         conn.execute(statement)
+    columns = {r[1] for r in conn.execute("PRAGMA table_info(pet_reminders)")}
+    for name, definition in [("interval_unit", "TEXT NOT NULL DEFAULT 'none'"), ("interval_count", "INTEGER NOT NULL DEFAULT 1"), ("interval_anchor", "TEXT NOT NULL DEFAULT ''")]:
+        if name not in columns:
+            conn.execute(f"ALTER TABLE pet_reminders ADD COLUMN {name} {definition}")
+    conn.execute("CREATE TABLE IF NOT EXISTS pet_reminder_history (reminder_id INTEGER NOT NULL, due_date TEXT NOT NULL, completed_at TEXT NOT NULL, PRIMARY KEY(reminder_id,due_date))")
+    conn.execute("CREATE TABLE IF NOT EXISTS pet_expenses (id INTEGER PRIMARY KEY, pet_id INTEGER NOT NULL, day TEXT NOT NULL, category TEXT NOT NULL, title TEXT NOT NULL, amount_ore INTEGER NOT NULL, notes TEXT NOT NULL)")
 
 
 def today():
@@ -102,11 +109,14 @@ class Reminder(BaseModel):
     kind: Literal["vaccination", "medicine", "vet", "other"]
     due_date: date
     notes: str = Field(default="", max_length=1000)
+    interval_unit: Literal["none", "days", "weeks", "months", "years"] = "none"
+    interval_count: int = Field(default=1, ge=1, le=365)
 
 
 class ReminderState(BaseModel):
     model_config = ConfigDict(extra="forbid")
     completed: bool
+    occurrence_date: date | None = None
 
 
 def require_pet(conn, pet_id):
@@ -124,7 +134,7 @@ def list_pets(user=Depends(family)):
             pet["care"] = {r["task"]: r["completed_at"] for r in conn.execute(
                 "SELECT task, completed_at FROM pet_care WHERE pet_id=? AND day=?", (row["id"], day))}
             pet["reminders"] = [dict(r) for r in conn.execute(
-                "SELECT id,title,kind,due_date,notes,completed FROM pet_reminders WHERE pet_id=? ORDER BY completed,due_date,id", (row["id"],))]
+                "SELECT id,title,kind,due_date,notes,completed,interval_unit,interval_count FROM pet_reminders WHERE pet_id=? ORDER BY completed,due_date,id", (row["id"],))]
             pets.append(pet)
     return {"pets": pets, "today": day, "can_edit": user["role"] in {"owner", "adult"},
             "can_care": user["role"] in {"owner", "adult", "child"}}
@@ -152,7 +162,9 @@ def delete_pet(pet_id: int, user=Depends(editor)):
     with closing(connect()) as conn, conn:
         require_pet(conn, pet_id)
         conn.execute("DELETE FROM pet_care WHERE pet_id=?", (pet_id,))
+        conn.execute("DELETE FROM pet_reminder_history WHERE reminder_id IN (SELECT id FROM pet_reminders WHERE pet_id=?)", (pet_id,))
         conn.execute("DELETE FROM pet_reminders WHERE pet_id=?", (pet_id,))
+        conn.execute("DELETE FROM pet_expenses WHERE pet_id=?", (pet_id,))
         conn.execute("DELETE FROM pets WHERE id=?", (pet_id,))
     return {"ok": True}
 
@@ -177,17 +189,38 @@ def create_reminder(pet_id: int, payload: Reminder, user=Depends(editor)):
         require_pet(conn, pet_id)
         if conn.execute("SELECT COUNT(*) FROM pet_reminders WHERE pet_id=?", (pet_id,)).fetchone()[0] >= 200:
             raise HTTPException(409, "Der kan højst gemmes 200 påmindelser pr. kæledyr")
-        cursor = conn.execute("INSERT INTO pet_reminders(pet_id,title,kind,due_date,notes) VALUES (?,?,?,?,?)",
-                              (pet_id, payload.title, payload.kind, payload.due_date.isoformat(), payload.notes))
+        cursor = conn.execute("INSERT INTO pet_reminders(pet_id,title,kind,due_date,notes,interval_unit,interval_count,interval_anchor) VALUES (?,?,?,?,?,?,?,?)",
+                              (pet_id, payload.title, payload.kind, payload.due_date.isoformat(), payload.notes, payload.interval_unit, payload.interval_count, payload.due_date.isoformat()))
         return {"id": cursor.lastrowid}
+
+
+def next_due(day, unit, count, anchor=None):
+    try:
+        if unit in {"days", "weeks"}:
+            return day + timedelta(days=count * (7 if unit == "weeks" else 1))
+        months = count * (12 if unit == "years" else 1)
+        index = day.year * 12 + day.month - 1 + months
+        year, month = divmod(index, 12)
+        return date(year, month + 1, min((anchor or day).day, monthrange(year, month + 1)[1]))
+    except (ValueError, OverflowError):
+        raise HTTPException(422, "Næste dato ligger uden for det understøttede interval")
 
 
 @router.put("/{pet_id}/reminders/{reminder_id}")
 def complete_reminder(pet_id: int, reminder_id: int, payload: ReminderState, user=Depends(editor)):
     with closing(connect()) as conn, conn:
-        cursor = conn.execute("UPDATE pet_reminders SET completed=? WHERE id=? AND pet_id=?", (payload.completed, reminder_id, pet_id))
-        if not cursor.rowcount:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT * FROM pet_reminders WHERE id=? AND pet_id=?", (reminder_id,pet_id)).fetchone()
+        if not row:
             raise HTTPException(404, "Påmindelsen findes ikke")
+        if row["interval_unit"] != "none":
+            if not payload.completed or payload.occurrence_date != date.fromisoformat(row["due_date"]):
+                raise HTTPException(409, "Påmindelsen er ændret. Opdater siden og prøv igen.")
+            following = next_due(payload.occurrence_date, row["interval_unit"], row["interval_count"], date.fromisoformat(row["interval_anchor"] or row["due_date"]))
+            conn.execute("INSERT OR IGNORE INTO pet_reminder_history VALUES (?,?,?)", (reminder_id,row["due_date"],datetime.now().astimezone().isoformat()))
+            conn.execute("UPDATE pet_reminders SET due_date=?,completed=0 WHERE id=?", (following.isoformat(),reminder_id))
+        else:
+            conn.execute("UPDATE pet_reminders SET completed=? WHERE id=?", (payload.completed,reminder_id))
     return {"ok": True}
 
 
@@ -197,6 +230,7 @@ def delete_reminder(pet_id: int, reminder_id: int, user=Depends(editor)):
         cursor = conn.execute("DELETE FROM pet_reminders WHERE id=? AND pet_id=?", (reminder_id, pet_id))
         if not cursor.rowcount:
             raise HTTPException(404, "Påmindelsen findes ikke")
+        conn.execute("DELETE FROM pet_reminder_history WHERE reminder_id=?", (reminder_id,))
     return {"ok": True}
 
 
@@ -204,8 +238,55 @@ def delete_reminder(pet_id: int, reminder_id: int, user=Depends(editor)):
 def edit_reminder(pet_id: int, reminder_id: int, payload: Reminder, user=Depends(editor)):
     with closing(connect()) as conn, conn:
         cursor = conn.execute(
-            "UPDATE pet_reminders SET title=?,kind=?,due_date=?,notes=? WHERE id=? AND pet_id=?",
-            (payload.title, payload.kind, payload.due_date.isoformat(), payload.notes, reminder_id, pet_id))
+            "UPDATE pet_reminders SET title=?,kind=?,due_date=?,notes=?,interval_unit=?,interval_count=?,interval_anchor=?,completed=CASE WHEN due_date=? AND interval_unit=? AND interval_count=? THEN completed ELSE 0 END WHERE id=? AND pet_id=?",
+            (payload.title, payload.kind, payload.due_date.isoformat(), payload.notes, payload.interval_unit, payload.interval_count, payload.due_date.isoformat(), payload.due_date.isoformat(), payload.interval_unit, payload.interval_count, reminder_id, pet_id))
         if not cursor.rowcount:
             raise HTTPException(404, "Påmindelsen findes ikke")
+    return {"ok": True}
+
+
+class Expense(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    day: date
+    category: Literal["food", "vet", "medicine", "insurance", "care", "other"]
+    title: str = Field(min_length=1, max_length=160)
+    amount_ore: int = Field(gt=0, le=100000000, strict=True)
+    notes: str = Field(default="", max_length=1000)
+
+    @field_validator("day")
+    @classmethod
+    def actual_day(cls, value):
+        if value > today():
+            raise ValueError("Registrér kun afholdte udgifter")
+        return value
+
+
+def adult_reader(user=Depends(family)):
+    if user["role"] not in {"owner", "adult"}:
+        raise HTTPException(403, "Adult role required")
+    return user
+
+
+@router.get("/{pet_id}/expenses")
+def expenses(pet_id: int, user=Depends(adult_reader)):
+    with closing(connect()) as conn:
+        require_pet(conn, pet_id)
+        return {"currency": "DKK", "expenses": [dict(r) for r in conn.execute("SELECT * FROM pet_expenses WHERE pet_id=? ORDER BY day DESC,id DESC", (pet_id,))]}
+
+
+@router.post("/{pet_id}/expenses", status_code=201)
+def create_expense(pet_id: int, payload: Expense, user=Depends(editor)):
+    with closing(connect()) as conn, conn:
+        require_pet(conn, pet_id)
+        if conn.execute("SELECT COUNT(*) FROM pet_expenses WHERE pet_id=?", (pet_id,)).fetchone()[0] >= 5000:
+            raise HTTPException(409, "Der kan højst gemmes 5000 udgifter pr. dyr")
+        result = conn.execute("INSERT INTO pet_expenses(pet_id,day,category,title,amount_ore,notes) VALUES (?,?,?,?,?,?)", (pet_id,payload.day.isoformat(),payload.category,payload.title,payload.amount_ore,payload.notes))
+        return {"id": result.lastrowid}
+
+
+@router.delete("/{pet_id}/expenses/{expense_id}")
+def delete_expense(pet_id: int, expense_id: int, user=Depends(editor)):
+    with closing(connect()) as conn, conn:
+        if not conn.execute("DELETE FROM pet_expenses WHERE id=? AND pet_id=?", (expense_id,pet_id)).rowcount:
+            raise HTTPException(404, "Udgiften findes ikke")
     return {"ok": True}

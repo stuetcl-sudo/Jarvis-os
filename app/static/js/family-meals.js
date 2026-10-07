@@ -60,6 +60,7 @@
   }
 
   function renderMealPlan(plan) {
+    window.dispatchEvent(new CustomEvent("jarvis:meals-summary", {detail:plan}));
     if (plan.status === "authentication_required") {
       setState("Log ind for at se madplanen");
       return;

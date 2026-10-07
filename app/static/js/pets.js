@@ -9,6 +9,9 @@
   let reminderEditing = null;
   let busy = false;
   let loading = false;
+  let expensePet = null;
+  let expenseGeneration = 0;
+  let expenseMonth = null;
   const current = () => state.pets.find((pet) => pet.id === selected);
   const dateText = (date) => new Intl.DateTimeFormat('da-DK', {day:'numeric',month:'short',year:'numeric'}).format(new Date(`${date}T12:00:00`));
   function node(tag, text, className) {
@@ -74,6 +77,7 @@
   function render() {
     const pet = current();
     byId('petsSummary').textContent = state.pets.length ? `${state.pets.length} kæledyr · ${dateText(state.today)}` : 'Tilføj familiens første kæledyr.';
+    window.dispatchEvent(new CustomEvent('jarvis:pets-summary',{detail:{today:state.today,pets:state.pets}}));
     byId('petAdd').hidden = !state.can_edit;
     byId('petsPicker').replaceChildren(...state.pets.map((item) => {
       const pick = button(item.name, () => { selected = item.id; render(); });
@@ -147,10 +151,11 @@
       row.append(node('strong', reminder.title));
       const when = node('time',`${reminder.completed ? 'Klaret · ' : overdue ? 'Overskredet · ' : ''}${dateText(reminder.due_date)}`);
       when.dateTime = reminder.due_date; row.append(node('p', {vaccination:'Vaccination',medicine:'Medicin',vet:'Dyrlæge',other:'Andet'}[reminder.kind]),when);
+      if (reminder.interval_unit !== 'none') row.append(node('p', `Gentages hver ${reminder.interval_count}. ${{days:'dag',weeks:'uge',months:'måned',years:'år'}[reminder.interval_unit] || ''}`));
       if (reminder.notes) row.append(node('p',reminder.notes));
       if (state.can_edit) {
         const actions = node('div',undefined,'pet-reminder-actions');
-        actions.append(button(reminder.completed ? 'Fortryd klaret' : 'Markér klaret', () => mutate(`/${pet.id}/reminders/${reminder.id}`, 'PUT', {completed:!reminder.completed})));
+        actions.append(button(reminder.completed ? 'Fortryd klaret' : 'Markér klaret', () => mutate(`/${pet.id}/reminders/${reminder.id}`, 'PUT', {completed:!reminder.completed,occurrence_date:reminder.due_date})));
         actions.append(button('Rediger', () => openReminder(pet.id, reminder)));
         actions.append(button('Slet', () => {
           if (confirm(`Slet påmindelsen “${reminder.title}”?`)) mutate(`/${pet.id}/reminders/${reminder.id}`, 'DELETE');
@@ -159,11 +164,16 @@
       health.append(row);
     }
     content.append(profile,care,health);
+    if (state.can_edit) {
+      const economy = panel('Økonomi');
+      economy.id = 'petEconomy'; content.append(economy);
+      loadExpenses(pet.id, economy);
+    }
   }
   function openReminder(petId, reminder = null) {
     reminderPet = petId; reminderEditing = reminder?.id ?? null;
     const form = byId('petReminderForm'); form.reset();
-    if (reminder) for (const key of ['title','kind','due_date','notes']) form.elements.namedItem(key).value = reminder[key];
+    if (reminder) for (const key of ['title','kind','due_date','notes','interval_unit','interval_count']) form.elements.namedItem(key).value = reminder[key];
     byId('petReminderTitle').textContent = reminder ? 'Rediger påmindelse' : 'Ny sundhedspåmindelse';
     byId('petReminderNotice').textContent = ''; byId('petReminderDialog').showModal();
   }
@@ -210,10 +220,39 @@
     event.preventDefault(); if (busy) return; busy = true;
     const form = event.currentTarget; const submit = form.querySelector('[type="submit"]'); submit.disabled = true;
     try {
-      await request(`/${reminderPet}/reminders${reminderEditing ? `/${reminderEditing}` : ''}`, reminderEditing ? 'PATCH' : 'POST',Object.fromEntries(new FormData(form)));
+      const payload=Object.fromEntries(new FormData(form));payload.interval_count=Number(payload.interval_count);
+      await request(`/${reminderPet}/reminders${reminderEditing ? `/${reminderEditing}` : ''}`, reminderEditing ? 'PATCH' : 'POST',payload);
       byId('petReminderDialog').close(); await refresh();
     } catch (error) { byId('petReminderNotice').textContent = error.message; }
     finally { busy = false; submit.disabled = false; }
+  });
+  const expenseCategories = {food:'Foder',vet:'Dyrlæge',medicine:'Medicin',insurance:'Forsikring',care:'Pleje',other:'Andet'};
+  const money = (ore) => new Intl.NumberFormat('da-DK',{style:'currency',currency:'DKK'}).format(ore/100);
+  async function loadExpenses(petId, panel) {
+    const generation=++expenseGeneration;
+    try {
+      const data=await request(`/${petId}/expenses`);
+      if(generation!==expenseGeneration||!panel.isConnected||selected!==petId)return;
+      const month=node('input');month.type='month';month.setAttribute('aria-label','Udgiftsmåned');month.value=expenseMonth||state.today.slice(0,7);
+      const summary=node('div'),entries=node('div');
+      const update=()=>{
+        expenseMonth=month.value;const rows=data.expenses.filter(e=>e.day.startsWith(month.value));
+        summary.replaceChildren(node('strong',`Registreret i måneden: ${money(rows.reduce((sum,e)=>sum+e.amount_ore,0))}`));
+        for(const [key,label] of Object.entries(expenseCategories)){const sum=rows.filter(e=>e.category===key).reduce((n,e)=>n+e.amount_ore,0);if(sum)summary.append(node('p',`${label}: ${money(sum)}`));}
+        entries.replaceChildren();
+        for(const expense of rows){const row=node('div',undefined,'pet-expense-row');row.append(node('strong',`${expense.title} · ${money(expense.amount_ore)}`),node('p',`${dateText(expense.day)} · ${expenseCategories[expense.category]}`));if(expense.notes)row.append(node('p',expense.notes));row.append(button('Slet',()=>{if(confirm(`Slet udgiften “${expense.title}”?`))mutate(`/${petId}/expenses/${expense.id}`,'DELETE');}));entries.append(row);}
+        if(!rows.length)entries.append(node('p','Ingen registrerede udgifter denne måned.'));
+      };
+      month.addEventListener('change',update);
+      const history=node('details');history.append(node('summary','Vis månedens udgifter'),entries);
+      panel.append(month,button('+ Registrér udgift',()=>{expensePet=petId;const f=byId('petExpenseForm');f.reset();f.elements.day.value=state.today;f.elements.day.max=state.today;byId('petExpenseNotice').textContent='';byId('petExpenseDialog').showModal();}),summary,history,node('p','Manuelt registrerede udgifter i DKK. Ingen bankforbindelse.','pets-footnote'));update();
+    }catch(error){if(panel.isConnected)panel.append(node('p',`Udgifter kunne ikke hentes. ${error.message}`));}
+  }
+  byId('petExpenseForm').addEventListener('submit',async event=>{
+    event.preventDefault();if(busy)return;busy=true;const f=event.currentTarget,b=f.querySelector('[type="submit"]');b.disabled=true;
+    try {const payload=Object.fromEntries(new FormData(f));payload.amount_ore=Math.round(Number(payload.amount)*100);delete payload.amount;await request(`/${expensePet}/expenses`,'POST',payload);byId('petExpenseDialog').close();await refresh();}
+    catch(error){byId('petExpenseNotice').textContent=error.message;}
+    finally{busy=false;b.disabled=false;}
   });
   refresh();
   setInterval(() => { if (!document.hidden && !busy) refresh(); }, 60000);

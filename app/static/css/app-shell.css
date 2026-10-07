@@ -92,3 +92,32 @@ body.jarvis-app .family-card { min-height: 0; padding: 22px; border-radius: 20px
   .jarvis-app .family-clock { font-size: 30px; }
   .jarvis-app .family-subtitle { font-size: 14px; }
 }
+/* Summary-only home screen; detailed views live in their tabs. */
+.jarvis-app[data-app-page="overblik"] .status-strip,
+.jarvis-app[data-app-page="overblik"] .wall-safety-strip,
+.jarvis-app[data-app-page="overblik"] .family-grid { display:none; }
+.jarvis-app .daily-overview { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.jarvis-app .daily-overview[hidden] { display:none; }
+.jarvis-app .daily-tile { display:block; min-height:130px; padding:18px; background:var(--card); border:1px solid var(--card-border); border-radius:18px; color:var(--text); text-decoration:none; box-shadow:var(--shadow); overflow-wrap:anywhere; }
+.jarvis-app .daily-tile h2 { margin:0 0 10px; font-size:17px; }
+.jarvis-app .daily-tile p { margin:0 0 12px; font-size:15px; line-height:1.5; }
+.jarvis-app .daily-tile small { color:#397648; }
+.jarvis-app .daily-tile:focus-visible { outline:3px solid #397648; outline-offset:3px; }
+.jarvis-app .medication-slot { display:flex; flex-wrap:wrap; gap:8px; border-top:1px solid var(--card-border); padding:12px 0; }
+.jarvis-app .medication-slot strong { width:100%; }
+.jarvis-app [data-family-card="medication"] button { min-height:44px; border-radius:10px; padding:8px 12px; }
+.jarvis-app [data-family-card="medication"] summary { min-height:44px; padding:12px 0; cursor:pointer; }
+.jarvis-app .pet-expense-row { border-top:1px solid var(--card-border); padding-block:10px; }
+@media(max-width:1100px) { .jarvis-app .daily-overview { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:700px) { .jarvis-app .daily-overview { grid-template-columns:minmax(0,1fr); } .jarvis-app .daily-tile { min-height:0; } }
+@media print { .jarvis-app .daily-overview { display:none; } }
+
+.jarvis-app #medicationDialog { width:min(560px,calc(100vw - 32px)); max-height:85vh; padding:24px; border:1px solid var(--card-border); border-radius:20px; background:#fff; color:var(--text); overflow:auto; }
+.jarvis-app #medicationDialog::backdrop { background:rgb(20 35 27 / 30%); }
+.jarvis-app #medicationDialog input, .jarvis-app #medicationDialog select, .jarvis-app #medicationDialog textarea { min-height:44px; padding:10px; border:1px solid var(--card-border); border-radius:10px; font:inherit; background:#fff; color:var(--text); }
+.jarvis-app #medicationWeekdays { display:flex; flex-wrap:wrap; gap:12px; }
+.jarvis-app [data-family-card="medication"] button { background:#fff; color:var(--text); border:1px solid var(--card-border); font:inherit; cursor:pointer; }
+.jarvis-app [data-family-card="medication"] button:hover { border-color:var(--accent); }
+.jarvis-app [data-family-card="medication"] button:disabled { opacity:.6; cursor:wait; }
+.jarvis-app #medicationAdd, .jarvis-app #medicationForm button[type="submit"] { background:#e7f0e6; color:#285d3a; border-color:#cbdcca; }
+.jarvis-app #medicationForm input[type="checkbox"] { min-height:20px; }

@@ -148,7 +148,7 @@
     try {
       const data = await api('/api/family/energy');
       const valid = data.metrics.filter((item) => item.status === 'ok');
-      byId('energySummary').textContent = data.status === 'not_configured' ? 'Vælg energisensorer for at komme i gang.' : `${valid.length} målinger tilgængelige`;
+      byId('energySummary').textContent = data.status === 'not_configured' ? 'Vælg energisensorer for at komme i gang.' : valid.filter(item=>['solar_today','consumption_today','import_today','export_today'].includes(item.key)).map(item=>`${item.label}: ${item.value.toLocaleString('da-DK',{maximumFractionDigits:1})} ${item.unit}`).slice(0,2).join(' · ') || `${valid.length} målinger tilgængelige`;
       byId('energyNotice').textContent = data.status === 'unavailable' ? 'Home Assistant svarer ikke. Værdierne er midlertidigt utilgængelige.' : data.status === 'not_configured' ? (owner ? 'Tilslut Home Assistant i Administration, og vælg derefter sensorer her.' : 'Ejeren kan tilslutte energisensorer.') : '';
       const select = byId('energyHistorySelect'); const previous = select.value;
       select.replaceChildren(...data.metrics.map((item) => {const option = node('option',item.label); option.value = item.key; return option;}));

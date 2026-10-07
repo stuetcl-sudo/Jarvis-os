@@ -504,6 +504,7 @@
 
   function renderFamilyTasks(tasks) {
     latestFamilyTasks = tasks;
+    window.dispatchEvent(new CustomEvent("jarvis:tasks-summary", {detail:tasks}));
 
     if (tasks.status === "authentication_required") {
       setTaskState("Log ind for at se familiens lister");

@@ -1,0 +1,21 @@
+<article class="family-card" data-family-card="medication">
+  <div class="card-heading"><p class="card-eyebrow">Medicin</p><h2>Familiens medicinplaner</h2></div>
+  <p>Fælles oversigt for voksne. Indtast planen fra din ordination eller pakning.</p>
+  <button type="button" id="medicationAdd">+ Tilføj plan</button>
+  <p id="medicationNotice" role="status"></p>
+  <div id="medicationToday" class="pets-grid"></div>
+  <details><summary>Alle planer og seneste 30 dages registreringer</summary><div id="medicationPlans" class="pets-grid"></div></details>
+  <p class="pets-footnote">Kun manuelle registreringer. Ingen pushbeskeder eller kontrol af dosering og interaktioner. En manglende registrering fortæller ikke, om medicinen er taget.</p>
+  <dialog id="medicationDialog"><form id="medicationForm" class="pets-form">
+    <h2>Medicinplan</h2>
+    <label>Familiemedlem<select name="user_id" required></select></label>
+    <label>Medicinens navn<input name="name" required maxlength="120"></label>
+    <label>Din angivne dosis / instruktion<textarea name="instructions" maxlength="1000" rows="3"></textarea></label>
+    <div class="pets-form-pair"><label>Startdato<input name="start_date" type="date" required></label><label>Slutdato (valgfri)<input name="end_date" type="date"></label></div>
+    <label>Klokkeslæt, adskilt med komma<input name="times" required placeholder="08:00, 20:00"></label>
+    <fieldset><legend>Ugedage</legend><div id="medicationWeekdays"></div></fieldset>
+    <label class="pets-checkbox"><input name="active" type="checkbox" checked> Aktiv plan</label>
+    <p id="medicationFormNotice" role="status"></p>
+    <div class="pets-form-actions"><button type="button" id="medicationCancel">Annuller</button><button type="submit">Gem plan</button></div>
+  </form></dialog>
+</article>

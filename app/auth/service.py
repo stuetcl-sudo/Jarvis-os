@@ -449,6 +449,10 @@ class AuthService:
                 conn.execute("UPDATE screens SET wall_user_id = NULL WHERE wall_user_id = ?", (user_id,))
             if "family_task_assignments" in tables:
                 conn.execute("UPDATE family_task_assignments SET assignee_id = NULL WHERE assignee_id = ?", (user_id,))
+            if "medication_plans" in tables:
+                conn.execute("DELETE FROM medication_records WHERE plan_id IN (SELECT id FROM medication_plans WHERE user_id=?)", (user_id,))
+                conn.execute("DELETE FROM medication_plans WHERE user_id=?", (user_id,))
+                conn.execute("UPDATE medication_records SET recorded_by='deleted' WHERE recorded_by=?", (user_id,))
             conn.execute("DELETE FROM auth_sessions WHERE user_id = ?", (user_id,))
             conn.execute("DELETE FROM auth_users WHERE user_id = ?", (user_id,))
             conn.commit()
