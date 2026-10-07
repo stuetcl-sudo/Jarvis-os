@@ -1,0 +1,94 @@
+/* Shared light application theme. Wall dashboards opt out in app-shell.js. */
+body.jarvis-app {
+  color-scheme: light;
+  --page: #f7f8fa;
+  --card: #fff;
+  --card-border: #e8eceb;
+  --text: #202a36;
+  --muted: #63706e;
+  --soft: #f1f5f2;
+  --accent: #397d50;
+  --good: #397d50;
+  --warning: #956416;
+  --critical: #bd3f4d;
+  --surface-raised: #fff;
+  --surface-muted: #f7f9f7;
+  --shadow: 0 4px 18px rgb(32 49 40 / 4%);
+  --jarvis-color-accent: #397d50;
+  --focus-ring: #397d50;
+  background: var(--page);
+  color: var(--text);
+  padding-left: 220px;
+}
+.jarvis-app .app-sidebar {
+  position: fixed; inset: 0 auto 0 0; width: 220px;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 28px 16px 20px; overflow-y: auto;
+  background: #f9fafb; border-right: 1px solid var(--card-border);
+}
+.app-brand { display: flex; flex-direction: column; align-items: center; text-decoration: none; gap: 2px; font-size: 25px; letter-spacing: -.8px; }
+.app-brand-mark { font-size: 46px; line-height: 1; color: var(--accent); }
+.app-household { margin: 0 0 20px; text-align: center; color: var(--muted); font-size: 13px; }
+.app-menu { display: grid; gap: 6px; }
+.app-menu a, .app-planned { min-height: 48px; display: flex; align-items: center; gap: 13px; padding: 10px 12px; border-radius: 12px; text-decoration: none; font-size: 15px; }
+.app-menu svg { width: 23px; height: 23px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.app-menu a { color: var(--muted); }
+.app-menu a:hover { background: var(--soft); }
+.app-menu a[aria-current="page"] { background: #e7f0e6; color: #285d3a; font-weight: 700; }
+.app-menu-caption { margin: 18px 12px 2px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+.app-planned { color: var(--muted); font-size: 14px; }
+.app-planned small { margin-left: auto; font-size: 10px; background: #edf0ed; padding: 3px 5px; border-radius: 5px; }
+.app-account { margin-top: auto; padding-top: 24px; }
+.jarvis-app .app-account .family-navigation { display: grid; justify-content: stretch; }
+.jarvis-app .family-nav-link.primary { background: #e7f0e6; color: #285d3a; }
+body.jarvis-app .family-shell { width: 100%; max-width: 1560px; margin: 0 auto; padding: 28px; }
+.jarvis-app .family-header { min-height: 0; padding: 4px 0 26px; align-items: center; }
+.jarvis-app .family-header h1 { font-size: clamp(28px, 3vw, 40px); line-height: 1.15; letter-spacing: -.035em; }
+.jarvis-app .family-clock { font-size: 42px; }
+.jarvis-app .family-subtitle { font-size: 15px; }
+.jarvis-app .family-kicker { font-size: 14px; }
+.jarvis-app .family-view-label { font-size: 11px; }
+.jarvis-app .family-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+body.jarvis-app .family-card { min-height: 0; padding: 22px; border-radius: 20px; background: var(--card); border-color: var(--card-border); box-shadow: var(--shadow); backdrop-filter: none; }
+.jarvis-app .family-card:hover { box-shadow: 0 6px 22px rgb(32 49 40 / 7%); }
+.jarvis-app .card-icon { width: 42px; height: 42px; border-radius: 13px; font-size: 23px; }
+.jarvis-app .card-heading h2 { font-size: 22px; }
+.jarvis-app .card-eyebrow { font-size: 12px; }
+.jarvis-app .status-tile { box-shadow: none; border-radius: 16px; min-height: 76px; padding: 14px; }
+.jarvis-app .status-tile strong { font-size: 18px; }
+.jarvis-app .app-section-hidden { display: none !important; }
+.jarvis-app:not([data-app-page="overblik"]) .family-header,
+.jarvis-app:not([data-app-page="overblik"]):not([data-app-page="system"]) .status-strip,
+.jarvis-app:not([data-app-page="overblik"]):not([data-app-page="hjemmet"]) .wall-safety-strip { display: none; }
+.jarvis-app:not([data-app-page="overblik"]) .family-grid { grid-template-columns: minmax(0, 1fr); }
+.jarvis-app:not([data-app-page="overblik"]) .family-card { grid-column: 1 / -1; }
+.app-page-title { margin: 3px 0 26px; font-size: 32px; letter-spacing: -.035em; }
+.app-empty { padding: 30px; border-radius: 20px; background: var(--card); color: var(--muted); }
+.jarvis-app .family-footer { padding-top: 24px; font-size: 12px; }
+@media (max-width: 1100px) {
+  body.jarvis-app { padding-left: 190px; }
+  .jarvis-app .app-sidebar { width: 190px; padding-inline: 10px; }
+  body.jarvis-app .family-shell { padding: 22px; }
+  .jarvis-app .family-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  body.jarvis-app { padding-left: 0; }
+  .jarvis-app .app-sidebar { position: static; width: 100%; padding: max(14px, env(safe-area-inset-top)) 14px 12px; border-right: 0; border-bottom: 1px solid var(--card-border); gap: 10px; }
+  .app-brand { flex-direction: row; font-size: 21px; gap: 9px; }
+  .app-brand-mark { font-size: 30px; }
+  .app-household, .app-menu-caption, .app-planned { display: none; }
+  .app-menu { display: flex; overflow-x: auto; padding: 3px; }
+  .app-menu a { flex: 0 0 auto; min-height: 44px; padding: 9px 12px; font-size: 14px; gap: 7px; }
+  .app-menu svg { width: 19px; height: 19px; }
+  .app-account { margin: 0; padding: 0; }
+  .jarvis-app .app-account .family-navigation { display: flex; justify-content: flex-start; }
+  .jarvis-app .app-account .family-nav-link { width: auto; flex: 0 1 auto; padding: 0 12px; font-size: 12px; }
+  body.jarvis-app .family-shell { padding: 20px 14px; }
+  .jarvis-app .family-grid { grid-template-columns: minmax(0, 1fr); }
+  .jarvis-app .family-card { grid-column: 1 / -1; }
+  .jarvis-app .family-header { display: flex; align-items: flex-start; gap: 12px; }
+  .jarvis-app .family-header-side { width: auto; }
+  .jarvis-app .family-header h1 { font-size: 28px; }
+  .jarvis-app .family-clock { font-size: 30px; }
+  .jarvis-app .family-subtitle { font-size: 14px; }
+}

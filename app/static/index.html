@@ -25,9 +25,17 @@
   <link rel="stylesheet" href="/static/css/wall-profiles.css" />
   <link rel="stylesheet" href="/static/css/wall-compact.css" />
   <link rel="stylesheet" href="/static/css/wall-surface.css?v=v0.17.5-wall-uv-structure" />
+  <link rel="stylesheet" href="/static/css/app-shell.css" />
 </head>
 <body data-family-role="anonymous" data-family-display-name="" data-family-view="anonymous" data-family-kiosk="false" data-family-label="Fælles overblik" data-family-subtitle="Her er et roligt overblik over hjemmet." data-family-modules="calendar,tasks,routines,meal_plan,weather,safety">
-  <main class="family-shell">
+  <aside class="app-sidebar" id="appSidebar" aria-label="Jarvis navigation" hidden>
+    <a class="app-brand" href="#overblik"><span class="app-brand-mark" aria-hidden="true">⌂</span><strong>Jarvis-os</strong></a>
+    <p class="app-household">Familiens hverdag</p>
+    <nav class="app-menu" id="appMenu" aria-label="Moduler"></nav>
+    <div class="app-account" id="appAccount"></div>
+  </aside>
+  <main class="family-shell" id="mainContent">
+    <h1 class="app-page-title" id="appPageTitle" tabindex="-1" hidden></h1>
     <header class="family-header" aria-labelledby="greeting">
       <div>
         <p class="family-kicker" id="currentDate">Indlæser dato…</p>
@@ -216,5 +224,6 @@
   <script src="/static/js/routine-editor.js?v=v0.17.5" defer></script>
   <script src="/static/js/wall-safety.js?v=v0.17.5" defer></script>
   <script src="/static/js/wall-fullscreen.js?v=v0.17.5" defer></script>
+  <script src="/static/js/app-shell.js" defer></script>
 </body>
 </html>
