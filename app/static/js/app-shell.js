@@ -9,12 +9,13 @@
 
   const definitions = [
     ["overblik", "Overblik", "home", null],
+    ["uge", "Ugeoversigt", "calendar", "planning"],
     ["kalender", "Kalender", "calendar", "calendar"],
     ["opgaver", "Opgaver", "check", "tasks"],
     ["rutiner", "Rutiner", "sun", "routine"],
     ["madplan", "Madplan", "meal", "meal"],
     ["indkoeb", "Indkøb", "cart", "shopping"],
-    ["medicin", "Medicin", "check", "medication"],
+    ["medicin", "Medicin", "pill", "medication"],
     ["kaeledyr", "Kæledyr", "paw", "pets"],
     ["energi", "Energi", "energy", "energy"],
     ["kamera", "Kamera", "camera", "cameras"],
@@ -32,6 +33,7 @@
     paw: "M8 13q4-5 8 0l3 5q0 4-7 1-7 3-7-1ZM5 6a2 2 0 1 0 0 .1M10 3a2 2 0 1 0 0 .1M16 4a2 2 0 1 0 0 .1M21 8a2 2 0 1 0 0 .1",
     energy: "m13 2-9 12h7l-1 8 10-13h-8Z",
     camera: "M3 6h13v14H3Zm13 5 5-3v10l-5-3",
+    pill: "M8 4a5 5 0 0 1 7 0l5 5a5 5 0 0 1-7 7l-5-5a5 5 0 0 1 0-7Zm1 8 7-7",
     cart: "M2 3h3l3 13h11l3-9H6M10 20h.1M18 20h.1",
   };
   function icon(name) {

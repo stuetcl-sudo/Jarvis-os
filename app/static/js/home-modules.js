@@ -303,6 +303,7 @@
       finally {configBusy = false; byId('homeConfigSave').disabled = false;}
     });
   }
+  window.addEventListener("jarvis:shopping-changed",()=>{if(!shopBusy)refreshShopping();});
   refreshShopping(); refreshEnergy(); refreshCameras();
   setInterval(() => {
     if (document.hidden) return;

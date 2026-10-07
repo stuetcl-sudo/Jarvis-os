@@ -322,7 +322,10 @@ def _empty_snapshot(status, calendars=(), unavailable_calendars=0):
 
 
 def _snapshot(status, settings, events, failures, now, local_tz):
+    range_start, range_end, _, _ = calendar_window(settings.lookahead_days, now)
     return {
+        "range_start": range_start.isoformat(),
+        "range_end": range_end.isoformat(),
         "status": status,
         "today_count": sum(_event_occurs_today(event, now, local_tz) for event in events),
         "upcoming_count": len(events),

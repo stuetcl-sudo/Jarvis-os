@@ -158,6 +158,8 @@ def init_db():
     conn = connect()
     from app.pets import initialize_pets
     initialize_pets(conn)
+    from app.family_planning import initialize_family_planning
+    initialize_family_planning(conn)
     from app.shopping import initialize_shopping
     initialize_shopping(conn)
     from app.medication import initialize_medication

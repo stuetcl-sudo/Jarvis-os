@@ -13,7 +13,7 @@ ROLE_COPY = {
     "anonymous": ("Fælles overblik", "Her er et roligt overblik over hjemmet."),
     "owner": ("Familiens overblik", "Her er dagens fælles information samlet roligt og enkelt."),
     "adult": ("Familiens dag", "Her er dagens fælles information samlet roligt og enkelt."),
-    "child": ("Din dag", "Her kan du se dagens aftaler, vejr, madplan og opgaver."),
+    "child": ("Familiens overblik", "Her er dagens fælles information samlet roligt og enkelt."),
     "wall_display": ("Fælles husholdningsskærm", "Dagens fælles information til hele hjemmet."),
 }
 
@@ -187,5 +187,7 @@ def render_family_page(current_user, wall_actions=""):
     page = page.replace("<!-- FAMILY_HOME_MODULES -->", modules, 1)
     medication = (FAMILY_TEMPLATE.parent.parent / "medication.html").read_text(encoding="utf-8") if context["role"] in {"owner", "adult"} else ""
     page = page.replace("<!-- FAMILY_MEDICATION -->", medication, 1)
+    planning = (FAMILY_TEMPLATE.parent.parent / "family_planning.html").read_text(encoding="utf-8") if context["role"] in {"owner", "adult", "child"} else ""
+    page = page.replace("<!-- FAMILY_PLANNING -->", planning, 1)
     page = page.replace("<!-- FAMILY_NAVIGATION -->", navigation_for(context["role"]), 1)
     return apply_module_settings(page, module_settings)

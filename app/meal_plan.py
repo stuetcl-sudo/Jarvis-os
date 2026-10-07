@@ -1,6 +1,6 @@
 from datetime import date, datetime, time as datetime_time, timedelta
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Query
 
 from app import config, home_entity_settings
 from app.module_settings import load_module_config
@@ -182,9 +182,8 @@ router = APIRouter()
 
 
 @router.get("/api/family/meal-plan")
-def family_meal_plan(request: Request):
+def family_meal_plan(request: Request, days: int | None = Query(default=None, ge=1, le=7)):
     current_user = getattr(request.state, "current_user", None)
-    days = None
-    if isinstance(current_user, dict) and current_user.get("role") != "wall_display":
+    if days is None and isinstance(current_user, dict) and current_user.get("role") != "wall_display":
         days = load_module_config(db_path=config.DB_PATH)["meal_plan_days"]
     return meal_plan_service.get_meal_plan(current_user, display_days=days)

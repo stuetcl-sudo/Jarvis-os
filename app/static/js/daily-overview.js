@@ -96,7 +96,10 @@
     const person=data.people?.find(p=>p.user_id===data.selected_person)?.display_name;
     set('medication',data.today===today()?`${person?`${person} · `:''}${data.entries?.length?'Tidspunkter uden registrering i dag':'Ingen medicin planlagt i dag'}`:'Opdaterer dagens plan…',data.today===today()?data.pending:'');
   }
+  window.addEventListener('jarvis:planning-summary',e=>{cache.planning=e.detail;renderMeal(cache.meal||{});});
   function renderMeal(data) {
+    const local=cache.planning?.days?.find(d=>d.date===today());
+    if(local?.meal){set('meal',local.cook?`${local.cook} laver mad`:"Familiens plan i dag",local.meal);return;}
     if(unavailable[data.status]){set('meal',unavailable[data.status]);return;}
     const meals=(data.days||[]).find(day=>day.date===today())?.meals;
     set('meal',meals?.length?`På menuen i dag${data.status==='stale'?' · tidligere hentet':''}`:'Ikke planlagt i dag',meals?.length?meals.join(' · '):'');

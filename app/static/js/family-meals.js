@@ -97,7 +97,7 @@
 
   async function refreshMealPlan() {
     try {
-      const response = await fetch("/api/family/meal-plan", { credentials: "same-origin" });
+      const response = await fetch(document.querySelector('[data-family-card="planning"]') ? "/api/family/meal-plan?days=7" : "/api/family/meal-plan", { credentials: "same-origin" });
       if (!response.ok) throw new Error("Madplanen kunne ikke hentes");
       renderMealPlan(await response.json());
     } catch (error) {

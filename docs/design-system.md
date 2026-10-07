@@ -79,3 +79,14 @@ permission checks. Keep detailed forms, histories and charts off the home screen
 Medication summaries are adult-only aggregate counts. Financial records are
 adult-only. See `docs/daily-care.md` for recurring pet reminders, pet expenses
 and the shared adult medication tracker.
+
+## Family colors and shared planning
+
+Dennis requested more color and icons on 7 October 2026. Summary cards now use
+soft module-specific colors with a darker top border and matching outline icon:
+blue calendar, amber routines, peach meals, pink medication, cyan weather and
+purple tomorrow reminders. Text and symbols accompany colors. Planning reuses
+inline outline SVGs rather than depending on emoji fonts or a new icon library.
+The shared Ugeoversigt and expanded meal tab follow the same card and touch
+controls. See `docs/family-planning.md`. The family greeting is shared; role
+permissions and person selectors remain intact.

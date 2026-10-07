@@ -124,7 +124,7 @@ def test_child_family_view_prioritizes_day_cards_without_technical_details():
         text = client.get("/").text
         assert 'data-family-role="child"' in text
         assert 'data-family-display-name="Barn Test"' in text
-        assert "Din dag" in text
+        assert "Familiens overblik" in text
         assert 'href="/login">Skift bruger</a>' in text
         assert 'href="/admin"' not in text
         positions = [text.index(f'data-family-card="{card}"') for card in ["calendar", "weather", "meal", "tasks"]]

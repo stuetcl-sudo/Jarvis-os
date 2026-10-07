@@ -1,0 +1,32 @@
+<article class="family-card" data-family-card="planning">
+  <div class="card-heading"><p class="card-eyebrow" data-planning-icon="calendar">Familiens uge</p><h2>De næste syv dage</h2></div>
+  <p>Aftaler, aftensmad og de små ting, vi skal huske.</p>
+  <p id="planningNotice" role="status">Henter familiens planer…</p>
+  <div id="familyWeek" class="family-week"></div>
+  <datalist id="planningPeople"></datalist>
+  <dialog id="planningDialog"><form id="planningForm" class="pets-form">
+    <h2 id="planningDayTitle">Plan for dagen</h2>
+    <fieldset><legend data-planning-icon="meal">Aftensmad</legend>
+      <label>Ret<input name="meal" maxlength="160" placeholder="Fx lasagne"></label>
+      <label>Hvem laver mad?<input name="cook" list="planningPeople" maxlength="80"></label>
+      <label>Link til opskrift<input name="recipe_url" type="url" maxlength="1000" placeholder="https://…"></label>
+      <label>Ingredienser — én vare pr. linje<textarea name="ingredients" rows="4" placeholder="Pasta&#10;Tomater" maxlength="9600"></textarea></label>
+      <label>Bemærkning til maden<textarea name="meal_notes" maxlength="500" rows="2"></textarea></label>
+    </fieldset>
+    <fieldset><legend data-planning-icon="car">Afhentning</legend>
+      <label>Hvem henter?<input name="pickup" list="planningPeople" maxlength="80"></label>
+      <label>Klokkeslæt<input name="pickup_time" type="time"></label>
+      <label>Hvor / hvem / besked<textarea name="pickup_notes" maxlength="500" rows="2"></textarea></label>
+    </fieldset>
+    <label><span data-planning-icon="bag">Husk</span> — én ting pr. linje<textarea name="reminders" maxlength="3200" rows="3" placeholder="Husk svømmetøj&#10;Madpakke til udflugten"></textarea></label>
+    <p id="planningFormNotice" role="status"></p>
+    <div class="pets-form-actions"><button type="button" id="planningCancel">Annuller</button><button type="submit">Gem familiens plan</button></div>
+  </form></dialog>
+  <dialog id="planningShoppingDialog"><form id="planningShoppingForm" class="pets-form">
+    <h2 data-planning-icon="cart">Send ingredienser til indkøb</h2>
+    <label>Indkøbsliste<select name="list_id" required></select></label>
+    <p>Varer, som allerede står på listen uden flueben, tilføjes ikke igen.</p>
+    <p id="planningShoppingNotice" role="status"></p>
+    <div class="pets-form-actions"><button type="button" id="planningShoppingCancel">Annuller</button><button type="submit">Tilføj ingredienser</button></div>
+  </form></dialog>
+</article>

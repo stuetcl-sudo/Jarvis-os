@@ -159,3 +159,49 @@ body.jarvis-app .family-card { min-height: 0; padding: 22px; border-radius: 20px
 .jarvis-app .daily-status-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
 @media(max-width:1100px) { .jarvis-app .daily-status-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:700px) { .pets-card .pet-care { flex-wrap:wrap; } .pets-card .pet-care > span { flex:1; } .pets-card .pet-care > button { width:100%; } }
+
+/* Family accents: readable text and symbols accompany every color. */
+.jarvis-app .daily-tile { --tile-accent:#397648; --tile-soft:#edf7ed; border-top:4px solid var(--tile-accent); background:linear-gradient(140deg,var(--tile-soft),#fff 85%); }
+.jarvis-app .daily-tile[data-module="calendar"] { --tile-accent:#326ca4; --tile-soft:#eaf4ff; }
+.jarvis-app .daily-tile[data-module="tasks"] { --tile-accent:#40835d; --tile-soft:#eaf8ee; }
+.jarvis-app .daily-tile[data-module="routine"] { --tile-accent:#a56316; --tile-soft:#fff3d9; }
+.jarvis-app .daily-tile[data-module="medication"] { --tile-accent:#935277; --tile-soft:#fbeef5; }
+.jarvis-app .daily-tile[data-module="meal"] { --tile-accent:#ab581f; --tile-soft:#fff0df; }
+.jarvis-app .daily-tile[data-module="weather"] { --tile-accent:#337d94; --tile-soft:#e8f7fc; }
+.jarvis-app .daily-tile[data-module="pets"] { --tile-accent:#568543; --tile-soft:#eef7e8; }
+.jarvis-app .daily-tile[data-module="shopping"] { --tile-accent:#9c6329; --tile-soft:#fff3df; }
+.jarvis-app .daily-tile[data-module="energy"] { --tile-accent:#88701b; --tile-soft:#fff9da; }
+.jarvis-app .daily-tile[data-module="cameras"] { --tile-accent:#5b689a; --tile-soft:#eef0ff; }
+.jarvis-app .daily-tile[data-module="tomorrow"] { --tile-accent:#77549c; --tile-soft:#f4edff; min-height:0; }
+.jarvis-app .daily-tile-heading svg { stroke:var(--tile-accent); background:var(--tile-soft); border-radius:12px; padding:8px; box-sizing:content-box; }
+.jarvis-app .daily-tile[data-module] { background:linear-gradient(140deg,var(--tile-soft),#fff 85%); }
+.jarvis-app .tomorrow-content ul { margin:0; padding-left:20px; display:grid; gap:8px; }
+.jarvis-app .tomorrow-content small { display:block; margin-top:8px; color:var(--muted); }
+.jarvis-app .family-week { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.jarvis-app .week-day { padding:18px; border:1px solid var(--card-border); border-radius:18px; background:#fff; min-width:0; overflow-wrap:anywhere; }
+.jarvis-app .week-day h3 { margin:0 0 16px; font-size:17px; text-transform:capitalize; }
+.jarvis-app .week-day h4 { margin:0 0 8px; font-size:14px; }
+.jarvis-app .week-day p { font-size:14px; margin:6px 0; white-space:pre-line; }
+.jarvis-app .week-today { border:2px solid #70a57b; background:#f5fbf4; }
+.jarvis-app .week-appointments, .jarvis-app .week-food { padding:12px; border-radius:12px; margin-bottom:12px; }
+.jarvis-app .week-appointments { background:#eaf4ff; }
+.jarvis-app .week-food { background:#fff1df; }
+.jarvis-app .week-pickup, .jarvis-app .week-reminders { padding:12px; border-radius:12px; background:#f2ecfb; }
+.jarvis-app .week-reminders { list-style:none; display:grid; gap:8px; font-size:14px; }
+.jarvis-app [data-family-card="planning"] button, .jarvis-app .family-meal-details button { min-height:44px; padding:8px 12px; border:1px solid #cbdcca; border-radius:10px; background:#fff; color:#285d3a; font:inherit; cursor:pointer; margin:4px 4px 0 0; }
+.jarvis-app [data-family-card="planning"] button:disabled { opacity:.6; cursor:wait; }
+.jarvis-app [data-family-card="planning"] a, .jarvis-app .family-meal-details a { display:inline-flex; align-items:center; min-height:44px; color:#285d3a; }
+.jarvis-app #planningForm fieldset { border:1px solid var(--card-border); border-radius:14px; display:grid; gap:12px; padding:16px; }
+.jarvis-app #planningForm legend { font-weight:650; }
+.jarvis-app .family-meal-details { margin-top:20px; }
+.jarvis-app .meal-detail-day { padding:16px; margin:12px 0; border-radius:14px; background:#fff3e5; overflow-wrap:anywhere; }
+.jarvis-app .meal-detail-day p { white-space:pre-line; }
+@media(max-width:1100px) { .jarvis-app .family-week { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:700px) { .jarvis-app .family-week { grid-template-columns:minmax(0,1fr); } .jarvis-app .daily-tile-heading svg { padding:6px; } }
+.jarvis-app .has-family-planning #mealPlanData, .jarvis-app .has-family-planning #mealPlanState { display:none; }
+.jarvis-app .family-planning-dialog button { min-height:44px; padding:8px 12px; border:1px solid #cbdcca; border-radius:10px; background:#fff; color:#285d3a; font:inherit; cursor:pointer; }
+.jarvis-app .family-planning-dialog button:disabled { opacity:.6; cursor:wait; }
+.jarvis-app .planning-icon { width:20px; height:20px; display:inline-block; vertical-align:middle; margin-right:7px; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.jarvis-app dialog.family-planning-dialog { width:min(600px,calc(100vw - 28px)); max-height:90dvh; overflow-y:auto; padding:24px; border:1px solid var(--card-border); border-radius:22px; color:var(--text); background:var(--card); }
+.jarvis-app dialog.family-planning-dialog::backdrop { background:rgb(20 35 30 / 40%); }
+.jarvis-app dialog.family-planning-dialog input, .jarvis-app dialog.family-planning-dialog textarea, .jarvis-app dialog.family-planning-dialog select { min-height:44px; padding:10px; border:1px solid #cbdcca; border-radius:10px; color:var(--text); background:#fff; font:inherit; }
