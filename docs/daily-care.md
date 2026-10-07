@@ -121,3 +121,36 @@ Validation for this refinement: 44 relevant backend/role/frontend tests passed;
 Chromium also verified home medication check/reload/uncheck and actual routine
 progress through the existing API, in addition to the nine responsive screenshots.
 The compose configuration check passed, but Docker is still unavailable here.
+
+## Weather, medication people and repeated pet care
+
+Weather is now a primary home card, with temperature, condition, apparent
+temperature/humidity when available, and a stale-data label. It respects the
+existing weather module visibility and contains no invented readings.
+
+Medication has shared person selection (Alle or a household account) on the
+home screen and inside the module. The selected person's count and scheduled
+checkboxes are separate; switching people does not submit medication records.
+After creating or editing a plan, the final busy=false state is emitted
+immediately. This fixes home checkboxes remaining disabled until the next poll.
+
+Pet care is a daily event log rather than one boolean per activity. Each food,
+water or walk registration has a timestamp. The pet view displays counts and
+permits undo of the latest entry; the home summary displays walk/food/water
+counts without assuming a target frequency. Children may record care as before;
+wall displays cannot write. Writes require CSRF and today's household date.
+
+Existing binary pet-care rows migrate once into the event table. Unique request
+IDs prevent duplicate POST retries. Undo retains a voided record, so a late
+retry cannot recreate it. The legacy PUT endpoint operates on its own baseline
+entry and does not erase later multiple registrations. Deleting a pet removes
+its entries. Browser UUID generation supports HTTP LAN contexts through
+crypto.getRandomValues when randomUUID is not available.
+
+Validation: 60 relevant Python tests passed, including migration, roles,
+idempotency, midnight, undo, cascade and existing features. Chromium verified
+weather in the primary grid, immediate medication check/undo after plan creation,
+separate records for an adult and child, person selection in both views, multiple
+food/water/walk entries and walk undo. Nine screenshots passed viewport overflow
+checks at Surface, iPad and phone sizes, with no JavaScript exceptions.
+ServerHub Docker staging must still be built and tested separately.

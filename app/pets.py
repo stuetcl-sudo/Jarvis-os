@@ -6,6 +6,7 @@ from contextlib import closing
 from datetime import date, datetime, timedelta
 from calendar import monthrange
 from typing import Literal
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -32,6 +33,12 @@ SCHEMA = (
 def initialize_pets(conn):
     for statement in SCHEMA:
         conn.execute(statement)
+    conn.execute("""CREATE TABLE IF NOT EXISTS pet_care_entries (
+        id INTEGER PRIMARY KEY, pet_id INTEGER NOT NULL, day TEXT NOT NULL,
+        task TEXT NOT NULL, request_id TEXT NOT NULL, completed_at TEXT NOT NULL,
+        voided INTEGER NOT NULL DEFAULT 0, UNIQUE(pet_id,day,task,request_id))""")
+    conn.execute("INSERT OR IGNORE INTO pet_care_entries(pet_id,day,task,request_id,completed_at) SELECT pet_id,day,task,'legacy',completed_at FROM pet_care")
+    conn.execute("DELETE FROM pet_care")
     columns = {r[1] for r in conn.execute("PRAGMA table_info(pet_reminders)")}
     for name, definition in [("interval_unit", "TEXT NOT NULL DEFAULT 'none'"), ("interval_count", "INTEGER NOT NULL DEFAULT 1"), ("interval_anchor", "TEXT NOT NULL DEFAULT ''")]:
         if name not in columns:
@@ -131,8 +138,10 @@ def list_pets(user=Depends(family)):
         pets = []
         for row in conn.execute("SELECT * FROM pets ORDER BY id"):
             pet = {"id": row["id"], **json.loads(row["profile"])}
-            pet["care"] = {r["task"]: r["completed_at"] for r in conn.execute(
-                "SELECT task, completed_at FROM pet_care WHERE pet_id=? AND day=?", (row["id"], day))}
+            entries = [dict(r) for r in conn.execute("SELECT id,task,completed_at FROM pet_care_entries WHERE pet_id=? AND day=? AND voided=0 ORDER BY id", (row["id"], day))]
+            pet["care_entries"] = entries
+            pet["care_counts"] = {task: sum(e["task"] == task for e in entries) for task in ("food", "water", "walk")}
+            pet["care"] = {e["task"]: e["completed_at"] for e in entries}
             pet["reminders"] = [dict(r) for r in conn.execute(
                 "SELECT id,title,kind,due_date,notes,completed,interval_unit,interval_count FROM pet_reminders WHERE pet_id=? ORDER BY completed,due_date,id", (row["id"],))]
             pets.append(pet)
@@ -162,6 +171,7 @@ def delete_pet(pet_id: int, user=Depends(editor)):
     with closing(connect()) as conn, conn:
         require_pet(conn, pet_id)
         conn.execute("DELETE FROM pet_care WHERE pet_id=?", (pet_id,))
+        conn.execute("DELETE FROM pet_care_entries WHERE pet_id=?", (pet_id,))
         conn.execute("DELETE FROM pet_reminder_history WHERE reminder_id IN (SELECT id FROM pet_reminders WHERE pet_id=?)", (pet_id,))
         conn.execute("DELETE FROM pet_reminders WHERE pet_id=?", (pet_id,))
         conn.execute("DELETE FROM pet_expenses WHERE pet_id=?", (pet_id,))
@@ -176,11 +186,45 @@ def update_care(pet_id: int, task: Literal["food", "water", "walk"], payload: Ca
     with closing(connect()) as conn, conn:
         require_pet(conn, pet_id)
         if payload.done:
-            conn.execute("INSERT OR IGNORE INTO pet_care VALUES (?,?,?,?)", (
-                pet_id, payload.day.isoformat(), task, datetime.now().astimezone().isoformat()))
+            conn.execute("""INSERT INTO pet_care_entries(pet_id,day,task,request_id,completed_at) VALUES (?,?,?,'legacy',?)
+                ON CONFLICT(pet_id,day,task,request_id) DO UPDATE SET voided=0""", (pet_id,payload.day.isoformat(),task,datetime.now().astimezone().isoformat()))
         else:
-            conn.execute("DELETE FROM pet_care WHERE pet_id=? AND day=? AND task=?", (pet_id, payload.day.isoformat(), task))
+            conn.execute("UPDATE pet_care_entries SET voided=1 WHERE pet_id=? AND day=? AND task=? AND request_id='legacy'", (pet_id,payload.day.isoformat(),task))
     return {"ok": True}
+
+
+class CareEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    day: date
+    request_id: UUID
+
+
+@router.post("/{pet_id}/care/{task}/entries", status_code=201)
+def add_care_entry(pet_id: int, task: Literal["food", "water", "walk"], payload: CareEntry, user=Depends(carer)):
+    if payload.day != today():
+        raise HTTPException(409, "Dagen er skiftet. Opdater siden og prøv igen.")
+    with closing(connect()) as conn, conn:
+        conn.execute("BEGIN IMMEDIATE")
+        require_pet(conn,pet_id)
+        existing = conn.execute("SELECT id FROM pet_care_entries WHERE pet_id=? AND day=? AND task=? AND request_id=?", (pet_id,payload.day.isoformat(),task,str(payload.request_id))).fetchone()
+        if existing:
+            return {"id":existing["id"]}
+        if conn.execute("SELECT COUNT(*) FROM pet_care_entries WHERE pet_id=? AND day=?", (pet_id,payload.day.isoformat())).fetchone()[0] >= 300:
+            raise HTTPException(409, "Der kan højst registreres 300 pasninger pr. dyr pr. dag")
+        result = conn.execute("INSERT INTO pet_care_entries(pet_id,day,task,request_id,completed_at) VALUES (?,?,?,?,?)", (pet_id,payload.day.isoformat(),task,str(payload.request_id),datetime.now().astimezone().isoformat()))
+        return {"id":result.lastrowid}
+
+
+@router.delete("/{pet_id}/care/entries/{entry_id}")
+def undo_care_entry(pet_id: int, entry_id: int, user=Depends(carer)):
+    with closing(connect()) as conn, conn:
+        row = conn.execute("SELECT day FROM pet_care_entries WHERE id=? AND pet_id=?", (entry_id,pet_id)).fetchone()
+        if not row:
+            raise HTTPException(404, "Registreringen findes ikke")
+        if row["day"] != today().isoformat():
+            raise HTTPException(409, "Kun dagens registreringer kan fortrydes")
+        conn.execute("UPDATE pet_care_entries SET voided=1 WHERE id=?", (entry_id,))
+    return {"ok":True}
 
 
 @router.post("/{pet_id}/reminders", status_code=201)

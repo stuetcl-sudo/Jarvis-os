@@ -70,6 +70,11 @@
     catch (error) { byId('petsNotice').textContent = error.message; }
     finally { busy = false; root.querySelectorAll('button').forEach((item) => { item.disabled = false; }); }
   }
+  function careRequestId() {
+    if(crypto.randomUUID)return crypto.randomUUID();
+    const bytes=crypto.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+    const hex=[...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+  }
   function panel(title) {
     const item = node('section', undefined, 'pets-panel');
     item.append(node('h3', title)); return item;
@@ -129,17 +134,21 @@
       }));
     }
     const care = panel('I dag');
+    const careTime = value => new Intl.DateTimeFormat('da-DK',{timeZone:document.body.dataset.homeTimezone||'Europe/Copenhagen',hour:'2-digit',minute:'2-digit'}).format(new Date(value));
     for (const [key,label,emoji] of [['food','Mad','food'],['water','Vand','water'],['walk','Gåtur','paw']]) {
-      const done = Boolean(pet.care[key]);
-      const row = state.can_care ? button('', () => mutate(`/${pet.id}/care/${key}`, 'PUT', {done:!done,day:state.today})) : node('div');
-      row.className = 'pet-care';
-      const copy = node('span', label);
-      copy.append(node('small', done ? 'Klaret i dag' : 'Ikke markeret endnu'));
-      row.append(petIcon(emoji),copy,node('span',done ? '✓' : '○'));
-      if (state.can_care) { row.setAttribute('aria-pressed',String(done)); row.setAttribute('aria-label',`${label}: ${done ? 'klaret, tryk for at fortryde' : 'markér klaret'}`); }
-      care.append(row);
+      const count=pet.care_counts?.[key]??Number(Boolean(pet.care[key]));
+      const row=node('div',undefined,'pet-care');
+      const copy=node('span',label);copy.append(node('small',`${count} ${key==='walk'?(count===1?'tur':'ture'):'registreringer'} i dag${pet.care[key]?` · senest ${careTime(pet.care[key])}`:''}`));
+      row.append(petIcon(emoji),copy);care.append(row);
+      if(state.can_care) {
+        row.append(button(key==='walk'?'+ Registrér tur':key==='food'?'+ Givet mad':'+ Givet vand',()=>mutate(`/${pet.id}/care/${key}/entries`,'POST',{day:state.today,request_id:careRequestId()})));
+        const last=(pet.care_entries||[]).filter(e=>e.task===key).at(-1);
+        if(last)care.append(button(`Fortryd seneste ${label.toLowerCase()}`,()=>mutate(`/${pet.id}/care/entries/${last.id}`,'DELETE')));
+      }
     }
-    care.append(node('p', 'Sæt et flueben, når dagens pasning er klaret.', 'pets-footnote'));
+    const careHistory=node('details');careHistory.append(node('summary','Dagens registreringer'));
+    for(const entry of pet.care_entries||[])careHistory.append(node('p',`${{food:'Mad',water:'Vand',walk:'Gåtur'}[entry.task]} · ${careTime(entry.completed_at)}`));
+    care.append(careHistory);
     const health = panel('Sundhed & påmindelser');
     if (state.can_edit) health.append(button('+ Tilføj påmindelse', () => {
       openReminder(pet.id);

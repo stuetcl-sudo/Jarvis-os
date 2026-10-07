@@ -2,7 +2,7 @@
   const root = document.querySelector('[data-family-card="medication"]');
   if (!root) return;
   const el = (id) => document.getElementById(id);
-  let data = {plans:[],people:[]}, editing = null, busy = false, generation = 0;
+  let data = {plans:[],people:[]}, editing = null, busy = false, generation = 0, selectedPerson = 'all';
   function node(tag,text) {const n=document.createElement(tag); if(text!==undefined)n.textContent=text; return n;}
   function button(text,fn) {const b=node('button',text);b.type='button';b.addEventListener('click',fn);return b;}
   async function request(path='',method='GET',body) {
@@ -28,9 +28,21 @@
     catch(e){el('medicationNotice').textContent=e.message;}
     finally {busy=false;root.querySelectorAll('button').forEach(b=>b.disabled=false);emitSummary();}
   }
+  function selectPerson(id) {
+    if(busy)return;
+    selectedPerson=id;render();
+  }
+  function renderPeople() {
+    if(selectedPerson!=='all'&&!data.people.some(p=>p.user_id===selectedPerson))selectedPerson='all';
+    const group=el('medicationPeople');group.replaceChildren();
+    for(const person of [{user_id:'all',display_name:'Alle'},...data.people]) {
+      const b=button(person.display_name,()=>selectPerson(person.user_id));b.setAttribute('aria-pressed',String(person.user_id===selectedPerson));b.disabled=busy;group.append(b);
+    }
+  }
   function render() {
+    renderPeople();
     const today=el('medicationToday'),plans=el('medicationPlans');today.replaceChildren();plans.replaceChildren();
-    for(const p of data.plans) {
+    for(const p of data.plans.filter(p=>selectedPerson==='all'||p.user_id===selectedPerson)) {
       const person=data.people.find(x=>x.user_id===p.user_id)?.display_name || 'Familiemedlem';
       if(p.due_today) {
         const card=node('section');card.className='pets-panel';card.append(node('h3',`${person} · ${p.name}`));
@@ -54,22 +66,23 @@
       card.append(history);plans.append(card);
     }
     if(!today.children.length)today.append(node('p','Ingen medicin planlagt i dag.'));
-    if(!data.plans.length)plans.append(node('p','Ingen planer endnu.'));
+    if(!plans.children.length)plans.append(node('p',selectedPerson==='all'?'Ingen planer endnu.':'Ingen planer for denne person endnu.'));
     emitSummary();
   }
   function emitSummary() {
-    const pending=data.plans.filter(p=>p.due_today).reduce((n,p)=>n+p.times.filter(t=>!p.records.some(r=>r.day===data.today&&r.slot===t)).length,0);
     const entries=data.plans.filter(p=>p.due_today).flatMap(p=>p.times.map(time=>({
-      id:`${p.id}:${time}`,time,name:p.name,person:data.people.find(person=>person.user_id===p.user_id)?.display_name||'Familiemedlem',
+      id:`${p.id}:${time}`,user_id:p.user_id,time,name:p.name,person:data.people.find(person=>person.user_id===p.user_id)?.display_name||'Familiemedlem',
       status:p.records.find(r=>r.day===data.today&&r.slot===time)?.status||'unmarked',
       change:(checked)=>save(`/${p.id}/record`,'PUT',{revision:p.revision,day:data.today,slot:time,status:checked?'taken':'unmarked'}),
     }))).sort((a,b)=>a.time.localeCompare(b.time)||a.id.localeCompare(b.id));
-    window.dispatchEvent(new CustomEvent('jarvis:medication-summary',{detail:{today:data.today,pending,entries,busy}}));
+    const visible=entries.filter(entry=>selectedPerson==='all'||entry.user_id===selectedPerson);
+    const pending=visible.filter(entry=>entry.status==='unmarked').length;
+    window.dispatchEvent(new CustomEvent('jarvis:medication-summary',{detail:{today:data.today,pending,entries:visible,busy,people:data.people,selected_person:selectedPerson,select_person:selectPerson}}));
   }
   function open(p=null) {
     editing=p;const f=el('medicationForm');f.reset();const select=f.elements.user_id;select.replaceChildren();const placeholder=node('option','Vælg familiemedlem');placeholder.value='';select.append(placeholder);
     for(const person of data.people){const option=node('option',person.display_name);option.value=person.user_id;select.append(option);}
-    select.disabled=Boolean(p);select.value=p?.user_id||'';
+    select.disabled=Boolean(p);select.value=p?.user_id||(selectedPerson==='all'?'':selectedPerson);
     for(const k of ['name','instructions','start_date','end_date'])f.elements[k].value=p?.[k]??(k==='start_date'?data.today:'');
     f.elements.times.value=p?.times.join(', ')||'';f.elements.active.checked=p?.active??true;
     el('medicationWeekdays').replaceChildren();
@@ -81,7 +94,7 @@
     e.preventDefault();if(busy)return;busy=true;++generation;const f=e.currentTarget,b=f.querySelector('[type="submit"]');b.disabled=true;
     try {await request(editing?`/${editing.id}`:'',editing?'PUT':'POST',{...(editing?{revision:editing.revision}:{}),user_id:f.elements.user_id.value,name:f.elements.name.value,instructions:f.elements.instructions.value,start_date:f.elements.start_date.value,end_date:f.elements.end_date.value||null,times:f.elements.times.value.split(',').map(t=>t.trim()),weekdays:[...f.querySelectorAll('[name="weekday"]:checked')].map(c=>Number(c.value)),active:f.elements.active.checked});el('medicationDialog').close();await refresh();}
     catch(err){el('medicationFormNotice').textContent=err.message;}
-    finally{busy=false;b.disabled=false;}
+    finally{busy=false;b.disabled=false;renderPeople();emitSummary();}
   });
   refresh();setInterval(()=>{if(!document.hidden&&!busy)refresh();},30000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!busy)refresh();});

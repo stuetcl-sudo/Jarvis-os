@@ -5,7 +5,7 @@
   const overview=document.createElement('section');overview.id='dailyOverview';overview.className='daily-overview';overview.setAttribute('aria-label','Kun i dag');shell.before(overview);
   const primary=document.createElement('div');primary.className='daily-primary-grid';const status=document.createElement('div');status.className='daily-status-grid';overview.append(primary,status);
   const tiles=new Map();const cards=[...shell.querySelectorAll('[data-family-card]')];
-  const definitions=[['routine','rutiner','Rutine nu'],['medication','medicin','Medicin i dag'],['calendar','kalender','Næste aftale'],['tasks','opgaver','Opgaver i dag'],['meal','madplan','Aftensmad'],['pets','kaeledyr','Kæledyr i dag'],['shopping','indkoeb','Indkøb'],['energy','energi','Energi i dag'],['cameras','kamera','Kamera'],['weather','vejr','Vejr nu']];
+  const definitions=[['routine','rutiner','Rutine nu'],['medication','medicin','Medicin i dag'],['weather','vejr','Vejr nu'],['calendar','kalender','Næste aftale'],['tasks','opgaver','Opgaver i dag'],['meal','madplan','Aftensmad'],['pets','kaeledyr','Kæledyr i dag'],['shopping','indkoeb','Indkøb'],['energy','energi','Energi i dag'],['cameras','kamera','Kamera']];
   for(const [card,hash,label] of definitions) {
     if(!cards.some(c=>c.dataset.familyCard===card)||!document.querySelector(`#appMenu a[href="#${hash}"]`))continue;
     const link=document.createElement('article');link.className='daily-tile';
@@ -18,7 +18,7 @@
     const arrow=document.createElement('span');arrow.textContent='→';arrow.setAttribute('aria-hidden','true');header.append(arrow);
     const metric=document.createElement('strong');metric.className='daily-tile-metric';metric.hidden=true;
     const summary=document.createElement('p');summary.textContent=document.body.dataset.familyRole==='anonymous'&&['calendar','meal','tasks'].includes(card)?'Log ind for at se dagens oplysninger':'Henter…';
-    const actions=document.createElement('div');actions.className='daily-actions';actions.hidden=true;link.append(header,metric,summary,actions);(['shopping','energy','cameras','weather'].includes(card)?status:primary).append(link);tiles.set(card,{summary,metric,link,actions});
+    const actions=document.createElement('div');actions.className='daily-actions';actions.hidden=true;link.append(header,metric,summary,actions);(['pets','shopping','energy','cameras'].includes(card)?status:primary).append(link);tiles.set(card,{summary,metric,link,actions});
   }
   const zone=document.body.dataset.homeTimezone||'Europe/Copenhagen';
   const dayKey=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
@@ -48,9 +48,9 @@
   }
   function pets(data) {
     if(data.today!==today()){set('pets','Opdaterer dagens pasning…');return;}
-    const care=data.pets.reduce((n,p)=>n+['food','water','walk'].filter(k=>!p.care[k]).length,0);
+    const walks=data.pets.reduce((n,p)=>n+(p.care_counts?.walk??Number(Boolean(p.care.walk))),0);
     const reminders=data.pets.reduce((n,p)=>n+p.reminders.filter(r=>!r.completed&&r.due_date===today()).length,0);
-    set('pets',data.pets.length?`${data.pets.map(p=>p.name).join(', ')} · ${reminders} påmindelser i dag`:'Ingen kæledyr tilføjet',data.pets.length?`${care} tilbage`:'');
+    set('pets',data.pets.length?`${data.pets.map(p=>p.name).join(', ')} · mad ${data.pets.reduce((n,p)=>n+(p.care_counts?.food??Number(Boolean(p.care.food))),0)} · vand ${data.pets.reduce((n,p)=>n+(p.care_counts?.water??Number(Boolean(p.care.water))),0)} · ${reminders} påmindelser i dag`:'Ingen kæledyr tilføjet',data.pets.length?`${walks} ${walks===1?'tur':'ture'} i dag`:'');
   }
   for(const [event,key,render] of [['calendar-updated','calendar',calendar],['tasks-summary','tasks',tasks],['pets-summary','pets',pets]]) {
     window.addEventListener(`jarvis:${event}`,e=>{cache[key]=e.detail;render(e.detail);});
@@ -59,6 +59,13 @@
   window.addEventListener('jarvis:meals-summary',e=>{cache.meal=e.detail;renderMeal(e.detail);});
   function renderMedication(data) {
     const tile=tiles.get('medication');if(!tile)return;
+    tile.peopleGroup ||= document.createElement('div');tile.peopleGroup.className='daily-persons';tile.peopleGroup.setAttribute('role','group');tile.peopleGroup.setAttribute('aria-label','Vælg person til medicin');tile.actions.prepend(tile.peopleGroup);
+    tile.personButtons ||= new Map();
+    const people=[{user_id:'all',display_name:'Alle'},...(data.people||[])];
+    const personIds=new Set(people.map(p=>p.user_id));
+    for(const [id,b] of tile.personButtons)if(!personIds.has(id)){b.remove();tile.personButtons.delete(id);}
+    for(const person of people){let b=tile.personButtons.get(person.user_id);if(!b){b=document.createElement('button');b.type='button';b.addEventListener('click',()=>{if(!b.disabled)tile.selectPerson(person.user_id);});tile.personButtons.set(person.user_id,b);tile.peopleGroup.append(b);}b.textContent=person.display_name;b.disabled=data.busy;b.setAttribute('aria-pressed',String(person.user_id===data.selected_person));}
+    tile.selectPerson=data.select_person;
     tile.medicationRows ||= new Map();
     const visible=data.today===today()?(data.entries||[]).slice(0,3):[];
     const keys=new Set(visible.map(entry=>entry.id));
@@ -78,10 +85,16 @@
       row.check.setAttribute('aria-label',`${entry.status==='taken'?'Fortryd registrering af':'Registrér som taget:'} ${entry.name} for ${entry.person} kl. ${entry.time}`);
       row.text.textContent=`${entry.time} · ${entry.person} · ${entry.name}${entry.status==='taken'?' · taget':entry.status==='skipped'?' · sprunget over':''}`;
     }
+    if(!data.busy){
+      const focused=document.activeElement;let previous=tile.peopleGroup;
+      for(const entry of visible){const label=tile.medicationRows.get(entry.id).label;if(previous.nextElementSibling!==label)tile.actions.insertBefore(label,previous.nextElementSibling);previous=label;}
+      if(tile.actions.contains(focused)&&document.activeElement!==focused)focused.focus({preventScroll:true});
+    }
     tile.moreLink ||= document.createElement('a');tile.moreLink.href='#medicin';
     if(data.today===today()&&data.entries?.length>3){tile.moreLink.textContent=`Vis alle ${data.entries.length} tidspunkter →`;tile.actions.append(tile.moreLink);}else tile.moreLink.remove();
-    tile.actions.hidden=!visible.length;
-    set('medication',data.today===today()?'Tidspunkter uden registrering i dag':'Opdaterer dagens plan…',data.today===today()?data.pending:'');
+    tile.actions.hidden=false;
+    const person=data.people?.find(p=>p.user_id===data.selected_person)?.display_name;
+    set('medication',data.today===today()?`${person?`${person} · `:''}${data.entries?.length?'Tidspunkter uden registrering i dag':'Ingen medicin planlagt i dag'}`:'Opdaterer dagens plan…',data.today===today()?data.pending:'');
   }
   function renderMeal(data) {
     if(unavailable[data.status]){set('meal',unavailable[data.status]);return;}
@@ -137,7 +150,13 @@
     if(cache.cameras)renderCameras(cache.cameras);else copy('cameras',['camerasSummary']);
     const weatherState=document.getElementById('weatherState');
     if(weatherState&&!weatherState.hidden)copy('weather',['weatherState']);
-    else set('weather',document.getElementById('weatherCondition')?.textContent||'Vejr nu',document.getElementById('weatherTemperature')?.textContent||'');
+    else {
+      const detail=[];const condition=document.getElementById('weatherCondition')?.textContent;if(condition)detail.push(condition);
+      const apparent=document.getElementById('weatherApparent')?.textContent;if(apparent&&apparent!=='–')detail.push(`Føles som ${apparent}`);
+      const humidity=document.getElementById('weatherHumidity')?.textContent;if(humidity&&humidity!=='–')detail.push(`Fugt ${humidity}`);
+      const stale=document.getElementById('weatherStale');if(stale&&!stale.hidden)detail.push('Tidligere hentet');
+      set('weather',detail.join(' · ')||'Vejr nu',document.getElementById('weatherTemperature')?.textContent||'');
+    }
     for(const key of ['calendar','tasks']) {
       const source=document.getElementById(key==='calendar'?'calendarState':'familyTasksState');
       if(source&&!source.hidden)set(key,source.textContent.trim());
