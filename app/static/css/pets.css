@@ -49,3 +49,14 @@
 .pet-icon { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; color: var(--accent); flex-shrink: 0; }
 .pet-photo-placeholder .pet-icon { width: 64px; height: 64px; }
 .pet-care > span:first-of-type { flex: 1; }
+
+.pet-chip summary { cursor: pointer; color: var(--accent); min-height: 44px; display: flex; align-items: center; justify-content: flex-end; text-decoration: underline; }
+.pet-chip summary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; border-radius: 6px; }
+.pet-chip[open] summary { margin-bottom: 6px; }
+.pet-chip span { display: block; overflow-wrap: anywhere; }
+.pet-vet { padding: 14px 0; border-top: 1px solid var(--card-border); }
+.pet-vet h4 { margin: 0 0 8px; font-size: 16px; }
+.pet-vet p { margin: 6px 0; overflow-wrap: anywhere; font-size: 14px; }
+.pet-vet-phone { min-height: 44px; display: inline-flex; align-items: center; color: var(--accent); }
+.pets-vet-fields { margin: 0; padding: 12px; border: 1px solid var(--card-border); border-radius: 12px; display: grid; gap: 12px; min-width: 0; }
+.pets-vet-fields legend { color: var(--muted); padding: 0 6px; }

@@ -61,6 +61,9 @@ class PetProfile(BaseModel):
     breed: str = Field(default="", max_length=120)
     birth_date: date | None = None
     chip_number: str = Field(default="", max_length=40)
+    vet_name: str = Field(default="", max_length=120)
+    vet_clinic: str = Field(default="", max_length=160)
+    vet_phone: str = Field(default="", max_length=40)
     weight_kg: float | None = Field(default=None, gt=0, le=1500, allow_inf_nan=False)
     photo: str = Field(default="", max_length=400000)
 

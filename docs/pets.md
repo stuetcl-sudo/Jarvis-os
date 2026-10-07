@@ -6,6 +6,10 @@ SQLite-database og kræver hverken Home Assistant eller Tractive.
 ## Funktioner
 
 - Flere kæledyr med navn, foto, race/dyreart, fødselsdato, chipnummer og vægt.
+- Chipnummer er skjult på profilkortet, indtil man vælger "Vis chipnummer".
+  Dette er visuel diskretion; autoriserede familiemedlemmer har stadig API-adgang.
+- Dyrlægens navn, klinik og telefonnummer kan gemmes på profilen. Gyldige
+  telefonnumre vises som ringelinks. Ældre profiler kræver ingen datamigrering.
 - Opret, rediger og slet profiler. Sletning kræver bekræftelse og fjerner dyrets
   tjeklister og påmindelser i samme transaktion.
 - Lokal JPEG/PNG-upload, nedskaleret til højst 720 pixels og gemt i databasen.

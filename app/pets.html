@@ -16,6 +16,11 @@
       <label>Race / dyreart<input name="breed" maxlength="120"></label>
       <div class="pets-form-pair"><label>Fødselsdato<input type="date" name="birth_date"></label><label>Vægt (kg)<input type="number" name="weight_kg" min="0.01" max="1500" step="0.01"></label></div>
       <label>Chipnummer<input name="chip_number" maxlength="40"></label>
+      <fieldset class="pets-vet-fields"><legend>Dyrlæge</legend>
+        <label>Dyrlægens navn<input name="vet_name" maxlength="120"></label>
+        <label>Klinik<input name="vet_clinic" maxlength="160"></label>
+        <label>Telefon<input name="vet_phone" type="tel" maxlength="40" autocomplete="tel"></label>
+      </fieldset>
       <label>Foto (JPEG eller PNG, højst 8 MB)<input id="petPhoto" type="file" accept="image/jpeg,image/png"></label>
       <label class="pets-checkbox"><input type="checkbox" id="petRemovePhoto"> Fjern nuværende foto</label>
       <p id="petFormNotice" role="status"></p>

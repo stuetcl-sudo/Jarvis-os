@@ -45,10 +45,13 @@ def test_profile_persistence_validation_and_cascade(client, role):
     assert client.post(BASE, json={"name": "Milo"}).status_code == 403
     assert client.post(BASE, headers={"X-CSRF-Token":"wrong"}, json={"name":"Milo"}).status_code == 403
     pet = create(client, headers)
-    assert client.put(f"{BASE}/{pet}", headers=headers, json={"name":"Milo 2", "weight_kg":7.4, "chip_number":"012345"}).status_code == 200
+    assert client.put(f"{BASE}/{pet}", headers=headers, json={"name":"Milo 2", "weight_kg":7.4, "chip_number":"012345", "vet_name":"Testdyrlæge", "vet_clinic":"Testklinik", "vet_phone":"+45 98 12 34 56"}).status_code == 200
     init_db()  # Re-running initialization must preserve existing records.
     saved = client.get(BASE).json()["pets"][0]
     assert saved["name"] == "Milo 2" and saved["weight_kg"] == 7.4
+    assert saved["vet_name"] == "Testdyrlæge"
+    assert saved["vet_clinic"] == "Testklinik"
+    assert saved["vet_phone"] == "+45 98 12 34 56"
     for payload in [{"name":" "}, {"name":"x", "weight_kg":-1}, {"name":"x", "birth_date":"2999-01-01"}, {"name":"x", "photo":"https://remote.invalid/image"}, {"name":"x", "photo":"data:image/svg+xml;base64,PHN2Zz4="}]:
         assert client.post(BASE, headers=headers, json=payload).status_code == 422
     day = client.get(BASE).json()["today"]

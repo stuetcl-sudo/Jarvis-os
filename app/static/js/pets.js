@@ -90,10 +90,34 @@
     } else { const placeholder = node('div', undefined, 'pet-photo-placeholder'); placeholder.append(petIcon('paw')); profile.prepend(placeholder); }
     profile.append(node('p', pet.breed || 'Race / dyreart ikke angivet'));
     const details = node('dl', undefined, 'pet-details');
-    for (const [label, value] of [['Født',pet.birth_date ? dateText(pet.birth_date) : 'Ikke angivet'], ['Vægt', pet.weight_kg ? `${pet.weight_kg.toLocaleString('da-DK')} kg` : 'Ikke angivet'], ['Chipnummer',pet.chip_number || 'Ikke angivet']]) {
+    for (const [label, value] of [['Født',pet.birth_date ? dateText(pet.birth_date) : 'Ikke angivet'], ['Vægt', pet.weight_kg ? `${pet.weight_kg.toLocaleString('da-DK')} kg` : 'Ikke angivet']]) {
       const row = node('div'); row.append(node('dt',label),node('dd',value)); details.append(row);
     }
+    const chipRow = node('div');
+    chipRow.append(node('dt', 'Chipnummer'));
+    const chipValue = node('dd');
+    if (pet.chip_number) {
+      const disclosure = node('details', undefined, 'pet-chip');
+      const toggle = node('summary', 'Vis chipnummer');
+      disclosure.append(toggle, node('span', pet.chip_number));
+      disclosure.addEventListener('toggle', () => { toggle.textContent = disclosure.open ? 'Skjul chipnummer' : 'Vis chipnummer'; });
+      chipValue.append(disclosure);
+    } else chipValue.textContent = 'Ikke angivet';
+    chipRow.append(chipValue); details.append(chipRow);
     profile.append(details);
+    const vet = node('section', undefined, 'pet-vet');
+    vet.append(node('h4', 'Dyrlæge'));
+    if (pet.vet_clinic) vet.append(node('p', pet.vet_clinic));
+    if (pet.vet_name) vet.append(node('p', pet.vet_name));
+    if (pet.vet_phone) {
+      const number = pet.vet_phone.replace(/[^+0-9]/g, '');
+      if (/^\+?\d{3,20}$/.test(number)) {
+        const phone = node('a', pet.vet_phone, 'pet-vet-phone');
+        phone.href = `tel:${number}`; vet.append(phone);
+      } else vet.append(node('p', pet.vet_phone));
+    }
+    if (!pet.vet_name && !pet.vet_clinic && !pet.vet_phone) vet.append(node('p', 'Ingen dyrlæge angivet endnu.'));
+    profile.append(vet);
     if (state.can_edit) {
       profile.append(button('Rediger profil', () => openProfile(pet)));
       profile.append(button('Slet kæledyr', () => {
@@ -146,7 +170,7 @@
   function openProfile(pet = null) {
     editing = pet;
     const form = byId('petForm'); form.reset();
-    for (const key of ['name','breed','birth_date','weight_kg','chip_number']) form.elements.namedItem(key).value = pet?.[key] ?? '';
+    for (const key of ['name','breed','birth_date','weight_kg','chip_number','vet_name','vet_clinic','vet_phone']) form.elements.namedItem(key).value = pet?.[key] ?? '';
     form.elements.namedItem('birth_date').max = state.today;
     byId('petDialogTitle').textContent = pet ? 'Rediger kæledyr' : 'Tilføj kæledyr';
     byId('petFormNotice').textContent = '';
