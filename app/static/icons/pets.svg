@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="paw" viewBox="0 0 24 24"><path d="M8 13q4-5 8 0l3 5q0 4-7 1-7 3-7-1Z"/><ellipse cx="4" cy="9" rx="2" ry="3"/><ellipse cx="9" cy="5" rx="2" ry="3"/><ellipse cx="15" cy="5" rx="2" ry="3"/><ellipse cx="20" cy="9" rx="2" ry="3"/></symbol>
+  <symbol id="food" viewBox="0 0 24 24"><path d="M4 10h16l2 10H2ZM6 10V6h12v4M6 16h12"/></symbol>
+  <symbol id="water" viewBox="0 0 24 24"><path d="M12 2S4 11 4 15a8 8 0 0 0 16 0c0-4-8-13-8-13ZM8 15q0 4 4 4"/></symbol>
+</svg>

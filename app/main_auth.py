@@ -12,6 +12,7 @@ from app.bootstrap_routes import router as bootstrap_router
 from app.calendar import router as calendar_router
 from app.db import log_action
 from app.family_tasks import router as family_tasks_router
+from app.pets import router as pets_router
 from app.family_view import render_family_page
 from app.family_visibility import family_feature_hidden, router as family_visibility_router
 from app.health import get_health
@@ -33,6 +34,7 @@ app.include_router(weather_router)
 app.include_router(calendar_router)
 app.include_router(meal_plan_router)
 app.include_router(family_tasks_router)
+app.include_router(pets_router)
 app.include_router(routines_router)
 app.include_router(safety_status_router)
 app.include_router(family_visibility_router)
@@ -146,6 +148,8 @@ async def enforce_local_authentication(request: Request, call_next):
         request.method in {"POST", "PUT", "DELETE"}
         and path.startswith("/api/family/tasks/")
     )
+    pet_write = (request.method in {"POST", "PUT", "PATCH", "DELETE"}
+                 and (path == "/api/family/pets" or path.startswith("/api/family/pets/")))
     protected_write = (
         request.method in {"POST", "PUT", "PATCH", "DELETE"}
         and path.startswith("/api/")
@@ -153,6 +157,7 @@ async def enforce_local_authentication(request: Request, call_next):
         and not path.startswith("/api/bootstrap/")
         and not routine_write
         and not family_task_write
+        and not pet_write
     )
     try:
         if request.method == "GET" and path in {"/login", "/bootstrap", "/setup", "/admin"}:
@@ -249,7 +254,7 @@ async def enforce_local_authentication(request: Request, call_next):
         response = await call_next(request)
         if static_request:
             response.headers["Cache-Control"] = "no-cache, must-revalidate"
-        if (protected_write or family_task_write) and current_user:
+        if (protected_write or family_task_write or pet_write) and current_user:
             log_action(
                 "authenticated_write",
                 path,

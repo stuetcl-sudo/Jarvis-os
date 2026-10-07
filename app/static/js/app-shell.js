@@ -13,6 +13,7 @@
     ["opgaver", "Opgaver", "check", "tasks"],
     ["rutiner", "Rutiner", "sun", "routine"],
     ["madplan", "Madplan", "meal", "meal"],
+    ["kaeledyr", "Kæledyr", "paw", "pets"],
     ["hjemmet", "Hjemmet", "home", "home"],
     ["vejr", "Vejr", "sun", "weather"],
     ["system", "System", "settings", "technical"],
@@ -59,7 +60,7 @@
     heading.className = "app-menu-caption";
     heading.textContent = "På vej";
     menu.append(heading);
-    for (const [label, symbol] of [["Indkøb", "cart"], ["Kæledyr", "paw"], ["Energi", "energy"], ["Kamera", "camera"]]) {
+    for (const [label, symbol] of [["Indkøb", "cart"], ["Energi", "energy"], ["Kamera", "camera"]]) {
       const item = document.createElement("span");
       item.className = "app-planned";
       item.append(icon(symbol), document.createTextNode(label));

@@ -30,9 +30,9 @@ available cards, respecting the server-rendered role/module visibility.
 
 Current sections: Overblik, Kalender, Opgaver, Rutiner, Madplan, Hjemmet, Vejr,
 and owner-only System where available. Administration remains an owner-only
-server route. Indkøb, Kæledyr, Energi and Kamera are non-interactive roadmap labels
-for owners/adults, explicitly marked as future work. No pet/GPS/energy/camera
-backend is introduced by this first change.
+server route. Kæledyr now has a local profile, care and reminder module; see
+`docs/pets.md`. Indkøb, Energi and Kamera remain non-interactive roadmap labels
+for owners/adults. GPS, energy and camera integrations are still future work.
 
 New modules should reuse this shell, the scoped color variables, card treatment
 and navigation behavior. Add real integration states (loading, unconfigured,

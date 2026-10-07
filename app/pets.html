@@ -1,0 +1,36 @@
+<article class="family-card pets-card" data-family-card="pets">
+  <div class="card-icon" aria-hidden="true"><svg class="pet-icon"><use href="/static/icons/pets.svg#paw"></use></svg></div>
+  <div class="card-heading"><p class="card-eyebrow">Kæledyr</p><h2>Familiens dyr</h2></div>
+  <p id="petsSummary">Henter kæledyr…</p>
+  <a class="pets-overview-link family-nav-link" href="#kaeledyr">Åbn Kæledyr →</a>
+  <div class="pets-workspace">
+    <div class="pets-toolbar"><div id="petsPicker" role="group" aria-label="Vælg kæledyr"></div><button id="petAdd" type="button" hidden>+ Tilføj kæledyr</button></div>
+    <p id="petsNotice" role="status"></p>
+    <div id="petsContent" class="pets-grid"></div>
+    <p class="pets-footnote">Påmindelser vises her i Jarvis. Der sendes ikke pushbeskeder.</p>
+  </div>
+  <dialog id="petDialog" aria-labelledby="petDialogTitle">
+    <form id="petForm" class="pets-form">
+      <h2 id="petDialogTitle">Tilføj kæledyr</h2>
+      <label>Navn<input name="name" required maxlength="80" autocomplete="off"></label>
+      <label>Race / dyreart<input name="breed" maxlength="120"></label>
+      <div class="pets-form-pair"><label>Fødselsdato<input type="date" name="birth_date"></label><label>Vægt (kg)<input type="number" name="weight_kg" min="0.01" max="1500" step="0.01"></label></div>
+      <label>Chipnummer<input name="chip_number" maxlength="40"></label>
+      <label>Foto (JPEG eller PNG, højst 8 MB)<input id="petPhoto" type="file" accept="image/jpeg,image/png"></label>
+      <label class="pets-checkbox"><input type="checkbox" id="petRemovePhoto"> Fjern nuværende foto</label>
+      <p id="petFormNotice" role="status"></p>
+      <div class="pets-form-actions"><button type="button" data-pets-close="petDialog">Annuller</button><button type="submit">Gem profil</button></div>
+    </form>
+  </dialog>
+  <dialog id="petReminderDialog" aria-labelledby="petReminderTitle">
+    <form id="petReminderForm" class="pets-form">
+      <h2 id="petReminderTitle">Ny sundhedspåmindelse</h2>
+      <label>Titel<input name="title" required maxlength="160" placeholder="Fx årlig vaccination"></label>
+      <label>Type<select name="kind"><option value="vaccination">Vaccination</option><option value="medicine">Medicin</option><option value="vet">Dyrlæge</option><option value="other">Andet</option></select></label>
+      <label>Dato<input name="due_date" type="date" required></label>
+      <label>Noter<textarea name="notes" maxlength="1000" rows="3" placeholder="Fx aftalen med dyrlægen"></textarea></label>
+      <p id="petReminderNotice" role="status"></p>
+      <div class="pets-form-actions"><button type="button" data-pets-close="petReminderDialog">Annuller</button><button type="submit">Gem påmindelse</button></div>
+    </form>
+  </dialog>
+</article>
