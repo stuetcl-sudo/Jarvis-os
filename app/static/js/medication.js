@@ -22,11 +22,11 @@
     catch(e){if(g===generation)el('medicationNotice').textContent=`Kunne ikke opdatere. ${e.message}`;}
   }
   async function save(path,method,payload) {
-    if(busy)return;busy=true;++generation;
+    if(busy)return;busy=true;++generation;emitSummary();
     root.querySelectorAll('button').forEach(b=>b.disabled=true);
     try {await request(path,method,payload);await refresh();}
     catch(e){el('medicationNotice').textContent=e.message;}
-    finally {busy=false;root.querySelectorAll('button').forEach(b=>b.disabled=false);}
+    finally {busy=false;root.querySelectorAll('button').forEach(b=>b.disabled=false);emitSummary();}
   }
   function render() {
     const today=el('medicationToday'),plans=el('medicationPlans');today.replaceChildren();plans.replaceChildren();
@@ -55,8 +55,16 @@
     }
     if(!today.children.length)today.append(node('p','Ingen medicin planlagt i dag.'));
     if(!data.plans.length)plans.append(node('p','Ingen planer endnu.'));
+    emitSummary();
+  }
+  function emitSummary() {
     const pending=data.plans.filter(p=>p.due_today).reduce((n,p)=>n+p.times.filter(t=>!p.records.some(r=>r.day===data.today&&r.slot===t)).length,0);
-    window.dispatchEvent(new CustomEvent('jarvis:medication-summary',{detail:{today:data.today,pending}}));
+    const entries=data.plans.filter(p=>p.due_today).flatMap(p=>p.times.map(time=>({
+      id:`${p.id}:${time}`,time,name:p.name,person:data.people.find(person=>person.user_id===p.user_id)?.display_name||'Familiemedlem',
+      status:p.records.find(r=>r.day===data.today&&r.slot===time)?.status||'unmarked',
+      change:(checked)=>save(`/${p.id}/record`,'PUT',{revision:p.revision,day:data.today,slot:time,status:checked?'taken':'unmarked'}),
+    }))).sort((a,b)=>a.time.localeCompare(b.time)||a.id.localeCompare(b.id));
+    window.dispatchEvent(new CustomEvent('jarvis:medication-summary',{detail:{today:data.today,pending,entries,busy}}));
   }
   function open(p=null) {
     editing=p;const f=el('medicationForm');f.reset();const select=f.elements.user_id;select.replaceChildren();const placeholder=node('option','Vælg familiemedlem');placeholder.value='';select.append(placeholder);

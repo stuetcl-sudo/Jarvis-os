@@ -70,6 +70,7 @@
     shopWrite(path,method,payload).catch((error) => {byId('shoppingNotice').textContent = error.message;});
   }
   function renderShopping() {
+    window.dispatchEvent(new CustomEvent('jarvis:shopping-summary',{detail:shopping}));
     const list = currentList();
     const pending = shopping.lists.reduce((total,item) => total + item.items.filter((i) => !i.done).length,0);
     byId('shoppingSummary').textContent = `${shopping.lists.length} liste${shopping.lists.length === 1 ? '' : 'r'} · ${pending} vare${pending === 1 ? '' : 'r'} mangler`;
@@ -147,6 +148,7 @@
     if (!energyRoot) return;
     try {
       const data = await api('/api/family/energy');
+      window.dispatchEvent(new CustomEvent('jarvis:energy-summary',{detail:data}));
       const valid = data.metrics.filter((item) => item.status === 'ok');
       byId('energySummary').textContent = data.status === 'not_configured' ? 'Vælg energisensorer for at komme i gang.' : valid.filter(item=>['solar_today','consumption_today','import_today','export_today'].includes(item.key)).map(item=>`${item.label}: ${item.value.toLocaleString('da-DK',{maximumFractionDigits:1})} ${item.unit}`).slice(0,2).join(' · ') || `${valid.length} målinger tilgængelige`;
       byId('energyNotice').textContent = data.status === 'unavailable' ? 'Home Assistant svarer ikke. Værdierne er midlertidigt utilgængelige.' : data.status === 'not_configured' ? (owner ? 'Tilslut Home Assistant i Administration, og vælg derefter sensorer her.' : 'Ejeren kan tilslutte energisensorer.') : '';
@@ -161,7 +163,7 @@
         return card;
       }));
       if (document.body.dataset.appPage === 'energi') refreshHistory();
-    } catch (error) {byId('energyNotice').textContent = error.message; byId('energyMetrics').replaceChildren(); byId('energySummary').textContent = 'Energidata kan ikke hentes.';}
+    } catch (error) {byId('energyNotice').textContent = error.message; byId('energyMetrics').replaceChildren(); byId('energySummary').textContent = 'Energidata kan ikke hentes.'; window.dispatchEvent(new CustomEvent('jarvis:energy-summary',{detail:{status:'unavailable',metrics:[]}}));}
   }
   let historyRequest = 0;
   async function refreshHistory() {
@@ -207,6 +209,7 @@
     if (!cameraRoot) return;
     try {
       const data = await api('/api/family/cameras'); cameras = data.cameras;
+      window.dispatchEvent(new CustomEvent('jarvis:cameras-summary',{detail:data}));
       byId('camerasSummary').textContent = cameras.length ? `${cameras.filter((item) => item.status === 'available').length}/${cameras.length} tilgængelige via Home Assistant` : 'Ingen kameraer valgt endnu.';
       byId('cameraNotice').textContent = data.status === 'unavailable' ? 'Home Assistant svarer ikke.' : !cameras.length ? (owner ? 'Vælg kameraer under Opsæt kameraer.' : 'Ejeren kan tilføje kameraer.') : '';
       const scrypted = byId('scryptedLink'); scrypted.hidden = !data.scrypted_url; if (data.scrypted_url) scrypted.href = data.scrypted_url;
@@ -224,7 +227,7 @@
         card.append(actions); return card;
       }));
       cameraLoaded = true; snapshots();
-    } catch (error) {byId('cameraNotice').textContent = error.message; byId('cameraGrid').replaceChildren(); cameraLoaded = false;}
+    } catch (error) {byId('cameraNotice').textContent = error.message; byId('cameraGrid').replaceChildren(); cameraLoaded = false; window.dispatchEvent(new CustomEvent('jarvis:cameras-summary',{detail:{status:'unavailable',cameras:[]}}));}
   }
   let setup = null;
   let mode = null;

@@ -64,7 +64,7 @@ not calculate doses, check interactions, recommend treatments, verify ingestion,
 handle prescriptions or deliver push reminders. An empty record means only
 'unrecorded'. PRN/as-needed medication and missed-dose guidance are outside this
 version. Do not put medication names or dose details on shared or child screens;
-the adult home screen contains only an aggregate number of unrecorded slots.
+the adult home screen now shows an aggregate number plus up to three scheduled slots, with person/name/time and a checkbox. Instructions and dosage details remain inside the adult module.
 
 ## Storage and rollout
 
@@ -101,3 +101,23 @@ requires separate approval.
 - `scripts/staging.sh test` passed its compose configuration test, then stopped
   with `docker: command not found`. No actual Docker staging deployment or
   ServerHub health check has been performed from this workspace.
+
+## Home quick actions
+
+The home screen puts the current routine and medication first, with clear figures
+and shared outline icons. Routine completion and optional person switching proxy
+the existing routine controls, including their busy state and permission checks.
+Medication checkboxes reuse the existing revision/CSRF/day-checked write flow,
+with saved taken/undo state shared by the full module. Checkbox DOM identity is
+retained during refreshes so one click addresses exactly one scheduled slot.
+Routine and medication remain restricted by their existing server permissions.
+
+Today's six primary summaries use a three-column desktop layout. Shopping,
+energy, camera and weather form a compact four-column status row (two columns
+on smaller screens). Full views remain available through each card heading.
+
+Validation for this refinement: 44 relevant backend/role/frontend tests passed;
+28 frontend/role/module tests passed again after the final control changes.
+Chromium also verified home medication check/reload/uncheck and actual routine
+progress through the existing API, in addition to the nine responsive screenshots.
+The compose configuration check passed, but Docker is still unavailable here.
