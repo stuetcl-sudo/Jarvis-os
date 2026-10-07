@@ -177,5 +177,11 @@ def render_family_page(current_user, wall_actions=""):
     page = page.replace("<!-- WALL_DISPLAY_ACTIONS -->", wall_actions, 1)
     pets = (FAMILY_TEMPLATE.parent.parent / "pets.html").read_text(encoding="utf-8") if context["role"] in {"owner", "adult", "child"} else ""
     page = page.replace("<!-- FAMILY_PETS_CARD -->", pets, 1)
+    modules = ""
+    if context["role"] in {"owner", "adult", "child"}:
+        modules = (FAMILY_TEMPLATE.parent.parent / "home_modules.html").read_text(encoding="utf-8")
+        if context["role"] == "child":
+            modules = modules.partition("<!-- ADULT_MODULES_START -->")[0]
+    page = page.replace("<!-- FAMILY_HOME_MODULES -->", modules, 1)
     page = page.replace("<!-- FAMILY_NAVIGATION -->", navigation_for(context["role"]), 1)
     return apply_module_settings(page, module_settings)

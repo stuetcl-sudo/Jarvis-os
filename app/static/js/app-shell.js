@@ -13,7 +13,10 @@
     ["opgaver", "Opgaver", "check", "tasks"],
     ["rutiner", "Rutiner", "sun", "routine"],
     ["madplan", "Madplan", "meal", "meal"],
+    ["indkoeb", "Indkøb", "cart", "shopping"],
     ["kaeledyr", "Kæledyr", "paw", "pets"],
+    ["energi", "Energi", "energy", "energy"],
+    ["kamera", "Kamera", "camera", "cameras"],
     ["hjemmet", "Hjemmet", "home", "home"],
     ["vejr", "Vejr", "sun", "weather"],
     ["system", "System", "settings", "technical"],
@@ -54,21 +57,6 @@
     link.append(icon(symbol), document.createTextNode(label));
     menu.append(link);
     links.set(id, link);
-  }
-  if (["owner", "adult"].includes(body.dataset.familyRole)) {
-    const heading = document.createElement("p");
-    heading.className = "app-menu-caption";
-    heading.textContent = "På vej";
-    menu.append(heading);
-    for (const [label, symbol] of [["Indkøb", "cart"], ["Energi", "energy"], ["Kamera", "camera"]]) {
-      const item = document.createElement("span");
-      item.className = "app-planned";
-      item.append(icon(symbol), document.createTextNode(label));
-      const badge = document.createElement("small");
-      badge.textContent = "Senere";
-      item.append(badge);
-      menu.append(item);
-    }
   }
   const account = document.querySelector(".family-navigation");
   if (account) document.getElementById("appAccount").append(account);

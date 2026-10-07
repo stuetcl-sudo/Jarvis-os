@@ -1,0 +1,59 @@
+.module-card { grid-column: 1 / -1; }
+.module-card > p { color: var(--muted); }
+.module-workspace { min-width: 0; }
+.jarvis-app[data-app-page="overblik"] .module-workspace { display: none; }
+.jarvis-app:not([data-app-page="overblik"]) .module-overview-link { display: none; }
+.module-overview-link { justify-self: start; }
+.module-toolbar, .module-tabs, .module-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 16px 0; }
+.module-toolbar { justify-content: flex-start; }
+.module-card button, .module-card input, .module-button, .module-form button, .module-form input, .module-form select {
+  min-height: 44px; border: 1px solid var(--card-border); border-radius: 12px; background: var(--surface-raised); color: var(--text); padding: 10px 13px; font: inherit;
+}
+.module-card button, .module-form button { cursor: pointer; }
+.module-button { display: inline-flex; align-items: center; text-decoration: none; }
+.module-tabs [aria-pressed="true"], .module-form [type="submit"] { background: #e7f0e6; color: #285d3a; border-color: #cbdcca; }
+.module-card button:disabled, .module-form button:disabled { opacity: .6; }
+.module-footnote { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.shopping-row { display: flex; align-items: center; gap: 12px; padding: 14px; margin: 8px 0; border: 1px solid var(--card-border); border-radius: 16px; }
+.shopping-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.shopping-copy strong, .shopping-copy small { display: block; }
+.shopping-copy small { margin-top: 5px; color: var(--muted); }
+.shopping-row.is-done .shopping-copy strong { text-decoration: line-through; color: var(--muted); }
+.shopping-check { flex-shrink: 0; }
+.shopping-category { font-size: 15px; color: var(--muted); margin: 24px 0 8px; }
+.module-metrics, .module-camera-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
+.module-metric, .module-camera { min-width: 0; padding: 22px; border: 1px solid var(--card-border); border-radius: 20px; background: #fff; }
+.module-metric h3, .module-camera h3 { margin: 0 0 14px; font-size: 17px; }
+.module-metric strong { display: block; font-size: 32px; letter-spacing: -.025em; }
+.module-metric small { display: block; margin-top: 10px; color: var(--muted); }
+.module-camera img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; background: var(--soft); border-radius: 12px; }
+.module-camera-status { color: var(--muted); font-size: 13px; }
+.module-camera-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+#homeModuleDialog, .module-card dialog { color: var(--text); background: var(--card); border: 1px solid var(--card-border); border-radius: 22px; padding: 24px; width: min(660px,calc(100vw - 28px)); max-height: 90dvh; overflow-y: auto; }
+#homeModuleDialog::backdrop, .module-card dialog::backdrop { background: rgb(20 35 30 / 40%); }
+.module-form { display: grid; gap: 14px; }
+.module-form h2 { margin: 0; }
+.module-form label { display: grid; gap: 6px; font-size: 14px; margin-bottom: 12px; }
+.module-form input, .module-form select { width: 100%; min-width: 0; }
+.module-form-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.module-camera-fields { margin: 16px 0; padding: 16px; border: 1px solid var(--card-border); border-radius: 14px; min-width: 0; }
+.module-actions { justify-content: flex-end; }
+.module-form-notice:empty, #shoppingNotice:empty, #energyNotice:empty, #cameraNotice:empty, #homeConfigNotice:empty { display: none; }
+@media(max-width:1100px) { .module-metrics, .module-camera-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:700px) { .module-metrics, .module-camera-grid, .module-form-pair { grid-template-columns: minmax(0,1fr); } .shopping-row { flex-wrap: wrap; } .shopping-copy { flex-basis: 60%; } .module-metric, .module-camera { padding: 16px; } }
+@media print {
+ .app-sidebar, .family-header, .family-footer, .wall-safety-strip, .status-strip, .app-page-title, .module-toolbar, .module-overview-link, .module-camera, .module-actions, dialog { display:none!important; }
+ body.jarvis-app { padding:0; background:#fff; }
+ body.jarvis-app .family-shell { padding:0; }
+ [data-family-card]:not([data-family-card="shopping"]) { display:none!important; }
+ .shopping-row button { display:none; }
+ .shopping-row.is-done { display:none; }
+ .shopping-row { break-inside:avoid; }
+ .jarvis-app .shopping-card .module-workspace { display:block!important; }
+}
+
+.energy-history { margin-top: 24px; padding: 20px; background: #fff; border: 1px solid var(--card-border); border-radius: 20px; }
+.energy-history h3 { margin:0; }
+.energy-history svg { display:block; width:100%; max-height:260px; color:var(--accent); }
+.energy-history-times { display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; color:var(--muted); }
+.energy-history select { min-height:44px; padding:10px; width:100%; max-width:100%; background:var(--card); color:var(--text); border:1px solid var(--card-border); border-radius:12px; }

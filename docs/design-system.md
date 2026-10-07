@@ -31,8 +31,9 @@ available cards, respecting the server-rendered role/module visibility.
 Current sections: Overblik, Kalender, Opgaver, Rutiner, Madplan, Hjemmet, Vejr,
 and owner-only System where available. Administration remains an owner-only
 server route. Kæledyr now has a local profile, care and reminder module; see
-`docs/pets.md`. Indkøb, Energi and Kamera remain non-interactive roadmap labels
-for owners/adults. GPS, energy and camera integrations are still future work.
+`docs/pets.md`. Indkøb, Energi and Kamera now have functional module views;
+see `docs/home-modules.md`. Tractive and direct FoxCloud integration remain
+future work. Energy and camera data currently use Home Assistant.
 
 New modules should reuse this shell, the scoped color variables, card treatment
 and navigation behavior. Add real integration states (loading, unconfigured,
