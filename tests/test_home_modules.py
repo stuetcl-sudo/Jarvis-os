@@ -143,3 +143,41 @@ def test_camera_status_is_not_invented(client):
     assert data['cameras'][0]['status']=='unavailable'
     with patch.object(modules,'states',return_value={'camera.garage':{'state':'idle'}}):
         assert client.get('/api/family/cameras').json()['cameras'][0]['status']=='available'
+
+
+def test_energy_display_shared_persistence_and_preserves_sensor_camera_config(client):
+    headers=login(client,'owner')
+    save(client,headers,{'solar_power':'sensor.solar','price':'sensor.price'},[{'name':'Have','entity':'camera.garden'}])
+    endpoint='/api/admin/home-modules/energy-display'
+    selection={'visible':['price','solar_power'],'overview':'price'}
+    assert client.put(endpoint,json=selection).status_code==403
+    assert client.put(endpoint,headers=headers,json=selection).status_code==200
+    stored=client.get(CONFIG).json()
+    assert stored['energy_display']==selection
+    assert stored['energy']['solar_power']=='sensor.solar'
+    assert stored['cameras'][0]['entity']=='camera.garden'
+    # Old config clients must not silently remove the shared display preference.
+    save(client,headers,{'price':'sensor.price'})
+    for role in ['adult','wall_display']:
+        other=login(client,role)
+        assert client.get('/api/family/energy').json()['display']==selection
+        assert client.put(endpoint,headers=other,json=selection).status_code==403
+    assert client.post('/api/auth/login',json={'username':'owner','password':'Pets-Test-Password-123!'}).status_code==200
+    headers={'X-CSRF-Token':client.get('/api/auth/me').json()['csrf_token']}
+    assert client.put(endpoint,headers=headers,json={'visible':[],'overview':None}).status_code==200
+    assert client.get('/api/family/energy').json()['display']['visible']==[]
+
+
+@pytest.mark.parametrize('selection',[
+    {'visible':['price','price']}, {'visible':['made_up']},
+    {'visible':['price'],'overview':'solar_power'}, {'overview':'made_up'},
+])
+def test_energy_display_rejects_invalid_choices(client,selection):
+    headers=login(client,'owner')
+    assert client.put('/api/admin/home-modules/energy-display',headers=headers,json=selection).status_code==422
+
+
+def test_legacy_energy_defaults_to_configured_metrics(client):
+    headers=login(client,'owner')
+    settings_store.set_setting(modules.KEY,json.dumps({'energy':{'price':'sensor.price'}}),db_path=config.DB_PATH)
+    assert client.get('/api/family/energy').json()['display']=={'visible':None,'overview':None}

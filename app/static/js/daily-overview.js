@@ -4,8 +4,9 @@
   const shell=document.querySelector('.family-grid');if(!shell||!document.body.classList.contains('jarvis-app'))return;
   const overview=document.createElement('section');overview.id='dailyOverview';overview.className='daily-overview';overview.setAttribute('aria-label','Kun i dag');shell.before(overview);
   const primary=document.createElement('div');primary.className='daily-primary-grid';const status=document.createElement('div');status.className='daily-status-grid';overview.append(primary,status);
+  const wellbeingBand=document.createElement('div');wellbeingBand.className='daily-wellbeing-band';primary.after(wellbeingBand);
   const tiles=new Map();const cards=[...shell.querySelectorAll('[data-family-card]')];
-  const definitions=[['routine','rutiner','Rutine nu'],['medication','medicin','Medicin i dag'],['weather','vejr','Vejr nu'],['calendar','kalender','Næste aftale'],['tasks','opgaver','Opgaver i dag'],['meal','madplan','Aftensmad'],['pets','kaeledyr','Kæledyr i dag'],['shopping','indkoeb','Indkøb'],['energy','energi','Energi i dag'],['cameras','kamera','Kamera'],['rewards','beloenninger','Stjerner og badges'],['wellbeing','dagsform','Familiens dagsform']];
+  const definitions=[['routine','rutiner','Rutine nu'],['medication','medicin','Medicin i dag'],['weather','vejr','Vejr nu'],['calendar','kalender','Næste aftale'],['tasks','opgaver','Opgaver i dag'],['meal','madplan','Aftensmad'],['pets','kaeledyr','Kæledyr i dag'],['shopping','indkoeb','Indkøb'],['energy','energi','Energi'],['cameras','kamera','Kamera'],['rewards','beloenninger','Stjerner og badges'],['wellbeing','dagsform','Familiens dagsform']];
   for(const [card,hash,label] of definitions) {
     if(!cards.some(c=>c.dataset.familyCard===card)||!document.querySelector(`#appMenu a[href="#${hash}"]`))continue;
     const link=document.createElement('article');link.className='daily-tile';
@@ -18,7 +19,7 @@
     const arrow=document.createElement('span');arrow.textContent='→';arrow.setAttribute('aria-hidden','true');header.append(arrow);
     const metric=document.createElement('strong');metric.className='daily-tile-metric';metric.hidden=true;
     const summary=document.createElement('p');summary.textContent=document.body.dataset.familyRole==='anonymous'&&['calendar','meal','tasks'].includes(card)?'Log ind for at se dagens oplysninger':'Henter…';
-    const actions=document.createElement('div');actions.className='daily-actions';actions.hidden=true;link.append(header,metric,summary,actions);(['pets','shopping','energy','cameras','rewards','wellbeing'].includes(card)?status:primary).append(link);tiles.set(card,{summary,metric,link,actions});
+    const actions=document.createElement('div');actions.className='daily-actions';actions.hidden=true;link.append(header,metric,summary,actions);(card==='wellbeing'?wellbeingBand:['pets','shopping','energy','cameras','rewards'].includes(card)?status:primary).append(link);tiles.set(card,{summary,metric,link,actions});
   }
   const zone=document.body.dataset.homeTimezone||'Europe/Copenhagen';
   const dayKey=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
@@ -46,15 +47,10 @@
     const {rewards,wellbeing}=e.detail;
     const goals=rewards.people.filter(p=>p.settings);set('rewards',goals.length?goals.slice(0,2).map(p=>`${p.display_name} · ${p.balance}/${p.settings.target} stjerner`).join(' · '):'Aftal opgaver og en belønning');
     const tile=tiles.get('wellbeing');if(!tile)return;
-    const people=wellbeing.people;
-    if(!people.some(p=>p.user_id===tile.selectedWellId))tile.selectedWellId=people.find(p=>p.user_id===wellbeing.self_id)?.user_id||people.find(p=>p.can_write)?.user_id||people[0]?.user_id;
-    tile.wellPeople ||= document.createElement('div');tile.wellPeople.className='daily-persons';tile.wellPeople.setAttribute('role','group');tile.wellPeople.setAttribute('aria-label','Vælg person til dagsform');
-    tile.wellButtons ||= new Map();const ids=new Set(people.map(p=>p.user_id));for(const [id,b] of tile.wellButtons)if(!ids.has(id)){b.remove();tile.wellButtons.delete(id);}
     tile.quickContainer ||= document.createElement('div');tile.quickContainer.className='wellbeing-home-quick';
-    if(tile.wellPeople.parentNode!==tile.actions)tile.actions.append(tile.wellPeople);if(tile.quickContainer.parentNode!==tile.actions)tile.actions.append(tile.quickContainer);tile.actions.hidden=false;
-    for(const person of people){let b=tile.wellButtons.get(person.user_id);if(!b){b=document.createElement('button');b.type='button';b.addEventListener('click',()=>{tile.selectedWellId=person.user_id;draw();});tile.wellButtons.set(person.user_id,b);tile.wellPeople.append(b);}b.textContent=person.display_name;}
-    function draw(){for(const [id,b] of tile.wellButtons)b.setAttribute('aria-pressed',String(id===tile.selectedWellId));e.detail.quick_render(tile.quickContainer,tile.selectedWellId);set('wellbeing','Tryk på humør eller overskud · gemmes automatisk');}
-    draw();
+    if(tile.quickContainer.parentNode!==tile.actions)tile.actions.append(tile.quickContainer);tile.actions.hidden=false;
+    e.detail.quick_render(tile.quickContainer,undefined,true);
+    set('wellbeing','Humør og overskud · ét tryk · gemmes automatisk');
   });
   setInterval(attention,10000);
   const unavailable={authentication_required:'Log ind for at se dagens oplysninger',not_configured:'Ikke tilsluttet',unavailable:'Kan ikke hentes lige nu'};
@@ -141,11 +137,11 @@
   window.addEventListener('jarvis:energy-summary',e=>{cache.energy=e.detail;renderEnergy(e.detail);});
   function renderEnergy(data) {
     if(unavailable[data.status]){set('energy',unavailable[data.status]);return;}
-    const valid=data.metrics.filter(m=>m.status==='ok');
-    const main=valid.find(m=>m.key==='solar_today')||valid.find(m=>m.key==='consumption_today');
-    if(!main){set('energy','Vælg en sensor for dagens produktion eller forbrug');return;}
-    const other=valid.find(m=>m.key==='consumption_today'&&m.key!==main.key);
-    set('energy',`${main.label}${other?` · forbrug ${other.value.toLocaleString('da-DK',{maximumFractionDigits:1})} ${other.unit}`:''}`,`${main.value.toLocaleString('da-DK',{maximumFractionDigits:1})} ${main.unit}`);
+    const selected=window.JarvisEnergySelection(data);
+    if(!selected.length){set('energy','Ingen målinger valgt til visning');return;}
+    const main=selected.find(m=>m.key===data.display?.overview)||selected.find(m=>m.status==='ok')||selected[0];
+    if(main.status!=='ok'){set('energy',`${main.label} · målingen kan ikke hentes`);return;}
+    set('energy',main.label,`${main.value.toLocaleString('da-DK',{maximumFractionDigits:2})} ${main.unit}`);
   }
   window.addEventListener('jarvis:cameras-summary',e=>{cache.cameras=e.detail;renderCameras(e.detail);});
   function renderCameras(data) {
@@ -177,7 +173,7 @@
   }
   function refreshCopy() {
     renderRoutine();
-    if(cache.meal)renderMeal(cache.meal);else copy('meal',['mealPlanState']);if(cache.shopping)renderShopping(cache.shopping);else copy('shopping',['shoppingSummary']);
+    if(cache.meal||cache.planning)renderMeal(cache.meal||{});else copy('meal',['mealPlanState']);if(cache.shopping)renderShopping(cache.shopping);else copy('shopping',['shoppingSummary']);
     if(cache.energy)renderEnergy(cache.energy);else copy('energy',['energySummary']);
     if(cache.cameras)renderCameras(cache.cameras);else copy('cameras',['camerasSummary']);
     const weatherState=document.getElementById('weatherState');

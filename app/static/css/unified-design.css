@@ -253,3 +253,62 @@ body.jarvis-app .family-card {
   body.jarvis-app { --ui-page:#fff; --ui-card:#fff; --ui-raised:#fff; --ui-soft:#fff; --ui-text:#111; --ui-muted:#444; --ui-border:#bbb; color-scheme:light; padding:0; }
   body.jarvis-app .family-shell { padding: 0; }
 }
+
+/* Compact daily board: keep detail in tabs, direct check-ins beside each name. */
+.jarvis-app[data-app-page="overblik"] .family-shell { padding-top: 18px; }
+.jarvis-app[data-app-page="overblik"] .family-header { padding-bottom: 14px; }
+.jarvis-app[data-app-page="overblik"] .family-header h1 { font-size: 28px; }
+.jarvis-app .daily-overview { gap: 12px; }
+.jarvis-app .daily-primary-grid, .jarvis-app .daily-status-grid { gap: 12px; }
+.jarvis-app .daily-tile, .jarvis-app .daily-tile[data-module], .jarvis-app .daily-status-grid .daily-tile {
+  min-height: 0; padding: 12px 14px; gap: 6px; border-radius: 16px;
+}
+.jarvis-app .daily-tile-heading { min-height: 28px; }
+.jarvis-app .daily-tile-heading svg { width: 18px; height: 18px; padding: 4px; }
+.jarvis-app .daily-tile-heading h2 { font-size: 13px; }
+.jarvis-app .daily-tile-metric, .jarvis-app .daily-status-grid .daily-tile-metric { font-size: 24px; line-height: 1.2; overflow-wrap: anywhere; }
+.jarvis-app .daily-tile[data-module="meal"] .daily-tile-metric { font-size: 21px; }
+.jarvis-app .daily-actions { gap: 6px; }
+.jarvis-app [data-module="routine"] .daily-actions { display:flex; flex-wrap:wrap; align-items:center; }
+.jarvis-app .daily-status-grid { grid-template-columns:repeat(5,minmax(0,1fr)); }
+.jarvis-app .daily-wellbeing-band .daily-tile[data-module="wellbeing"] { grid-column:auto; }
+.jarvis-app .wellbeing-compact { display:grid; gap:6px; }
+.jarvis-app .wellbeing-compact .progress-person {
+  display:grid; grid-template-columns:minmax(70px,1fr) minmax(145px,2fr) minmax(145px,2fr) minmax(70px,1fr);
+  gap:10px; align-items:center; margin:0; padding:0; border:0;
+}
+.jarvis-app .wellbeing-compact h3 { font-size:15px; margin:0; }
+.jarvis-app .wellbeing-compact fieldset { margin:0; padding:0; border:0; min-width:0; }
+.jarvis-app .wellbeing-compact legend { font-size:11px; margin:0; }
+.jarvis-app .wellbeing-compact .wellbeing-options { gap:5px; }
+.jarvis-app .wellbeing-compact .wellbeing-options button { min-height:44px; padding:4px; font-size:23px; line-height:1.2; }
+.jarvis-app .wellbeing-compact button[data-field="energy"] { font-size:17px; letter-spacing:1px; }
+.jarvis-app .wellbeing-compact .wellbeing-save-status { font-size:12px; margin:0; overflow-wrap:anywhere; }
+.jarvis-app .wellbeing-compact .wellbeing-save-status:has(+ button[hidden]) { grid-column:auto; }
+.jarvis-app .energy-display-choice { display:flex; align-items:center; gap:10px; min-height:44px; }
+.jarvis-app .energy-display-choice input { width:22px; height:22px; flex-shrink:0; }
+.jarvis-app #energyDisplayChoices { border:1px solid var(--ui-border); border-radius:12px; padding:12px; }
+@media(max-width:1199px) {
+  .jarvis-app .daily-status-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media(max-width:1100px) {
+  .jarvis-app .daily-primary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:700px) {
+  .jarvis-app .daily-primary-grid { grid-template-columns:minmax(0,1fr); }
+  .jarvis-app .daily-status-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .jarvis-app .wellbeing-compact .progress-person { grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px 8px; }
+  .jarvis-app .wellbeing-compact h3 { grid-column:1 / -1; }
+  .jarvis-app .wellbeing-compact .wellbeing-save-status { grid-column:1 / -1 !important; }
+}
+.jarvis-app .daily-wellbeing-band:empty { display:none; }
+.jarvis-app .wellbeing-compact .wellbeing-options button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:11px; min-height:52px; }
+.jarvis-app .wellbeing-symbol { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.jarvis-app .wellbeing-compact button:is([data-value="good"],[data-value="high"]) .wellbeing-symbol { color:var(--ui-accent); }
+.jarvis-app .wellbeing-compact button:is([data-value="okay"],[data-value="low"]) .wellbeing-symbol { color:var(--ui-amber); }
+.jarvis-app .wellbeing-compact button:is([data-value="hard"],[data-value="empty"]) .wellbeing-symbol { color:var(--ui-danger); }
+.jarvis-app .wellbeing-compact button[data-field="energy"] { letter-spacing:0; }
+/* Override legacy per-module pastel paints in both appearances. */
+.jarvis-app .daily-tile[data-module] { --tile-soft:color-mix(in srgb,var(--tile-accent) 8%,var(--ui-card)); }
+.jarvis-app .daily-tile[data-module].medication-overdue { --tile-soft:var(--ui-danger-soft); }
+.jarvis-app .app-account .family-nav-link.primary { background:var(--ui-selected); color:var(--ui-selected-text); }

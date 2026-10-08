@@ -144,24 +144,31 @@
     }
   }
 
+  window.JarvisEnergySelection = data => {
+    const selected = data.display?.visible;
+    return selected == null ? data.metrics.filter(item=>item.status!=='not_configured') : selected.map(key=>data.metrics.find(item=>item.key===key)).filter(Boolean);
+  };
   async function refreshEnergy() {
     if (!energyRoot) return;
     try {
       const data = await api('/api/family/energy');
       window.dispatchEvent(new CustomEvent('jarvis:energy-summary',{detail:data}));
-      const valid = data.metrics.filter((item) => item.status === 'ok');
-      byId('energySummary').textContent = data.status === 'not_configured' ? 'Vælg energisensorer for at komme i gang.' : valid.filter(item=>['solar_today','consumption_today','import_today','export_today'].includes(item.key)).map(item=>`${item.label}: ${item.value.toLocaleString('da-DK',{maximumFractionDigits:1})} ${item.unit}`).slice(0,2).join(' · ') || `${valid.length} målinger tilgængelige`;
+      const selected = window.JarvisEnergySelection(data);
+      const valid = selected.filter((item) => item.status === 'ok');
+      byId('energySummary').textContent = data.status === 'not_configured' ? 'Vælg energisensorer for at komme i gang.' : valid.map(item=>`${item.label}: ${item.value.toLocaleString('da-DK',{maximumFractionDigits:1})} ${item.unit}`).slice(0,2).join(' · ') || `${selected.length} målinger valgt til visning`;
       byId('energyNotice').textContent = data.status === 'unavailable' ? 'Home Assistant svarer ikke. Værdierne er midlertidigt utilgængelige.' : data.status === 'not_configured' ? (owner ? 'Tilslut Home Assistant i Administration, og vælg derefter sensorer her.' : 'Ejeren kan tilslutte energisensorer.') : '';
       const select = byId('energyHistorySelect'); const previous = select.value;
-      select.replaceChildren(...data.metrics.map((item) => {const option = node('option',item.label); option.value = item.key; return option;}));
+      select.replaceChildren(...selected.map((item) => {const option = node('option',item.label); option.value = item.key; return option;}));
       if ([...select.options].some((o) => o.value === previous)) select.value = previous;
-      byId('energyMetrics').replaceChildren(...data.metrics.map((item) => {
+      byId('energyMetrics').replaceChildren(...selected.map((item) => {
         const card = node('section',undefined,'module-metric'); card.append(node('h3',item.label));
         card.append(node('strong',item.value === null ? '—' : `${item.value.toLocaleString('da-DK',{maximumFractionDigits:2})} ${item.unit}`));
         const status = {not_configured:'Sensor ikke valgt',unavailable:'Målingen kan ikke hentes',wrong_unit:'Sensorens enhed passer ikke til denne måling'}[item.status];
         card.append(node('small',status || (item.updated_at ? `Opdateret ${new Date(item.updated_at).toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'})}` : 'Måling fra Home Assistant')));
         return card;
       }));
+      byId('energyHistorySelect').closest('.energy-history').hidden = !selected.length;
+      if (!selected.length) byId('energyMetrics').append(node('p','Ingen målinger valgt. Ejeren kan vælge dem under Vælg visning.'));
       if (document.body.dataset.appPage === 'energi') refreshHistory();
     } catch (error) {byId('energyNotice').textContent = error.message; byId('energyMetrics').replaceChildren(); byId('energySummary').textContent = 'Energidata kan ikke hentes.'; window.dispatchEvent(new CustomEvent('jarvis:energy-summary',{detail:{status:'unavailable',metrics:[]}}));}
   }
@@ -272,10 +279,27 @@
       byId('homeConfigSave').disabled = false;
     } catch (error) {byId('homeConfigNotice').textContent = error.message;}
   }
+  async function openEnergyDisplay() {
+    const dialog=byId('energyDisplayDialog'),fields=byId('energyDisplayChoices'),select=byId('energyOverviewMetric'),notice=byId('energyDisplayNotice'),save=byId('energyDisplaySave');
+    fields.replaceChildren(node('legend','Målinger i Energi'));select.replaceChildren();notice.textContent='Henter valg…';save.disabled=true;dialog.showModal();
+    try {
+      const config=await api('/api/admin/home-modules/config');
+      const chosen=config.energy_display.visible ?? config.metrics.filter(m=>config.energy[m.key]).map(m=>m.key);
+      const update=()=>{const previous=select.value;select.replaceChildren(node('option','Automatisk'));select.firstChild.value='';for(const m of config.metrics){if(!fields.querySelector(`[value="${m.key}"]`).checked)continue;const o=node('option',m.label);o.value=m.key;select.append(o);}select.value=[...select.options].some(o=>o.value===previous)?previous:'';};
+      for(const m of config.metrics){const check=node('input');check.type='checkbox';check.value=m.key;check.checked=chosen.includes(m.key);check.addEventListener('change',update);const label=node('label',undefined,'energy-display-choice');label.append(check,node('span',m.label+(config.energy[m.key]?'':' · sensor ikke valgt')));fields.append(label);}
+      update();select.value=config.energy_display.overview||'';notice.textContent='';save.disabled=false;
+    }catch(error){notice.textContent=error.message;}
+  }
+  if(byId('energyDisplayForm'))byId('energyDisplayForm').addEventListener('submit',async event=>{
+    event.preventDefault();const save=byId('energyDisplaySave');if(save.disabled)return;save.disabled=true;
+    try {await api('/api/admin/home-modules/energy-display','PUT',{visible:[...byId('energyDisplayChoices').querySelectorAll('input:checked')].map(i=>i.value),overview:byId('energyOverviewMetric').value||null});byId('energyDisplayDialog').close();await refreshEnergy();}
+    catch(error){byId('energyDisplayNotice').textContent=error.message;}finally{save.disabled=false;}
+  });
   if (energyRoot) {
     byId('energyRefresh').addEventListener('click', refreshEnergy);
     byId('energyHistorySelect').addEventListener('change',refreshHistory);
     window.addEventListener('hashchange', () => {if (document.body.dataset.appPage === 'energi') refreshHistory();});
+    byId('energyDisplay').hidden = !owner; byId('energyDisplay').addEventListener('click', openEnergyDisplay);
     byId('energySetup').hidden = !owner; byId('energySetup').addEventListener('click', () => openSetup('energy'));
   }
   if (cameraRoot) {
@@ -292,7 +316,7 @@
       configBusy = true; byId('homeConfigSave').disabled = true;
       try {
         const latest = await api('/api/admin/home-modules/config');
-        const payload = {energy:latest.energy,cameras:latest.cameras,scrypted_url:latest.scrypted_url};
+        const payload = {energy:latest.energy,energy_display:latest.energy_display,cameras:latest.cameras,scrypted_url:latest.scrypted_url};
         if (mode === 'energy') payload.energy = Object.fromEntries(setup.metrics.map((item) => [item.key,byId('homeModuleForm').elements.namedItem(item.key).value]));
         else {
           payload.scrypted_url = byId('homeModuleForm').elements.namedItem('scrypted_url').value;

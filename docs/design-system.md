@@ -203,3 +203,50 @@ command has been executed by Codex. Syntax and five simulated deployment cases
 passed locally (success, dirty checkout, build failure, backup failure, bad served
 asset); this is not a real Docker execution. Run the reviewed helper in Dennis's
 ServerHub SSH session and inspect the resulting output before claiming success.
+
+## Compact daily board — 8 October 2026
+
+`feature/compact-dashboard-energy` reduces overview padding, headings and empty
+card height, keeping 44px touch targets. Routine completion and person controls
+share a row when space allows. Secondary summaries use five columns on Surface;
+smaller screens wrap naturally, without cropping content or hiding medication
+attention. Larger families and more medication entries may still need scrolling.
+
+Dagsform on the overview shows every visible person directly: three face choices
+and three battery levels, each with a short label. Icons are inline SVG so they do
+not depend on emoji fonts. There is no person-selection step or Save button.
+The existing authorized, queued server writes, accessible pressed state, rollback
+on failed saving and optional mood/energy fields are retained. The full Dagsform
+tab still offers removal of today's answer. A saved family meal stays visible
+even if the separate Home Assistant meal integration is unavailable.
+
+The owner can select Energi → Vælg visning independently of sensor setup. The
+shared database setting `family.home_modules.energy_display` selects metrics in
+the Energy tab and an optional explicit overview metric. Default/null visibility
+shows only configured sensors; an empty selection is an intentional empty view.
+An explicitly selected unavailable main metric is labelled unavailable, rather
+than replaced with another metric. Unselected metrics stay accessible to their
+existing authorized APIs; display selection is presentation, not permissions.
+Older configuration clients preserve the display preference when they omit it.
+
+Validation: 61 Python tests passed (home modules, progress, frontend, roles,
+shared wall and admin) and five Node theme/medication tests passed. Local Chromium
+checks use a temporary database and explicit synthetic energy values: shared
+selection, one-click mood and energy, rapid taps, reload persistence, failed-save
+rollback, six light/dark layouts (1368×912, 1024×768, 390×844), no horizontal
+overflow and touch targets. No live Home Assistant data was used. Docker is not
+installed here: the staging configuration check passed, but the Docker build and
+ServerHub staging review remain outstanding. Production has not been changed.
+
+Staging update:
+
+```bash
+(
+  set -e
+  cd /docker/Jarvis-os-ui-staging
+  git fetch origin
+  git switch --detach origin/feature/compact-dashboard-energy
+  docker compose -p jarvis-staging -f compose.staging.yml up -d --build
+  curl -fsS http://127.0.0.1:8098/api/health
+)
+```

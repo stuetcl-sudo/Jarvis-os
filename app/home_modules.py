@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app import config, settings_store
 from app.auth.dependencies import require_owner, require_owner_csrf, require_authenticated_user
@@ -62,9 +62,24 @@ class CameraConfig(BaseModel):
     def urls(cls,value): return web_url(value)
 
 
+class EnergyDisplay(BaseModel):
+    model_config=ConfigDict(extra="forbid")
+    visible: list[str] | None=Field(default=None,max_length=len(ENERGY))
+    overview: str | None=None
+
+    @model_validator(mode="after")
+    def valid_selection(self):
+        if self.visible is not None and (len(set(self.visible)) != len(self.visible) or any(k not in ENERGY for k in self.visible)):
+            raise ValueError("Vælg hver energimåling højst én gang")
+        if self.overview is not None and (self.overview not in ENERGY or self.visible is not None and self.overview not in self.visible):
+            raise ValueError("Forsidens måling skal være med i visningen")
+        return self
+
+
 class HomeConfig(BaseModel):
     model_config=ConfigDict(extra="forbid")
     energy: dict[str,str]=Field(default_factory=dict)
+    energy_display: EnergyDisplay=Field(default_factory=EnergyDisplay)
     cameras: list[CameraConfig]=Field(default_factory=list,max_length=12)
     scrypted_url: str=Field(default="",max_length=500)
     @field_validator("energy")
@@ -110,8 +125,18 @@ def get_config(user=Depends(require_owner)):
 
 @router.put("/api/admin/home-modules/config")
 def save_config(payload:HomeConfig,user=Depends(require_owner_csrf)):
+    if "energy_display" not in payload.model_fields_set:
+        payload.energy_display=load_config().energy_display
     settings_store.set_setting(KEY,payload.model_dump_json(),db_path=config.DB_PATH)
     with _lock: _states_cache.clear(); _image_cache.clear()
+    return {"ok":True}
+
+
+@router.put("/api/admin/home-modules/energy-display")
+def save_energy_display(payload:EnergyDisplay,user=Depends(require_owner_csrf)):
+    current=load_config()
+    current.energy_display=payload
+    settings_store.set_setting(KEY,current.model_dump_json(),db_path=config.DB_PATH)
     return {"ok":True}
 
 
@@ -146,11 +171,13 @@ def metric(key,entity,state):
 
 @router.get("/api/family/energy")
 def energy(user=Depends(home_reader)):
-    settings=load_config().energy
-    if not any(settings.values()): return {"status":"not_configured","metrics":[metric(k,"",None) for k in ENERGY]}
+    setup=load_config()
+    settings=setup.energy
+    display=setup.energy_display.model_dump()
+    if not any(settings.values()): return {"status":"not_configured","display":display,"metrics":[metric(k,"",None) for k in ENERGY]}
     try: data=states(); status='ok'
     except (HomeAssistantConfigurationError,HomeAssistantUnavailable): data={};status='unavailable'
-    return {"status":status,"metrics":[metric(k,settings.get(k,""),data.get(settings.get(k,""))) for k in ENERGY],"checked_at":datetime.now(timezone.utc).isoformat()}
+    return {"status":status,"display":display,"metrics":[metric(k,settings.get(k,""),data.get(settings.get(k,""))) for k in ENERGY],"checked_at":datetime.now(timezone.utc).isoformat()}
 
 
 @router.get("/api/family/cameras")
