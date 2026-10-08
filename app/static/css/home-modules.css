@@ -11,7 +11,7 @@
 }
 .module-card button, .module-form button { cursor: pointer; }
 .module-button { display: inline-flex; align-items: center; text-decoration: none; }
-.module-tabs [aria-pressed="true"], .module-form [type="submit"] { background: #e7f0e6; color: #285d3a; border-color: #cbdcca; }
+.module-tabs [aria-pressed="true"], .module-form [type="submit"] { background: var(--ui-selected); color: var(--ui-selected-text); border-color: var(--ui-border); }
 .module-card button:disabled, .module-form button:disabled { opacity: .6; }
 .module-footnote { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .shopping-row { display: flex; align-items: center; gap: 12px; padding: 14px; margin: 8px 0; border: 1px solid var(--card-border); border-radius: 16px; }
@@ -22,7 +22,7 @@
 .shopping-check { flex-shrink: 0; }
 .shopping-category { font-size: 15px; color: var(--muted); margin: 24px 0 8px; }
 .module-metrics, .module-camera-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
-.module-metric, .module-camera { min-width: 0; padding: 22px; border: 1px solid var(--card-border); border-radius: 20px; background: #fff; }
+.module-metric, .module-camera { min-width: 0; padding: 22px; border: 1px solid var(--card-border); border-radius: 20px; background: var(--ui-raised); }
 .module-metric h3, .module-camera h3 { margin: 0 0 14px; font-size: 17px; }
 .module-metric strong { display: block; font-size: 32px; letter-spacing: -.025em; }
 .module-metric small { display: block; margin-top: 10px; color: var(--muted); }
@@ -43,7 +43,7 @@
 @media(max-width:700px) { .module-metrics, .module-camera-grid, .module-form-pair { grid-template-columns: minmax(0,1fr); } .shopping-row { flex-wrap: wrap; } .shopping-copy { flex-basis: 60%; } .module-metric, .module-camera { padding: 16px; } }
 @media print {
  .app-sidebar, .family-header, .family-footer, .wall-safety-strip, .status-strip, .app-page-title, .module-toolbar, .module-overview-link, .module-camera, .module-actions, dialog { display:none!important; }
- body.jarvis-app { padding:0; background:#fff; }
+ body.jarvis-app { padding:0; background:var(--ui-raised); }
  body.jarvis-app .family-shell { padding:0; }
  [data-family-card]:not([data-family-card="shopping"]) { display:none!important; }
  .shopping-row button { display:none; }
@@ -52,7 +52,7 @@
  .jarvis-app .shopping-card .module-workspace { display:block!important; }
 }
 
-.energy-history { margin-top: 24px; padding: 20px; background: #fff; border: 1px solid var(--card-border); border-radius: 20px; }
+.energy-history { margin-top: 24px; padding: 20px; background: var(--ui-raised); border: 1px solid var(--card-border); border-radius: 20px; }
 .energy-history h3 { margin:0; }
 .energy-history svg { display:block; width:100%; max-height:260px; color:var(--accent); }
 .energy-history-times { display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; color:var(--muted); }

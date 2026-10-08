@@ -43,7 +43,8 @@ Use textContent for data. Navigation must never grant API permissions.
 The dedicated `/wall` dashboard retains its existing screen-specific behavior
 in this first bounded change. A later wall redesign needs explicit visual checks
 of fullscreen, screen profiles and routines before adopting the new shell.
-The administration and authentication screens are also separate follow-up work.
+Administration now shares the family appearance; see the October 2026 follow-up
+below. Authentication screens remain separate follow-up work.
 
 ## Rollout
 
@@ -100,3 +101,83 @@ for mood or medication. Missing medicine registration may use a red card and a
 slow border pulse; keep text readable, offer an animation preference and respect
 reduced motion. Never interpret its color as clinical severity. See
 `docs/family-progress.md` for roles, storage and validation.
+
+## Unified family and admin appearance — October 2026
+
+Follow-up branch: `feature/unified-design-theme`, based on `fix/quick-wellbeing`.
+The light reference remains the default visual language; dark mode uses navy
+surfaces, soft green controls and lighter module accents. Text accompanies status
+colors. Existing missing-medication attention/pulse and reduced-motion behavior
+are preserved. This is a presentation change; no release version or production
+deployment is included.
+
+### Ownership and extension
+
+- `design-tokens.css` owns the shared semantic colors for light/dark surfaces,
+  text, borders, selected states, warnings and danger, with aliases for existing
+  family/admin widgets. It loads after legacy page styles.
+- `unified-design.css` owns the shared cards, touch controls, dialog surfaces,
+  typography, sidebars and responsive adjustments. Scope new rules to
+  `.jarvis-app` or `.jarvis-admin`; use the tokens rather than fixed white paints.
+- `theme.js` sets appearance in the head before paint and supplies shared outline
+  icons. `app-shell.js` still owns family navigation and existing admin scripts
+  still own their tabs, forms, state and authorized actions.
+- Family overview, week, calendar, tasks, routines, meals, shopping, medication,
+  rewards, wellbeing, pets, energy, cameras, home, weather and owner system views
+  now share these styles. All seven admin areas, dynamic user/screen forms,
+  connection setup and status panels use the same primitives.
+- The module list scrolls independently on desktop; theme/account controls stay
+  visible. Phones retain a horizontal module list and stacked content. The
+  dedicated `/wall` retains its screen profiles and separate layout. Login and
+  first-run setup remain their separate flows.
+
+### Theme preference
+
+The sidebar offers Lyst, Mørkt and Følg enhed. The default is Følg enhed (light
+fallback). Explicit themes override OS appearance; system mode reacts to OS
+changes. `jarvis.appearance` is saved in browser localStorage, reused across
+family/admin and synchronized between tabs. This is a device/browser setting,
+not a family database preference; devices can use different themes. If storage
+is blocked, the current page still switches and the next load follows the OS.
+Unknown stored values fall back safely. No login tokens or household data are
+stored by this preference. A CSS light fallback also works if theme JS fails.
+
+Admin stays owner-only. Family role visibility and action permissions, CSRF,
+session protections, no-store data endpoints and voluntary shared check-ins are
+unchanged. Theme choice does not grant access to a hidden module.
+
+### Validation
+
+- 68 Python tests passed in `.venv`: admin UI, frontend safety/foundation,
+  family/auth roles, shared wall, progress and dedicated wall behavior.
+- Five Node tests passed (four theme cases plus the medication-attention suite),
+  including blocked storage, invalid preferences, OS changes and tab synchronization.
+- Chromium checked 138 family/admin layouts: 16 family destinations and seven
+  admin tabs × two themes × Surface 1368×912, tablet 1024×768 and phone 390×844.
+  It verified navigation, absence of horizontal page overflow, reload/system/theme
+  persistence, cross-tab updates, shopping writes and dark medication dialog surfaces.
+- Additional populated views used explicit synthetic read fixtures for calendar,
+  tasks, weather, energy, cameras and admin status. Real temporary-DB writes
+  exercised shared wellbeing; child/wall admin restrictions were checked directly.
+  No live household records or production integrations were used. Local Docker
+  status was unavailable, so normal admin status was reviewed with test fixtures.
+- JavaScript syntax and diff checks passed. `scripts/staging.sh test` passed the
+  staging configuration check, then stopped because Docker is not installed.
+  ServerHub staging still requires a build and a review with actual household data.
+
+### ServerHub staging update
+
+```bash
+(
+  set -e
+  cd /docker/Jarvis-os-ui-staging
+  git fetch origin
+  git switch --detach origin/feature/unified-design-theme
+  docker compose -p jarvis-staging -f compose.staging.yml up -d --build
+  curl -fsS http://127.0.0.1:8098/api/health
+)
+```
+
+Use the existing SSH tunnel to open http://localhost:8098. Test both themes in
+family and admin, and a wall account's shared family board. Port 8088 production
+requires separate deployment approval.

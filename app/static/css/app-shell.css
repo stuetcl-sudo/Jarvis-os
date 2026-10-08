@@ -2,7 +2,7 @@
 body.jarvis-app {
   color-scheme: light;
   --page: #f7f8fa;
-  --card: #fff;
+  --card: var(--ui-raised);
   --card-border: #e8eceb;
   --text: #202a36;
   --muted: #63706e;
@@ -11,7 +11,7 @@ body.jarvis-app {
   --good: #397d50;
   --warning: #956416;
   --critical: #bd3f4d;
-  --surface-raised: #fff;
+  --surface-raised: var(--ui-raised);
   --surface-muted: #f7f9f7;
   --shadow: 0 4px 18px rgb(32 49 40 / 4%);
   --jarvis-color-accent: #397d50;
@@ -24,7 +24,7 @@ body.jarvis-app {
   position: fixed; inset: 0 auto 0 0; width: 220px;
   display: flex; flex-direction: column; gap: 12px;
   padding: 28px 16px 20px; overflow-y: auto;
-  background: #f9fafb; border-right: 1px solid var(--card-border);
+  background: var(--ui-sidebar); border-right: 1px solid var(--card-border);
 }
 .app-brand { display: flex; flex-direction: column; align-items: center; text-decoration: none; gap: 2px; font-size: 25px; letter-spacing: -.8px; }
 .app-brand-mark { font-size: 46px; line-height: 1; color: var(--accent); }
@@ -34,13 +34,13 @@ body.jarvis-app {
 .app-menu svg { width: 23px; height: 23px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .app-menu a { color: var(--muted); }
 .app-menu a:hover { background: var(--soft); }
-.app-menu a[aria-current="page"] { background: #e7f0e6; color: #285d3a; font-weight: 700; }
+.app-menu a[aria-current="page"] { background: var(--ui-selected); color: var(--ui-selected-text); font-weight: 700; }
 .app-menu-caption { margin: 18px 12px 2px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
 .app-planned { color: var(--muted); font-size: 14px; }
 .app-planned small { margin-left: auto; font-size: 10px; background: #edf0ed; padding: 3px 5px; border-radius: 5px; }
 .app-account { margin-top: auto; padding-top: 24px; }
 .jarvis-app .app-account .family-navigation { display: grid; justify-content: stretch; }
-.jarvis-app .family-nav-link.primary { background: #e7f0e6; color: #285d3a; }
+.jarvis-app .family-nav-link.primary { background: var(--ui-selected); color: var(--ui-selected-text); }
 body.jarvis-app .family-shell { width: 100%; max-width: 1560px; margin: 0 auto; padding: 28px; }
 .jarvis-app .family-header { min-height: 0; padding: 4px 0 26px; align-items: center; }
 .jarvis-app .family-header h1 { font-size: clamp(28px, 3vw, 40px); line-height: 1.15; letter-spacing: -.035em; }
@@ -112,14 +112,14 @@ body.jarvis-app .family-card { min-height: 0; padding: 22px; border-radius: 20px
 @media(max-width:700px) { .jarvis-app .daily-overview { grid-template-columns:minmax(0,1fr); } .jarvis-app .daily-tile { min-height:0; } }
 @media print { .jarvis-app .daily-overview { display:none; } }
 
-.jarvis-app #medicationDialog { width:min(560px,calc(100vw - 32px)); max-height:85vh; padding:24px; border:1px solid var(--card-border); border-radius:20px; background:#fff; color:var(--text); overflow:auto; }
+.jarvis-app #medicationDialog { width:min(560px,calc(100vw - 32px)); max-height:85vh; padding:24px; border:1px solid var(--card-border); border-radius:20px; background:var(--ui-card); color:var(--text); overflow:auto; }
 .jarvis-app #medicationDialog::backdrop { background:rgb(20 35 27 / 30%); }
-.jarvis-app #medicationDialog input, .jarvis-app #medicationDialog select, .jarvis-app #medicationDialog textarea { min-height:44px; padding:10px; border:1px solid var(--card-border); border-radius:10px; font:inherit; background:#fff; color:var(--text); }
+.jarvis-app #medicationDialog input, .jarvis-app #medicationDialog select, .jarvis-app #medicationDialog textarea { min-height:44px; padding:10px; border:1px solid var(--card-border); border-radius:10px; font:inherit; background:var(--ui-raised); color:var(--text); }
 .jarvis-app #medicationWeekdays { display:flex; flex-wrap:wrap; gap:12px; }
-.jarvis-app [data-family-card="medication"] button { background:#fff; color:var(--text); border:1px solid var(--card-border); font:inherit; cursor:pointer; }
+.jarvis-app [data-family-card="medication"] button { background:var(--ui-raised); color:var(--text); border:1px solid var(--card-border); font:inherit; cursor:pointer; }
 .jarvis-app [data-family-card="medication"] button:hover { border-color:var(--accent); }
 .jarvis-app [data-family-card="medication"] button:disabled { opacity:.6; cursor:wait; }
-.jarvis-app #medicationAdd, .jarvis-app #medicationForm button[type="submit"] { background:#e7f0e6; color:#285d3a; border-color:#cbdcca; }
+.jarvis-app #medicationAdd, .jarvis-app #medicationForm button[type="submit"] { background:var(--ui-selected); color:var(--ui-selected-text); border-color:var(--ui-border); }
 .jarvis-app #medicationForm input[type="checkbox"] { min-height:20px; }
 /* At-a-glance hierarchy: icon, short label, key figure and one status line. */
 .jarvis-app .daily-tile { min-height:164px; display:flex; flex-direction:column; gap:12px; }
@@ -130,8 +130,8 @@ body.jarvis-app .family-card { min-height: 0; padding: 22px; border-radius: 20px
 .jarvis-app .daily-tile-metric { font-size:clamp(27px,2.5vw,34px); font-weight:650; line-height:1.15; letter-spacing:-.025em; }
 .jarvis-app .daily-tile-metric[hidden] { display:none; }
 .jarvis-app .daily-tile p { margin:0; color:var(--muted); font-size:14px; }
-.jarvis-app .daily-tile[data-module="calendar"], .jarvis-app .daily-tile[data-module="tasks"] { background:linear-gradient(145deg,#f0f6ef,#fff 80%); }
-.jarvis-app .daily-tile:hover { border-color:#cbdcca; box-shadow:0 6px 20px rgb(32 49 40 / 8%); }
+.jarvis-app .daily-tile[data-module="calendar"], .jarvis-app .daily-tile[data-module="tasks"] { background:linear-gradient(145deg,#f0f6ef,var(--ui-raised) 80%); }
+.jarvis-app .daily-tile:hover { border-color:var(--ui-border); box-shadow:0 6px 20px rgb(32 49 40 / 8%); }
 .jarvis-app[data-app-page="overblik"] .family-subtitle, .jarvis-app[data-app-page="overblik"] .family-view-label { display:none; }
 @media(max-width:700px) { .jarvis-app .daily-tile { min-height:130px; } }
 .jarvis-app .daily-tile-heading { min-height:44px; text-decoration:none; }
@@ -139,12 +139,12 @@ body.jarvis-app .family-card { min-height: 0; padding: 22px; border-radius: 20px
 .jarvis-app .daily-actions[hidden] { display:none; }
 .jarvis-app .daily-check { display:flex; align-items:center; gap:10px; min-height:44px; border-top:1px solid var(--card-border); padding-top:8px; font-size:13px; cursor:pointer; }
 .jarvis-app .daily-check input { width:22px; height:22px; flex-shrink:0; accent-color:var(--accent); }
-.jarvis-app .daily-actions button { min-height:44px; padding:8px 14px; border:1px solid #cbdcca; border-radius:10px; color:#285d3a; background:#e7f0e6; font:inherit; cursor:pointer; }
+.jarvis-app .daily-actions button { min-height:44px; padding:8px 14px; border:1px solid var(--ui-border); border-radius:10px; color:var(--ui-selected-text); background:var(--ui-selected); font:inherit; cursor:pointer; }
 .jarvis-app .daily-actions button:disabled { opacity:.55; cursor:wait; }
 .jarvis-app .daily-actions a { min-height:44px; display:flex; align-items:center; color:var(--accent); font-size:13px; }
 .jarvis-app .daily-persons { display:flex; flex-wrap:wrap; gap:6px; }
-.jarvis-app .daily-persons button { background:#fff; font-size:12px; padding-inline:10px; }
-.jarvis-app .daily-persons button[aria-pressed="true"] { background:#e7f0e6; }
+.jarvis-app .daily-persons button { background:var(--ui-raised); font-size:12px; padding-inline:10px; }
+.jarvis-app .daily-persons button[aria-pressed="true"] { background:var(--ui-selected); }
 .jarvis-app .daily-overview { grid-template-columns:minmax(0,1fr); }
 .jarvis-app .daily-primary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:start; }
 .jarvis-app .daily-status-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
@@ -153,7 +153,7 @@ body.jarvis-app .family-card { min-height: 0; padding: 22px; border-radius: 20px
 @media(max-width:1100px) { .jarvis-app .daily-primary-grid, .jarvis-app .daily-status-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:700px) { .jarvis-app .daily-primary-grid { grid-template-columns:minmax(0,1fr); } .jarvis-app .daily-status-grid { gap:10px; } .jarvis-app .daily-status-grid .daily-tile { padding:12px; } .jarvis-app .daily-status-grid .daily-tile-heading { gap:6px; } .jarvis-app .daily-status-grid .daily-tile-heading svg { width:18px; height:18px; } }
 .jarvis-app .daily-status-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
-.jarvis-app [data-module="weather"] { background:linear-gradient(145deg,#f0f5fa,#fff 80%); }
+.jarvis-app [data-module="weather"] { background:linear-gradient(145deg,#f0f5fa,var(--ui-raised) 80%); }
 .jarvis-app #medicationPeople { margin:16px 0; }
 @media(max-width:1100px) { .jarvis-app .daily-status-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 .jarvis-app .daily-status-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
@@ -161,8 +161,8 @@ body.jarvis-app .family-card { min-height: 0; padding: 22px; border-radius: 20px
 @media(max-width:700px) { .pets-card .pet-care { flex-wrap:wrap; } .pets-card .pet-care > span { flex:1; } .pets-card .pet-care > button { width:100%; } }
 
 /* Family accents: readable text and symbols accompany every color. */
-.jarvis-app .daily-tile { --tile-accent:#397648; --tile-soft:#edf7ed; border-top:4px solid var(--tile-accent); background:linear-gradient(140deg,var(--tile-soft),#fff 85%); }
-.jarvis-app .daily-tile[data-module="calendar"] { --tile-accent:#326ca4; --tile-soft:#eaf4ff; }
+.jarvis-app .daily-tile { --tile-accent:#397648; --tile-soft:#edf7ed; border-top:4px solid var(--tile-accent); background:linear-gradient(140deg,var(--tile-soft),var(--ui-raised) 85%); }
+.jarvis-app .daily-tile[data-module="calendar"] { --tile-accent:#326ca4; --tile-soft:color-mix(in srgb,var(--ui-blue) 10%,var(--ui-raised)); }
 .jarvis-app .daily-tile[data-module="tasks"] { --tile-accent:#40835d; --tile-soft:#eaf8ee; }
 .jarvis-app .daily-tile[data-module="routine"] { --tile-accent:#a56316; --tile-soft:#fff3d9; }
 .jarvis-app .daily-tile[data-module="medication"] { --tile-accent:#935277; --tile-soft:#fbeef5; }
@@ -174,37 +174,37 @@ body.jarvis-app .family-card { min-height: 0; padding: 22px; border-radius: 20px
 .jarvis-app .daily-tile[data-module="cameras"] { --tile-accent:#5b689a; --tile-soft:#eef0ff; }
 .jarvis-app .daily-tile[data-module="tomorrow"] { --tile-accent:#77549c; --tile-soft:#f4edff; min-height:0; }
 .jarvis-app .daily-tile-heading svg { stroke:var(--tile-accent); background:var(--tile-soft); border-radius:12px; padding:8px; box-sizing:content-box; }
-.jarvis-app .daily-tile[data-module] { background:linear-gradient(140deg,var(--tile-soft),#fff 85%); }
+.jarvis-app .daily-tile[data-module] { background:linear-gradient(140deg,var(--tile-soft),var(--ui-raised) 85%); }
 .jarvis-app .tomorrow-content ul { margin:0; padding-left:20px; display:grid; gap:8px; }
 .jarvis-app .tomorrow-content small { display:block; margin-top:8px; color:var(--muted); }
 .jarvis-app .family-week { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
-.jarvis-app .week-day { padding:18px; border:1px solid var(--card-border); border-radius:18px; background:#fff; min-width:0; overflow-wrap:anywhere; }
+.jarvis-app .week-day { padding:18px; border:1px solid var(--card-border); border-radius:18px; background:var(--ui-raised); min-width:0; overflow-wrap:anywhere; }
 .jarvis-app .week-day h3 { margin:0 0 16px; font-size:17px; text-transform:capitalize; }
 .jarvis-app .week-day h4 { margin:0 0 8px; font-size:14px; }
 .jarvis-app .week-day p { font-size:14px; margin:6px 0; white-space:pre-line; }
-.jarvis-app .week-today { border:2px solid #70a57b; background:#f5fbf4; }
+.jarvis-app .week-today { border:2px solid #70a57b; background:var(--ui-selected); }
 .jarvis-app .week-appointments, .jarvis-app .week-food { padding:12px; border-radius:12px; margin-bottom:12px; }
-.jarvis-app .week-appointments { background:#eaf4ff; }
-.jarvis-app .week-food { background:#fff1df; }
-.jarvis-app .week-pickup, .jarvis-app .week-reminders { padding:12px; border-radius:12px; background:#f2ecfb; }
+.jarvis-app .week-appointments { background:color-mix(in srgb,var(--ui-blue) 10%,var(--ui-raised)); }
+.jarvis-app .week-food { background:color-mix(in srgb,var(--ui-orange) 10%,var(--ui-raised)); }
+.jarvis-app .week-pickup, .jarvis-app .week-reminders { padding:12px; border-radius:12px; background:color-mix(in srgb,var(--ui-purple) 10%,var(--ui-raised)); }
 .jarvis-app .week-reminders { list-style:none; display:grid; gap:8px; font-size:14px; }
-.jarvis-app [data-family-card="planning"] button, .jarvis-app .family-meal-details button { min-height:44px; padding:8px 12px; border:1px solid #cbdcca; border-radius:10px; background:#fff; color:#285d3a; font:inherit; cursor:pointer; margin:4px 4px 0 0; }
+.jarvis-app [data-family-card="planning"] button, .jarvis-app .family-meal-details button { min-height:44px; padding:8px 12px; border:1px solid var(--ui-border); border-radius:10px; background:var(--ui-raised); color:var(--ui-selected-text); font:inherit; cursor:pointer; margin:4px 4px 0 0; }
 .jarvis-app [data-family-card="planning"] button:disabled { opacity:.6; cursor:wait; }
-.jarvis-app [data-family-card="planning"] a, .jarvis-app .family-meal-details a { display:inline-flex; align-items:center; min-height:44px; color:#285d3a; }
+.jarvis-app [data-family-card="planning"] a, .jarvis-app .family-meal-details a { display:inline-flex; align-items:center; min-height:44px; color:var(--ui-selected-text); }
 .jarvis-app #planningForm fieldset { border:1px solid var(--card-border); border-radius:14px; display:grid; gap:12px; padding:16px; }
 .jarvis-app #planningForm legend { font-weight:650; }
 .jarvis-app .family-meal-details { margin-top:20px; }
-.jarvis-app .meal-detail-day { padding:16px; margin:12px 0; border-radius:14px; background:#fff3e5; overflow-wrap:anywhere; }
+.jarvis-app .meal-detail-day { padding:16px; margin:12px 0; border-radius:14px; background:color-mix(in srgb,var(--ui-orange) 10%,var(--ui-raised)); overflow-wrap:anywhere; }
 .jarvis-app .meal-detail-day p { white-space:pre-line; }
 @media(max-width:1100px) { .jarvis-app .family-week { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:700px) { .jarvis-app .family-week { grid-template-columns:minmax(0,1fr); } .jarvis-app .daily-tile-heading svg { padding:6px; } }
 .jarvis-app .has-family-planning #mealPlanData, .jarvis-app .has-family-planning #mealPlanState { display:none; }
-.jarvis-app .family-planning-dialog button { min-height:44px; padding:8px 12px; border:1px solid #cbdcca; border-radius:10px; background:#fff; color:#285d3a; font:inherit; cursor:pointer; }
+.jarvis-app .family-planning-dialog button { min-height:44px; padding:8px 12px; border:1px solid var(--ui-border); border-radius:10px; background:var(--ui-raised); color:var(--ui-selected-text); font:inherit; cursor:pointer; }
 .jarvis-app .family-planning-dialog button:disabled { opacity:.6; cursor:wait; }
 .jarvis-app .planning-icon { width:20px; height:20px; display:inline-block; vertical-align:middle; margin-right:7px; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .jarvis-app dialog.family-planning-dialog { width:min(600px,calc(100vw - 28px)); max-height:90dvh; overflow-y:auto; padding:24px; border:1px solid var(--card-border); border-radius:22px; color:var(--text); background:var(--card); }
 .jarvis-app dialog.family-planning-dialog::backdrop { background:rgb(20 35 30 / 40%); }
-.jarvis-app dialog.family-planning-dialog input, .jarvis-app dialog.family-planning-dialog textarea, .jarvis-app dialog.family-planning-dialog select { min-height:44px; padding:10px; border:1px solid #cbdcca; border-radius:10px; color:var(--text); background:#fff; font:inherit; }
+.jarvis-app dialog.family-planning-dialog input, .jarvis-app dialog.family-planning-dialog textarea, .jarvis-app dialog.family-planning-dialog select { min-height:44px; padding:10px; border:1px solid var(--ui-border); border-radius:10px; color:var(--text); background:var(--ui-raised); font:inherit; }
 .jarvis-app .app-session-label { margin:0 0 8px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }
 /* Shared app accounts use the compact header; dedicated /wall keeps its scale. */
 body.jarvis-app[data-family-role="wall_display"]:not([data-wall-dashboard="true"]) .family-header { min-height:0; }
@@ -220,15 +220,15 @@ body.jarvis-app[data-family-role="wall_display"]:not([data-wall-dashboard="true"
 .jarvis-app .daily-tile.medication-overdue .daily-tile-heading { color:#8b1824; }
 .jarvis-app .medication-attention { font-weight:700; line-height:1.6; }
 .jarvis-app .medication-attention[hidden], .jarvis-app .medication-pulse-toggle[hidden] { display:none; }
-.jarvis-app .medication-pulse-toggle { min-height:44px; padding:8px 12px; border:1px solid #b52a31; border-radius:10px; background:#fff; color:#681c23; }
+.jarvis-app .medication-pulse-toggle { min-height:44px; padding:8px 12px; border:1px solid #b52a31; border-radius:10px; background:var(--ui-raised); color:#681c23; }
 .jarvis-app .medication-overdue.medication-pulse { animation:medication-attention-pulse 4s ease-in-out infinite; }
 @keyframes medication-attention-pulse { 0%,100% { box-shadow:0 0 0 0 rgb(181 42 49 / 8%); } 50% { box-shadow:0 0 0 7px rgb(181 42 49 / 24%); } }
 @media(prefers-reduced-motion:reduce) { .jarvis-app .medication-overdue.medication-pulse { animation:none; } }
 .jarvis-app .progress-people { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:16px; }
-.jarvis-app .progress-person { min-width:0; padding:20px; border:1px solid var(--card-border); border-radius:18px; background:#fff; overflow-wrap:anywhere; }
+.jarvis-app .progress-person { min-width:0; padding:20px; border:1px solid var(--card-border); border-radius:18px; background:var(--ui-raised); overflow-wrap:anywhere; }
 .jarvis-app .progress-person h3 { margin-top:0; }
 .jarvis-app .progress-person progress { width:100%; accent-color:#bc861d; margin:12px 0; }
-.jarvis-app .progress-person button,.jarvis-app .progress-buttons button,.jarvis-app .reward-rule button { min-height:44px; border:1px solid #cbdcca; border-radius:10px; padding:9px 12px; background:#e7f0e6; color:#285d3a; font:inherit; cursor:pointer; }
+.jarvis-app .progress-person button,.jarvis-app .progress-buttons button,.jarvis-app .reward-rule button { min-height:44px; border:1px solid var(--ui-border); border-radius:10px; padding:9px 12px; background:var(--ui-selected); color:var(--ui-selected-text); font:inherit; cursor:pointer; }
 .jarvis-app .progress-person button:disabled { opacity:.6; cursor:default; }
 .jarvis-app .progress-task { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:12px 0; border-bottom:1px solid var(--card-border); }
 .jarvis-app .progress-task a { display:flex; align-items:center; min-height:44px; color:var(--accent); }
@@ -247,8 +247,8 @@ body.jarvis-app[data-family-role="wall_display"]:not([data-wall-dashboard="true"
 .jarvis-app .wellbeing-quick fieldset { border:0; padding:0; margin:12px 0; min-width:0; }
 .jarvis-app .wellbeing-quick legend { font-size:13px; font-weight:600; margin-bottom:8px; }
 .jarvis-app .wellbeing-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
-.jarvis-app .wellbeing-options button { min-height:48px; min-width:0; padding:8px 6px; font-size:13px; background:#fff; }
-.jarvis-app .wellbeing-options button[aria-pressed="true"] { background:#dcefe3; border:2px solid #34704a; font-weight:700; }
+.jarvis-app .wellbeing-options button { min-height:48px; min-width:0; padding:8px 6px; font-size:13px; background:var(--ui-raised); }
+.jarvis-app .wellbeing-options button[aria-pressed="true"] { background:var(--ui-selected); border:2px solid var(--ui-accent); font-weight:700; }
 .jarvis-app .wellbeing-options button:disabled { cursor:default; opacity:.6; }
 .jarvis-app .wellbeing-save-status { font-size:12px; margin-bottom:8px; }
 .jarvis-app .daily-tile[data-module="wellbeing"] { grid-column:span 2; }

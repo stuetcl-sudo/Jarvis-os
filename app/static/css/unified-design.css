@@ -1,0 +1,255 @@
+/* One visual language for the shared family application and owner administration. */
+body.jarvis-app, body.jarvis-admin {
+  background: var(--ui-page); color: var(--ui-text);
+  font-family: var(--jarvis-font-family); line-height: 1.5;
+}
+:is(.jarvis-app,.jarvis-admin) :is(button,input,select,textarea,a,summary):focus-visible {
+  outline: 3px solid var(--ui-accent); outline-offset: 3px;
+}
+:is(.jarvis-app,.jarvis-admin) :is(button,input,select,textarea) { font: inherit; font-family: var(--jarvis-font-family); }
+:is(.jarvis-app,.jarvis-admin) :is(input,select,textarea):not([type="checkbox"]):not([type="radio"]) {
+  min-height: 44px; min-width: 0; max-width: 100%; padding: 10px 12px;
+  border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius);
+  background: var(--ui-raised); color: var(--ui-text);
+}
+:is(.jarvis-app,.jarvis-admin) :is(input,textarea)::placeholder { color: var(--ui-muted); opacity: 1; }
+:is(.jarvis-app,.jarvis-admin) :is(input[type="checkbox"],input[type="radio"]) { accent-color: var(--ui-primary); }
+:is(.jarvis-app,.jarvis-admin) button { font-weight: 600; }
+:is(.jarvis-app,.jarvis-admin) button:disabled { cursor: default; }
+:is(.jarvis-app,.jarvis-admin) dialog {
+  color: var(--ui-text); background: var(--ui-card); border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius); box-shadow: var(--ui-shadow);
+}
+:is(.jarvis-app,.jarvis-admin) dialog::backdrop { background: var(--ui-backdrop); }
+:is(.jarvis-app,.jarvis-admin) .ui-icon {
+  width: 22px; height: 22px; flex-shrink: 0; fill: none; stroke: currentColor;
+  stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+}
+.theme-control { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 10px; font-size: 13px; }
+.theme-control > span { display: flex; align-items: center; gap: 7px; color: var(--ui-muted); }
+.theme-control .ui-icon { width: 18px; height: 18px; }
+.theme-control select { width: 100%; font-size: 13px !important; padding-inline: 8px !important; }
+
+/* Sidebar: only the module list scrolls, so theme and account are always available. */
+body.jarvis-app { padding-left: var(--ui-sidebar-width); }
+.jarvis-app .app-sidebar {
+  width: var(--ui-sidebar-width); height: 100dvh; padding: 24px 14px 16px;
+  background: var(--ui-sidebar); border-color: var(--ui-border); overflow: hidden; gap: 14px;
+}
+.jarvis-app .app-brand { flex-direction: row; justify-content: flex-start; gap: 10px; padding: 0 10px; font-size: 23px; }
+.jarvis-app .app-brand-mark, .jarvis-admin .admin-brand-mark {
+  display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px;
+  background: var(--ui-selected); color: var(--ui-accent); flex-shrink: 0;
+}
+:is(.jarvis-app,.jarvis-admin) :is(.app-brand-mark,.admin-brand-mark) .ui-icon { width: 27px; height: 27px; }
+.jarvis-app .app-household { text-align: left; margin: -8px 10px 4px; font-size: 12px; }
+.jarvis-app .app-menu { overflow-y: auto; min-height: 0; gap: 3px; padding: 2px; scrollbar-width: thin; }
+.jarvis-app .app-menu a { min-height: 44px; padding: 9px 10px; font-size: 14px; gap: 10px; }
+.jarvis-app .app-menu a[aria-current="page"], .jarvis-admin .admin-nav-button[aria-selected="true"] {
+  background: var(--ui-selected); color: var(--ui-selected-text); border-color: transparent;
+}
+.jarvis-app .app-sidebar-footer { margin-top: auto; display: grid; gap: 12px; padding-top: 12px; border-top: 1px solid var(--ui-border); }
+.jarvis-app .app-account { margin: 0; padding: 0; }
+.jarvis-app .app-session-label { margin: 0 0 7px; }
+.jarvis-app .family-nav-link, .jarvis-app .family-nav-link.primary { background: var(--ui-soft); color: var(--ui-text); border-color: var(--ui-border); min-height: 44px; }
+.jarvis-app .family-navigation { gap: 6px; }
+body.jarvis-app .family-shell { max-width: 1480px; padding: 28px; }
+.jarvis-app .family-header { gap: 18px; padding-bottom: 24px; }
+.jarvis-app .family-kicker { text-transform: capitalize; letter-spacing: 0; color: var(--ui-muted); font-size: 13px; }
+.jarvis-app .family-header h1 { font-size: clamp(28px,3vw,38px); font-weight: 700; }
+.jarvis-app .app-page-title { display: flex; align-items: center; gap: 12px; font-size: 30px; margin: 0 0 24px; line-height: 1.2; }
+.jarvis-app .app-page-title[hidden] { display: none; }
+.jarvis-app .app-page-title .ui-icon { width: 36px; height: 36px; padding: 8px; box-sizing: content-box; border-radius: 16px; background: var(--ui-selected); color: var(--ui-accent); }
+
+/* Family cards share layout, color accents and full-width content rows. */
+.jarvis-app .family-card, .jarvis-app .daily-tile {
+  --tile-accent: var(--ui-accent);
+  --tile-soft: color-mix(in srgb,var(--tile-accent) 8%,var(--ui-card));
+}
+.jarvis-app :is([data-family-card="calendar"],[data-family-card="planning"],[data-module="calendar"]) { --tile-accent: var(--ui-blue); }
+.jarvis-app :is([data-family-card="weather"],[data-module="weather"]) { --tile-accent: var(--ui-cyan); }
+.jarvis-app :is([data-family-card="routine"],[data-module="routine"],[data-family-card="rewards"],[data-module="rewards"],[data-family-card="energy"],[data-module="energy"]) { --tile-accent: var(--ui-amber); }
+.jarvis-app :is([data-family-card="meal"],[data-module="meal"],[data-family-card="shopping"],[data-module="shopping"]) { --tile-accent: var(--ui-orange); }
+.jarvis-app :is([data-family-card="medication"],[data-module="medication"]) { --tile-accent: var(--ui-pink); }
+.jarvis-app :is([data-family-card="cameras"],[data-module="cameras"],[data-module="tomorrow"]) { --tile-accent: var(--ui-purple); }
+.jarvis-app :is([data-family-card="wellbeing"],[data-module="wellbeing"]) { --tile-accent: var(--ui-teal); }
+body.jarvis-app .family-card {
+  padding: 24px; border-radius: var(--ui-radius); border: 1px solid var(--ui-border);
+  border-top: 3px solid var(--tile-accent); background: var(--ui-card); box-shadow: var(--ui-shadow);
+  grid-template-rows: auto; gap: 14px 12px; align-content: start;
+}
+.jarvis-app .family-card > :not(.card-icon):not(.card-heading) { grid-column: 1 / -1; }
+.jarvis-app .family-card > p { margin: 0; color: var(--ui-muted); font-size: 14px; }
+.jarvis-app .card-icon { width: 46px; height: 46px; background: var(--tile-soft); color: var(--tile-accent); border-radius: 14px; }
+.jarvis-app .card-icon .ui-icon { width: 25px; height: 25px; }
+.jarvis-app .card-heading h2 { font-size: 22px; line-height: 1.3; }
+.jarvis-app .card-eyebrow { color: var(--ui-muted); margin: 0; font-size: 12px; }
+.jarvis-app .daily-tile, .jarvis-app .daily-tile[data-module] {
+  background: linear-gradient(135deg,var(--tile-soft),var(--ui-card) 85%);
+  border: 1px solid var(--ui-border); border-top: 3px solid var(--tile-accent);
+  border-radius: var(--ui-radius); padding: 18px; gap: 10px; min-height: 150px;
+}
+.jarvis-app .daily-tile:hover { border-color: var(--tile-accent); box-shadow: var(--ui-shadow); }
+.jarvis-app .daily-tile-heading { min-height: 36px; gap: 10px; }
+.jarvis-app .daily-tile-heading svg { width: 21px; height: 21px; padding: 7px; border-radius: 11px; background: var(--tile-soft); stroke: var(--tile-accent); }
+.jarvis-app .daily-tile-heading > span { color: var(--tile-accent); }
+.jarvis-app .daily-tile-metric { font-size: clamp(25px,2.5vw,32px); }
+.jarvis-app .daily-tile p { font-size: 13px; }
+.jarvis-app .daily-primary-grid, .jarvis-app .daily-status-grid { gap: 16px; align-items: start; }
+.jarvis-app .daily-status-grid .daily-tile { min-height: 136px; }
+.jarvis-app .daily-actions button, .jarvis-app .progress-person button, .jarvis-app .wellbeing-options button {
+  background: var(--ui-raised); border-color: var(--ui-border); color: var(--ui-text); border-radius: var(--ui-control-radius);
+}
+.jarvis-app .daily-persons button[aria-pressed="true"], .jarvis-app .wellbeing-options button[aria-pressed="true"] {
+  background: var(--ui-selected); color: var(--ui-selected-text); border-color: var(--ui-accent);
+}
+.jarvis-app .daily-actions > button { background: var(--ui-selected); color: var(--ui-selected-text); }
+.jarvis-app .daily-tile[data-module="wellbeing"] { grid-column: span 2; }
+.jarvis-app .daily-tile[data-module="rewards"] { background: linear-gradient(135deg,var(--tile-soft),var(--ui-card) 85%); }
+.jarvis-app .wellbeing-home-quick .progress-person { background: transparent; }
+.jarvis-app .daily-tile.medication-overdue {
+  --tile-accent: var(--ui-danger); --tile-soft: var(--ui-danger-soft);
+  background: var(--ui-danger-soft); border: 3px solid var(--ui-danger); color: var(--ui-text);
+}
+.jarvis-app .medication-overdue :is(.daily-tile-heading,.medication-attention) { color: var(--ui-danger); }
+.jarvis-app .medication-pulse-toggle { background: var(--ui-raised); color: var(--ui-danger); border-color: var(--ui-danger); }
+
+/* Detailed modules and empty/loading states. */
+.jarvis-app :is(.pets-panel,.module-metric,.module-camera,.energy-history,.progress-person,.week-day) {
+  background: var(--ui-raised); border-color: var(--ui-border); border-radius: var(--ui-radius); box-shadow: none;
+}
+.jarvis-app :is(.pets-panel,.module-metric,.module-camera,.progress-person) { padding: 20px; }
+.jarvis-app :is(.pets-panel,.module-metric,.module-camera,.progress-person) h3 { font-size: 18px; line-height: 1.4; }
+.jarvis-app :is(.module-metric,.week-day,.shopping-row,.pet-reminder,.medication-slot) { overflow-wrap: anywhere; }
+.jarvis-app :is(.pet-photo-placeholder,.calendar-day-group,.calendar-day-empty,.family-task-list,.routine-switch) { background: var(--ui-soft); }
+.jarvis-app :is(.family-task-item,.family-task-add,.calendar-event,.meal-plan-day) { background: var(--ui-raised); border-color: var(--ui-border); color: var(--ui-text); }
+.jarvis-app :is(.family-task-summary,.family-task-add input,.family-task-actions button) { color: var(--ui-text); }
+.jarvis-app .family-task-actions button { background: var(--ui-soft); border-color: var(--ui-border); }
+.jarvis-app .family-task-add input::placeholder { color: var(--ui-muted); }
+.jarvis-app .calendar-events.calendar-days-1 { grid-template-columns: minmax(0,1fr); }
+.jarvis-app .calendar-range-controls button { min-height: 44px; }
+.jarvis-app .week-today { border-color: var(--ui-accent); background: var(--ui-selected); }
+.jarvis-app .week-appointments { background: color-mix(in srgb,var(--ui-blue) 10%,var(--ui-raised)); }
+.jarvis-app :is(.week-food,.meal-detail-day) { background: color-mix(in srgb,var(--ui-orange) 10%,var(--ui-raised)); }
+.jarvis-app :is(.week-pickup,.week-reminders) { background: color-mix(in srgb,var(--ui-purple) 10%,var(--ui-raised)); }
+.jarvis-app .progress-badges span { background: var(--ui-soft); color: var(--ui-muted); }
+.jarvis-app .progress-badges .badge-earned { background: var(--ui-warning-soft); color: var(--ui-warning); }
+.jarvis-app .family-card button, .jarvis-app dialog button {
+  min-height: 44px; padding: 9px 12px; border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius);
+  background: var(--ui-raised); color: var(--ui-text); font: inherit; font-weight: 600; cursor: pointer;
+}
+.jarvis-app .family-card button:hover:not(:disabled), .jarvis-app dialog button:hover:not(:disabled) { border-color: var(--ui-accent); }
+.jarvis-app :is(.family-card,dialog) button[aria-pressed="true"] { background: var(--ui-selected); color: var(--ui-selected-text); border-color: var(--ui-accent); }
+.jarvis-app :is(.family-card,dialog) :is(button[type="submit"],button.primary,.routine-complete),
+.jarvis-app :is(#petAdd,#shoppingAddItem,#shoppingAddList,#medicationAdd) { background: var(--ui-primary); color: var(--ui-on-primary); border-color: var(--ui-primary); }
+.jarvis-app :is(.family-card,dialog) button.danger, .jarvis-app #shoppingDelete { color: var(--ui-danger); background: var(--ui-danger-soft); border-color: var(--ui-danger); }
+.jarvis-app .family-card button:disabled, .jarvis-app dialog button:disabled { cursor: default; opacity: .55; }
+.jarvis-app .wellbeing-options button { font-size: 13px; min-height: 48px; }
+.jarvis-app :is([data-family-card="planning"],.family-meal-details) a { color: var(--ui-accent); }
+.jarvis-app .disconnected { margin-top: 10px; padding: 18px; background: var(--ui-soft); border-radius: 14px; font-size: 15px; }
+.jarvis-app .family-footer { color: var(--ui-muted); line-height: 1.5; }
+.jarvis-app .family-footer p { margin: 0; }
+
+/* Task removal keeps a visible label instead of clipping text in the legacy icon slot. */
+.jarvis-app .family-task-actions button.danger { width: auto; min-width: 44px; height: auto; overflow: visible; font-size: 14px; line-height: 1.5; }
+.jarvis-app .family-task-actions button.danger::before { display: none; }
+
+/* Owner administration uses the same shell, controls and surfaces. */
+.jarvis-admin .admin-shell { grid-template-columns: var(--ui-sidebar-width) minmax(0,1fr); }
+.jarvis-admin .admin-sidebar { position: fixed; inset: 0 auto 0 0; width: var(--ui-sidebar-width); padding: 24px 14px 16px; background: var(--ui-sidebar); border-color: var(--ui-border); gap: 20px; height: 100dvh; overflow-y: auto; backdrop-filter: none; }
+.jarvis-admin .admin-brand { padding: 0 8px; }
+.jarvis-admin .admin-brand strong { font-size: 22px; letter-spacing: -.7px; }
+.jarvis-admin .admin-brand span { font-size: 12px; }
+.jarvis-admin .admin-nav-button { background: transparent; color: var(--ui-muted); border: 1px solid transparent; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 9px 10px; border-radius: 12px; font-size: 14px; font-weight: 600; }
+.jarvis-admin .admin-nav-button:hover { background: var(--ui-soft); filter: none; }
+.jarvis-admin .admin-nav-button[aria-selected="true"], .jarvis-admin .admin-nav-button[aria-selected="true"]:hover { background: var(--ui-selected); color: var(--ui-selected-text); }
+.jarvis-admin .admin-content { grid-column: 2; max-width: 1480px; padding: 28px; }
+.jarvis-admin .admin-header { align-items: flex-start; }
+.jarvis-admin .admin-header h1 { font-size: 32px; line-height: 1.2; }
+.jarvis-admin .subtitle { font-size: 14px; max-width: 62ch; }
+.jarvis-admin .section-heading h2 { font-size: 24px; }
+.jarvis-admin .section-heading p { font-size: 14px; }
+.jarvis-admin :is(.eyebrow,.section-kicker) { color: var(--ui-muted); font-weight: 600; letter-spacing: .06em; }
+.jarvis-admin :is(.panel,.status-card,.advanced-group) { border-radius: var(--ui-radius); border-color: var(--ui-border); background: var(--ui-card); box-shadow: var(--ui-shadow); }
+.jarvis-admin .panel h3, .jarvis-admin .advanced-body h3 { font-size: 19px; }
+.jarvis-admin .panel-help { font-size: 14px; }
+.jarvis-admin button { background: var(--ui-primary); color: var(--ui-on-primary); font-weight: 600; border-radius: var(--ui-control-radius); }
+.jarvis-admin :is(button.secondary,.family-link,.asset-pill,.decision-row) { background: var(--ui-raised); color: var(--ui-text); border: 1px solid var(--ui-border); font-weight: 600; }
+.jarvis-admin button.danger { background: var(--ui-danger-soft); color: var(--ui-danger); border-color: var(--ui-danger); }
+.jarvis-admin :is(button.link-button,.status-card .card-link) { background: transparent; color: var(--ui-accent); }
+.jarvis-admin :is(.attention-item,.service-row,.policy-row,.decision-row,.module-card,.asset-pill,.incident,.event-row,.logline,.asset-group,.unknown-card,.integration-status-card,.entity-picker-card,.entity-checkbox-row) {
+  background: var(--ui-soft); border-color: var(--ui-border); border-radius: 14px;
+}
+.jarvis-admin :is(.entity-checkbox-row:hover,.entity-checkbox-row:has(input:checked)) { background: var(--ui-selected); border-color: var(--ui-accent); }
+.jarvis-admin :is(.asset-group h3,th,.incident p,.recommendation-line,.logline em) { color: var(--ui-text); }
+.jarvis-admin :is(.pill,.status) { background: var(--ui-soft); color: var(--ui-muted); font-weight: 600; }
+.jarvis-admin :is(.pill.working,.status.running,.status.healthy,.status.ok) { background: var(--ui-selected); color: var(--ui-selected-text); }
+.jarvis-admin :is(.pill.warning,.status.created,.status.paused,.status.restarting,.status.warning,.warning-copy,.advanced-heading) { background: var(--ui-warning-soft); color: var(--ui-warning); }
+.jarvis-admin :is(.status.exited,.status.dead,.status.unhealthy,.status.critical,.status.error,.status.failed) { background: var(--ui-danger-soft); color: var(--ui-danger); }
+.jarvis-admin .admin-notice { background: var(--ui-soft); color: var(--ui-text); border-color: var(--ui-border); }
+.jarvis-admin .admin-notice.success { background: var(--ui-selected); color: var(--ui-selected-text); border-color: var(--ui-accent); }
+.jarvis-admin .admin-notice.warning { background: var(--ui-warning-soft); color: var(--ui-warning); border-color: var(--ui-warning); }
+.jarvis-admin .admin-notice.error { background: var(--ui-danger-soft); color: var(--ui-danger); border-color: var(--ui-danger); }
+.jarvis-admin .security-note { background: var(--ui-selected); color: var(--ui-selected-text); }
+.jarvis-admin :is(.status-card.ok,.overview-banner.ok) { border-color: var(--ui-accent); }
+.jarvis-admin :is(.status-card.warning,.overview-banner.warning,.advanced-heading,.unknown-card) { border-color: var(--ui-warning); }
+.jarvis-admin :is(.status-card.critical,.overview-banner.critical) { border-color: var(--ui-danger); }
+.jarvis-admin :is(.incident,.event-row.warning) { border-left-color: var(--ui-warning); }
+.jarvis-admin :is(.incident.critical,.event-row.critical,.event-row.error,.decision-row.denied) { border-left-color: var(--ui-danger); }
+.jarvis-admin :is(.incident.info,.event-row) { border-left-color: var(--ui-blue); }
+.jarvis-admin .decision-row.allowed { border-left-color: var(--ui-accent); }
+.jarvis-admin .admin-sidebar-footer { border-top: 1px solid var(--ui-border); padding-top: 14px; }
+.jarvis-admin :is(.admin-content,.panel,.status-card,.service-row,.policy-row,.module-card,.unknown-card,td) { min-width: 0; overflow-wrap: anywhere; }
+
+/* Dynamic forms share the same labelled field layout as family dialogs. */
+.jarvis-admin .screen-field { display: grid; gap: 7px; font-size: 14px; color: var(--ui-muted); min-width: 0; }
+.jarvis-admin .screen-field :is(input,select) { width: 100%; color: var(--ui-text); }
+.jarvis-admin .screen-form { display: grid; gap: 16px; margin: 18px 0 24px; }
+.jarvis-admin .screen-form > button { justify-self: start; }
+.jarvis-admin #adminUserList { margin-top: 16px; }
+
+@media (max-width:1100px) {
+  :root[data-jarvis-theme] { --ui-sidebar-width: 196px; }
+  body.jarvis-app .family-shell, .jarvis-admin .admin-content { padding: 22px; }
+}
+@media (max-width:860px) {
+  .jarvis-admin .admin-shell { display: block; }
+  .jarvis-admin .admin-content { grid-column: auto; }
+  .jarvis-admin .admin-sidebar { position: static; width: 100%; height: auto; padding: 12px 14px; gap: 10px; }
+  .jarvis-admin .admin-sidebar-footer { display: flex; flex-wrap: wrap; align-items: center; margin: 0; padding: 10px 0 0; gap: 10px; }
+  .jarvis-admin .admin-sidebar-footer [data-theme-control] { flex: 1; min-width: 190px; }
+  .jarvis-admin .admin-sidebar-footer #authenticatedUser { display: none; }
+  .jarvis-admin .admin-nav-button { width: auto; }
+}
+@media (max-width:700px) {
+  body.jarvis-app { padding-left: 0; }
+  .jarvis-app .app-sidebar { position: static; width: 100%; height: auto; padding: 14px; gap: 10px; }
+  .jarvis-app .app-brand { padding: 0; font-size: 21px; }
+  .jarvis-app .app-brand-mark { width: 34px; height: 34px; border-radius: 11px; }
+  .jarvis-app .app-menu { overflow-x: auto; overflow-y: hidden; display: flex; padding: 3px; }
+  .jarvis-app .app-sidebar-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 10px; }
+  .jarvis-app .app-sidebar-footer [data-theme-control] { flex: 1; min-width: 190px; }
+  .jarvis-app .app-account { flex: 0 1 auto; }
+  .jarvis-app .app-session-label { display: none; }
+  body.jarvis-app .family-shell, .jarvis-admin .admin-content { padding: 20px 14px; }
+  body.jarvis-app .family-card { padding: 18px; }
+  .jarvis-app .app-page-title { font-size: 26px; gap: 10px; margin-bottom: 18px; }
+  .jarvis-app .app-page-title .ui-icon { width: 26px; height: 26px; }
+  .jarvis-app .daily-status-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+  .jarvis-app .daily-status-grid .daily-tile { min-height: 120px; padding: 12px; }
+  .jarvis-app .daily-status-grid .daily-tile-metric { font-size: 23px; }
+  .jarvis-app .daily-tile[data-module="wellbeing"] { grid-column: 1 / -1; }
+  .jarvis-app .daily-tile-heading h2 { font-size: 13px; }
+  .jarvis-app .family-footer { padding-top: 18px; }
+  .jarvis-admin .module-grid { grid-template-columns: minmax(0,1fr); }
+  .jarvis-admin .integration-status-grid { grid-template-columns: minmax(0,1fr); }
+}
+@media (prefers-reduced-motion:reduce) {
+  :is(.jarvis-app,.jarvis-admin) { scroll-behavior: auto; }
+  :is(.jarvis-app,.jarvis-admin) *, :is(.jarvis-app,.jarvis-admin) *::before, :is(.jarvis-app,.jarvis-admin) *::after { transition: none; }
+}
+@media print {
+  .theme-control, .app-sidebar-footer { display: none !important; }
+  body.jarvis-app { --ui-page:#fff; --ui-card:#fff; --ui-raised:#fff; --ui-soft:#fff; --ui-text:#111; --ui-muted:#444; --ui-border:#bbb; color-scheme:light; padding:0; }
+  body.jarvis-app .family-shell { padding: 0; }
+}

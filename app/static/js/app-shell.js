@@ -25,30 +25,7 @@
     ["vejr", "Vejr", "sun", "weather"],
     ["system", "System", "settings", "technical"],
   ];
-  const paths = {
-    star: "m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z",
-    smile: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM8 14q4 5 8 0M8 9h.01M16 9h.01",
-    home: "M3 10 12 3l9 7v11h-6v-7H9v7H3Z",
-    calendar: "M4 5h16v16H4ZM4 10h16M8 3v4m8-4v4",
-    check: "M9 4H4v17h17V11M9 11l4 4L22 4",
-    sun: "M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
-    meal: "M4 3v7q0 3 3 3t3-3V3M7 3v19M19 22V3q-5 4-5 10h5",
-    settings: "M4 7h16M4 17h16M8 4v6m8 4v6",
-    paw: "M8 13q4-5 8 0l3 5q0 4-7 1-7 3-7-1ZM5 6a2 2 0 1 0 0 .1M10 3a2 2 0 1 0 0 .1M16 4a2 2 0 1 0 0 .1M21 8a2 2 0 1 0 0 .1",
-    energy: "m13 2-9 12h7l-1 8 10-13h-8Z",
-    camera: "M3 6h13v14H3Zm13 5 5-3v10l-5-3",
-    pill: "M8 4a5 5 0 0 1 7 0l5 5a5 5 0 0 1-7 7l-5-5a5 5 0 0 1 0-7Zm1 8 7-7",
-    cart: "M2 3h3l3 13h11l3-9H6M10 20h.1M18 20h.1",
-  };
-  function icon(name) {
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("aria-hidden", "true");
-    const path = document.createElementNS(svg.namespaceURI, "path");
-    path.setAttribute("d", paths[name]);
-    svg.append(path);
-    return svg;
-  }
+  const icon = name => window.JarvisUI?.icon(name) || document.createTextNode('');
   const cards = [...document.querySelectorAll("[data-family-card]")];
   const pages = definitions.filter(([, , , card]) => {
     if (!card) return true;
@@ -57,6 +34,15 @@
     if (card === "routine") return body.dataset.familyRole !== "anonymous";
     return getComputedStyle(element).display !== "none";
   });
+  for (const [, , symbol, key] of definitions) {
+    if (!key) continue;
+    for (const card of cards.filter(item => item.dataset.familyCard === key)) {
+      let mark = card.querySelector(':scope > .card-icon');
+      if (!mark) { mark = document.createElement('div'); mark.className = 'card-icon'; mark.setAttribute('aria-hidden', 'true'); card.prepend(mark); }
+      // The weather module owns its changing weather symbol.
+      if (key !== 'weather') mark.replaceChildren(icon(symbol));
+    }
+  }
   const links = new Map();
   for (const [id, label, symbol] of pages) {
     const link = document.createElement("a");
@@ -90,7 +76,7 @@
     });
     window.dispatchEvent(new CustomEvent("jarvis:page-changed", {detail:page[0]}));
     title.hidden = overview;
-    title.textContent = page[1];
+    title.replaceChildren(icon(page[2]), document.createTextNode(page[1]));
     document.title = `Jarvis – ${page[1]}`;
     empty.hidden = page[3] !== "routine" || cards.some((card) => card.dataset.familyCard === "routine" && !card.hidden);
     if (focus) {

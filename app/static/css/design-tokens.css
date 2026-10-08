@@ -1,0 +1,79 @@
+/* Shared family/admin appearance. Dedicated /wall and login retain their own layout. */
+:root {
+  --ui-radius: 20px;
+  --ui-control-radius: 12px;
+  --ui-gap: 18px;
+  --ui-sidebar-width: 224px;
+  --ui-primary: #34764d;
+  --ui-on-primary: #fff;
+}
+:root, :root[data-jarvis-theme="light"] {
+  color-scheme: light;
+  --ui-page: #f4f7f6;
+  --ui-sidebar: #fafcfb;
+  --ui-card: #fff;
+  --ui-raised: #fff;
+  --ui-soft: #f0f5f2;
+  --ui-border: #dce5e0;
+  --ui-text: #21312d;
+  --ui-muted: #596c65;
+  --ui-accent: #34764d;
+  --ui-selected: #e5f2e9;
+  --ui-selected-text: #285d3a;
+  --ui-danger: #a52638;
+  --ui-danger-soft: #fff0f0;
+  --ui-warning: #80590e;
+  --ui-warning-soft: #fff5dd;
+  --ui-blue: #326ca4;
+  --ui-cyan: #28788d;
+  --ui-amber: #946013;
+  --ui-orange: #a25122;
+  --ui-purple: #765194;
+  --ui-pink: #935277;
+  --ui-teal: #29796e;
+  --ui-shadow: 0 4px 20px rgb(27 51 38 / 4%);
+  --ui-backdrop: rgb(15 30 24 / 40%);
+}
+:root[data-jarvis-theme="dark"] {
+  color-scheme: dark;
+  --ui-page: #101b2b;
+  --ui-sidebar: #142134;
+  --ui-card: #1b2b3e;
+  --ui-raised: #223449;
+  --ui-soft: #24384a;
+  --ui-border: #385065;
+  --ui-text: #eef4f6;
+  --ui-muted: #b4c6cf;
+  --ui-accent: #8ed6aa;
+  --ui-selected: #29483d;
+  --ui-selected-text: #afeac4;
+  --ui-danger: #ffabb3;
+  --ui-danger-soft: #492b36;
+  --ui-warning: #f5cf85;
+  --ui-warning-soft: #413827;
+  --ui-blue: #a3cbff;
+  --ui-cyan: #91d9ed;
+  --ui-amber: #f0cd89;
+  --ui-orange: #efb18a;
+  --ui-purple: #d0b4f5;
+  --ui-pink: #efb1d3;
+  --ui-teal: #93dbc9;
+  --ui-shadow: 0 4px 22px rgb(0 0 0 / 12%);
+  --ui-backdrop: rgb(3 9 17 / 65%);
+}
+/* Compatibility names keep existing data widgets on the same theme. */
+body.jarvis-app, body.jarvis-admin {
+  color-scheme: inherit;
+  --page: var(--ui-page); --card: var(--ui-card); --card-border: var(--ui-border);
+  --text: var(--ui-text); --muted: var(--ui-muted); --soft: var(--ui-soft);
+  --accent: var(--ui-accent); --good: var(--ui-accent);
+  --critical: var(--ui-danger); --warning: var(--ui-warning);
+  --surface-raised: var(--ui-raised); --surface-muted: var(--ui-soft);
+  --shadow: var(--ui-shadow); --focus-ring: var(--ui-accent);
+  --jarvis-color-accent: var(--ui-accent);
+  --admin-bg: var(--ui-page); --admin-sidebar: var(--ui-sidebar);
+  --admin-panel: var(--ui-card); --admin-panel-soft: var(--ui-soft);
+  --admin-border: var(--ui-border); --admin-text: var(--ui-text); --admin-muted: var(--ui-muted);
+  --admin-accent: var(--ui-accent); --admin-accent-strong: var(--ui-primary);
+  --admin-ok: var(--ui-selected-text); --admin-warning: var(--ui-warning); --admin-critical: var(--ui-danger);
+}

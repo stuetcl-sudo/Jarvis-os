@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/static/js/theme.js"></script>
   <title>Jarvis OS Administration</title>
   <link rel="stylesheet" href="/static/css/tokens.css" />
   <link rel="stylesheet" href="/static/css/base.css" />
@@ -11,8 +12,10 @@
   <link rel="stylesheet" href="/static/css/common.css" />
   <link rel="stylesheet" href="/static/css/admin.css" />
   <link rel="stylesheet" href="/static/css/admin-connections.css" />
+  <link rel="stylesheet" href="/static/css/design-tokens.css" />
+  <link rel="stylesheet" href="/static/css/unified-design.css" />
 </head>
-<body>
+<body class="jarvis-admin">
   <a class="skip-link" href="#adminContent">Spring til indhold</a>
   <div class="admin-shell">
     <aside class="admin-sidebar" aria-label="Administration">
@@ -26,7 +29,7 @@
         <button id="nav-system" class="admin-nav-button" type="button" role="tab" aria-selected="false" aria-controls="section-system" data-admin-target="system">Systemstatus</button>
         <button id="nav-advanced" class="admin-nav-button admin-nav-advanced" type="button" role="tab" aria-selected="false" aria-controls="section-advanced" data-admin-target="advanced">Avanceret</button>
       </nav>
-      <div class="admin-sidebar-footer"><span class="pill" id="authenticatedUser">Indlæser bruger…</span><button id="logoutButton" class="secondary" type="button">Log ud</button></div>
+      <div class="admin-sidebar-footer"><div data-theme-control></div><span class="pill" id="authenticatedUser">Indlæser bruger…</span><button id="logoutButton" class="secondary" type="button">Log ud</button></div>
     </aside>
     <main id="adminContent" class="admin-content">
       <header class="admin-header"><div><p class="eyebrow">Hjemmets administration</p><h1>Administration</h1><p class="subtitle">Se om hjemmets funktioner virker, og find tekniske detaljer, når du har brug for dem.</p></div><div class="admin-header-actions"><a class="family-link" href="/">Åbn familievisning</a><button id="refreshButton" class="secondary" type="button">Opdater status</button></div></header>
