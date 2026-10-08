@@ -43,7 +43,9 @@ Available stars are earned minus redeemed; lifetime earned/spent remain visible.
 Medication and wellbeing have no reward hooks. No arbitrary child credit API.
 
 Adults manage all boards. Children can complete their own configured daily chores.
-Wall accounts can read the board but cannot award chores, edit rules or redeem.
+Wall accounts can read and mark configured daily chores for family members,
+with the same server-side per-day deduplication. They cannot set star values,
+edit rules or redeem rewards. This supports the shared physical dashboard.
 Existing routine/task permissions remain unchanged. No retrospective awards or
 background reconciliation of earlier completions. If HA completion succeeds but
 reward storage fails, the cross-system write is not atomic; inspect the error,

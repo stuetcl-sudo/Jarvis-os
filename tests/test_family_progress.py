@@ -56,7 +56,9 @@ def test_role_csrf_validation_and_midnight(client):
     wall=login(client,'wall_display')
     assert client.get('/api/family/rewards').status_code==200
     assert client.put(f'/api/family/rewards/{uid}',headers=wall,json=config).status_code==403
-    assert client.post(f'/api/family/rewards/{uid}/complete',headers=wall,json={'source':'trash','day':day}).status_code==403
+    assert client.post(f'/api/family/rewards/{uid}/complete',headers=wall,json={'source':'trash','day':day}).status_code==200
+    assert client.post(f'/api/family/rewards/{uid}/complete',headers=wall,json={'source':'unknown','day':day}).status_code==404
+    assert client.post(f'/api/family/rewards/{uid}/redeem',headers=wall,json={'goal':config['goal'],'target':3}).status_code==403
     child=login(client,'child')
     assert client.post(f'/api/family/rewards/{uid}/complete',headers=child,json={'source':'trash','day':day}).status_code==403
     assert client.post(f'/api/family/rewards/{uid}/redeem',headers=child,json={'goal':config['goal'],'target':3}).status_code==403

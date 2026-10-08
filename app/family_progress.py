@@ -139,7 +139,7 @@ def rewards(user=Depends(family)):
             result.append({**p,'settings':settings(conn,p['user_id']),'earned':earned,'spent':spent,'balance':earned-spent,'events':events,
                 'badges':[{'name':'Morgenmester','progress':mornings,'target':5,'earned':mornings>=5},
                     {'name':'Hjælpsom hånd','progress':counts.get('task',0)+counts.get('chore',0),'target':10,'earned':counts.get('task',0)+counts.get('chore',0)>=10}]})
-    return {'today':today().isoformat(),'people':result,'can_manage':user['role'] in {'owner','adult'},'can_complete':user['role'] in {'owner','adult','child'},'self_id':user['user_id'],'role':user['role']}
+    return {'today':today().isoformat(),'people':result,'can_manage':user['role'] in {'owner','adult'},'can_complete':user['role'] in {'owner','adult','child','wall_display'},'self_id':user['user_id'],'role':user['role']}
 
 
 @router.put('/rewards/{user_id}')
@@ -152,7 +152,7 @@ def save_rewards(user_id:str,payload:RewardSettings,user=Depends(editor)):
 
 @router.post('/rewards/{user_id}/complete')
 def complete_chore(user_id:str,payload:ChoreDone,user=Depends(require_csrf)):
-    if user['role'] not in {'owner','adult','child'} or (user['role']=='child' and user['user_id']!=user_id):
+    if user['role'] not in {'owner','adult','child','wall_display'} or (user['role']=='child' and user['user_id']!=user_id):
         raise HTTPException(403,'Denne person kan ikke registreres fra din konto')
     if payload.day!=today().isoformat():
         raise HTTPException(409,'Opdatér til dagens tavle')
