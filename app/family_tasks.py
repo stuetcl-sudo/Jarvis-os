@@ -464,7 +464,19 @@ class FamilyTasksService:
             raise PermissionError("Task completion is not allowed")
         settings, source = self._settings_and_source(list_key)
         cleaned_uid = _required_text(item_uid, MAX_ITEM_ID_LENGTH, "Task item is invalid")
-        HomeAssistantTasksClient(settings, self.client_factory).complete(source, cleaned_uid)
+        from app.family_progress import award_completion, has_task_reward
+        import json
+        reward_key = json.dumps([list_key, cleaned_uid], ensure_ascii=False, separators=(",", ":"))
+        task_client = HomeAssistantTasksClient(settings, self.client_factory)
+        awardable = False
+        if has_task_reward(reward_key):
+            # Fresh HA state, not the cached screen, must show an unfinished task.
+            live_lists, _ = task_client.fetch()
+            awardable = any(task['uid'] == cleaned_uid for task_list in live_lists
+                if task_list['key'] == list_key for task in task_list['items'])
+        task_client.complete(source, cleaned_uid)
+        if awardable:
+            award_completion("task", reward_key, current_user.get("user_id", ""))
         self.assignment_store.delete(list_key, cleaned_uid)
         self.clear_cache()
         return self.get_tasks(current_user)

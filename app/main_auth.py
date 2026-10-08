@@ -13,6 +13,7 @@ from app.calendar import router as calendar_router
 from app.db import log_action
 from app.family_tasks import router as family_tasks_router
 from app.pets import router as pets_router
+from app.family_progress import router as progress_router
 from app.medication import router as medication_router
 from app.shopping import router as shopping_router
 from app.family_planning import router as planning_router
@@ -40,6 +41,7 @@ app.include_router(meal_plan_router)
 app.include_router(family_tasks_router)
 app.include_router(pets_router)
 app.include_router(medication_router)
+app.include_router(progress_router)
 app.include_router(shopping_router)
 app.include_router(planning_router)
 app.include_router(home_modules_router)
@@ -163,6 +165,7 @@ async def enforce_local_authentication(request: Request, call_next):
     medication_write = (request.method in {"POST", "PUT", "DELETE"}
                         and (path == "/api/family/medication" or path.startswith("/api/family/medication/")))
     planning_write = (request.method in {"PUT", "POST"} and path.startswith("/api/family/planning/"))
+    progress_write = (request.method in {"POST", "PUT", "DELETE"} and path.startswith(("/api/family/rewards/", "/api/family/wellbeing/")))
     protected_write = (
         request.method in {"POST", "PUT", "PATCH", "DELETE"}
         and path.startswith("/api/")
@@ -174,6 +177,7 @@ async def enforce_local_authentication(request: Request, call_next):
         and not shopping_write
         and not medication_write
         and not planning_write
+        and not progress_write
     )
     try:
         if request.method == "GET" and path in {"/login", "/bootstrap", "/setup", "/admin"}:
@@ -270,9 +274,9 @@ async def enforce_local_authentication(request: Request, call_next):
         response = await call_next(request)
         if static_request:
             response.headers["Cache-Control"] = "no-cache, must-revalidate"
-        if path.startswith(("/api/family/planning", "/api/family/pets", "/api/family/medication", "/api/family/shopping", "/api/family/energy", "/api/family/cameras", "/api/admin/home-modules")):
+        if path.startswith(("/api/family/rewards", "/api/family/wellbeing", "/api/family/planning", "/api/family/pets", "/api/family/medication", "/api/family/shopping", "/api/family/energy", "/api/family/cameras", "/api/admin/home-modules")):
             response.headers["Cache-Control"] = "no-store"
-        if (protected_write or family_task_write or pet_write or shopping_write or medication_write or planning_write) and current_user:
+        if (protected_write or family_task_write or pet_write or shopping_write or medication_write or planning_write or progress_write) and current_user:
             log_action(
                 "authenticated_write",
                 path,

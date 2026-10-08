@@ -252,6 +252,7 @@ async function changeRoutine(action) {
     routineState = await response.json();
     activePersonId = routineState.selected_person_id || activePersonId;
     renderRoutine();
+    window.dispatchEvent(new Event("jarvis:routines-changed"));
   } catch (error) {
     setRoutineText("routineMessage", "Prøv igen om lidt.");
   } finally {

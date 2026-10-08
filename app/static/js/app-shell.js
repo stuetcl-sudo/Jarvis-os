@@ -16,6 +16,8 @@
     ["madplan", "Madplan", "meal", "meal"],
     ["indkoeb", "Indkøb", "cart", "shopping"],
     ["medicin", "Medicin", "pill", "medication"],
+    ["beloenninger", "Belønningstavle", "star", "rewards"],
+    ["dagsform", "Dagsform", "smile", "wellbeing"],
     ["kaeledyr", "Kæledyr", "paw", "pets"],
     ["energi", "Energi", "energy", "energy"],
     ["kamera", "Kamera", "camera", "cameras"],
@@ -24,6 +26,8 @@
     ["system", "System", "settings", "technical"],
   ];
   const paths = {
+    star: "m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z",
+    smile: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM8 14q4 5 8 0M8 9h.01M16 9h.01",
     home: "M3 10 12 3l9 7v11h-6v-7H9v7H3Z",
     calendar: "M4 5h16v16H4ZM4 10h16M8 3v4m8-4v4",
     check: "M9 4H4v17h17V11M9 11l4 4L22 4",

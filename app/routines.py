@@ -499,6 +499,9 @@ def _change(request, routine_id, action, payload=None):
         expected_index,
         person_id=selected_person_id,
     )
+    if action == "complete" and response["routines"][routine_id]["completed"]:
+        from app.family_progress import award_completion
+        award_completion("routine", routine_id, current_user.get("user_id", ""), selected_person_id, response["routines"][routine_id]["date"])
     return _person_response(response, people, selected_person_id)
 
 

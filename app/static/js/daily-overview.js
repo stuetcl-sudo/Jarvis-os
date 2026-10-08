@@ -5,7 +5,7 @@
   const overview=document.createElement('section');overview.id='dailyOverview';overview.className='daily-overview';overview.setAttribute('aria-label','Kun i dag');shell.before(overview);
   const primary=document.createElement('div');primary.className='daily-primary-grid';const status=document.createElement('div');status.className='daily-status-grid';overview.append(primary,status);
   const tiles=new Map();const cards=[...shell.querySelectorAll('[data-family-card]')];
-  const definitions=[['routine','rutiner','Rutine nu'],['medication','medicin','Medicin i dag'],['weather','vejr','Vejr nu'],['calendar','kalender','Næste aftale'],['tasks','opgaver','Opgaver i dag'],['meal','madplan','Aftensmad'],['pets','kaeledyr','Kæledyr i dag'],['shopping','indkoeb','Indkøb'],['energy','energi','Energi i dag'],['cameras','kamera','Kamera']];
+  const definitions=[['routine','rutiner','Rutine nu'],['medication','medicin','Medicin i dag'],['weather','vejr','Vejr nu'],['calendar','kalender','Næste aftale'],['tasks','opgaver','Opgaver i dag'],['meal','madplan','Aftensmad'],['pets','kaeledyr','Kæledyr i dag'],['shopping','indkoeb','Indkøb'],['energy','energi','Energi i dag'],['cameras','kamera','Kamera'],['rewards','beloenninger','Stjerner og badges'],['wellbeing','dagsform','Familiens dagsform']];
   for(const [card,hash,label] of definitions) {
     if(!cards.some(c=>c.dataset.familyCard===card)||!document.querySelector(`#appMenu a[href="#${hash}"]`))continue;
     const link=document.createElement('article');link.className='daily-tile';
@@ -18,7 +18,7 @@
     const arrow=document.createElement('span');arrow.textContent='→';arrow.setAttribute('aria-hidden','true');header.append(arrow);
     const metric=document.createElement('strong');metric.className='daily-tile-metric';metric.hidden=true;
     const summary=document.createElement('p');summary.textContent=document.body.dataset.familyRole==='anonymous'&&['calendar','meal','tasks'].includes(card)?'Log ind for at se dagens oplysninger':'Henter…';
-    const actions=document.createElement('div');actions.className='daily-actions';actions.hidden=true;link.append(header,metric,summary,actions);(['pets','shopping','energy','cameras'].includes(card)?status:primary).append(link);tiles.set(card,{summary,metric,link,actions});
+    const actions=document.createElement('div');actions.className='daily-actions';actions.hidden=true;link.append(header,metric,summary,actions);(['pets','shopping','energy','cameras','rewards','wellbeing'].includes(card)?status:primary).append(link);tiles.set(card,{summary,metric,link,actions});
   }
   const zone=document.body.dataset.homeTimezone||'Europe/Copenhagen';
   const dayKey=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
@@ -28,6 +28,27 @@
     tile.summary.textContent=text;tile.metric.textContent=String(metric);tile.metric.hidden=metric==='';
   };
   const cache={};
+  let medicationError=false;
+  window.addEventListener('jarvis:medication-error',()=>{medicationError=true;attention();});
+  function attention(){
+    const tile=tiles.get('medication'),data=cache.medication;if(!tile||!data)return;
+    const fresh=Date.now()-(data.last_success_at||0)<90000&&!medicationError;
+    const overdue=fresh?window.JarvisMedicationAttention.evaluate(data.all_entries||data.entries||[],data.today,new Date(),zone):[];
+    tile.link.classList.toggle('medication-overdue',overdue.length>0);
+    tile.attention ||= document.createElement('p');tile.attention.className='medication-attention';tile.attention.setAttribute('role','status');tile.link.append(tile.attention);
+    tile.attention.hidden=!overdue.length;
+    const details=overdue.slice(0,3).map(e=>`${e.person} · ${e.time} · ${e.lateMinutes===0?'tidspunktet er nu':`${e.lateMinutes} min. siden tidspunktet`}`);
+    tile.attention.textContent=overdue.length?`Medicin mangler registrering (${overdue.length}) · ${details.join(' / ')}${overdue.length>3?' · se alle i Medicin':''}`:'';
+    if(!tile.pulseButton){const b=document.createElement('button');b.type='button';b.className='medication-pulse-toggle';let on=true;try{on=localStorage.getItem('jarvis.medication.pulse')!=='off';}catch{};const update=()=>{tile.link.classList.toggle('medication-pulse',on);b.textContent=on?'Slå pulsering fra':'Slå pulsering til';b.setAttribute('aria-pressed',String(on));};b.addEventListener('click',()=>{on=!on;try{localStorage.setItem('jarvis.medication.pulse',on?'on':'off');}catch{};update();});tile.pulseButton=b;tile.link.append(b);update();}
+    tile.pulseButton.hidden=!overdue.length;
+  }
+  window.addEventListener('jarvis:progress-summary',e=>{
+    const {rewards,wellbeing}=e.detail;
+    const goals=rewards.people.filter(p=>p.settings);set('rewards',goals.length?goals.slice(0,2).map(p=>`${p.display_name} · ${p.balance}/${p.settings.target} stjerner`).join(' · '):'Aftal opgaver og en belønning');
+    const answers=wellbeing.people.filter(p=>p.check_in);const labels=window.JarvisDagsformLabels;
+    set('wellbeing',answers.length&&labels?answers.slice(0,3).map(p=>`${p.display_name}: ${labels.mood[p.check_in.mood]} · ${labels.energy[p.check_in.energy]}`).join(' / '):'Vælg dagens humør og overskud');
+  });
+  setInterval(attention,10000);
   const unavailable={authentication_required:'Log ind for at se dagens oplysninger',not_configured:'Ikke tilsluttet',unavailable:'Kan ikke hentes lige nu'};
   function calendar(data) {
     if(unavailable[data.status]){set('calendar',unavailable[data.status]);return;}
@@ -55,7 +76,7 @@
   for(const [event,key,render] of [['calendar-updated','calendar',calendar],['tasks-summary','tasks',tasks],['pets-summary','pets',pets]]) {
     window.addEventListener(`jarvis:${event}`,e=>{cache[key]=e.detail;render(e.detail);});
   }
-  window.addEventListener('jarvis:medication-summary',e=>{cache.medication=e.detail;renderMedication(e.detail);});
+  window.addEventListener('jarvis:medication-summary',e=>{cache.medication=e.detail;medicationError=false;renderMedication(e.detail);attention();});
   window.addEventListener('jarvis:meals-summary',e=>{cache.meal=e.detail;renderMeal(e.detail);});
   function renderMedication(data) {
     const tile=tiles.get('medication');if(!tile)return;
@@ -167,7 +188,7 @@
     const shoppingError=document.getElementById('shoppingNotice');if(shoppingError?.textContent.includes('kunne ikke opdateres'))set('shopping','Kan ikke opdateres lige nu');
     const cameraError=document.getElementById('cameraNotice');if(cameraError?.textContent&&cache.cameras?.cameras.length)set('cameras','Kan ikke opdateres lige nu');
     const petError=document.getElementById('petsNotice');if(petError?.textContent)set('pets','Kan ikke opdateres lige nu');
-    const medError=document.getElementById('medicationNotice');if(medError?.textContent){set('medication','Kan ikke opdateres lige nu');const tile=tiles.get('medication');if(tile)tile.actions.querySelectorAll('input').forEach(c=>c.disabled=true);}
+    const medError=document.getElementById('medicationNotice');if(medError?.textContent){medicationError=true;attention();set('medication','Kan ikke opdateres lige nu');const tile=tiles.get('medication');if(tile)tile.actions.querySelectorAll('input').forEach(c=>c.disabled=true);}
   }
   let queued=false;
   new MutationObserver(()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;refreshCopy();});}).observe(shell,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['hidden','disabled','aria-pressed']});

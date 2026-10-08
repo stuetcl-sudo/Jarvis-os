@@ -91,3 +91,12 @@ inline outline SVGs rather than depending on emoji fonts or a new icon library.
 The shared Ugeoversigt and expanded meal tab follow the same card and touch
 controls. See `docs/family-planning.md`. The family greeting is shared; role
 permissions and person selectors remain intact.
+
+## Family progress and attention
+
+Belønningstavle and Dagsform extend the main shared shell with small status cards
+and separate full tabs. Use voluntary, clearly labelled inputs and avoid points
+for mood or medication. Missing medicine registration may use a red card and a
+slow border pulse; keep text readable, offer an animation preference and respect
+reduced motion. Never interpret its color as clinical severity. See
+`docs/family-progress.md` for roles, storage and validation.

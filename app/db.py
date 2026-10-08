@@ -156,6 +156,8 @@ def _ensure_column(conn, table, column, definition):
 
 def init_db():
     conn = connect()
+    from app.family_progress import initialize_progress
+    initialize_progress(conn)
     from app.pets import initialize_pets
     initialize_pets(conn)
     from app.family_planning import initialize_family_planning

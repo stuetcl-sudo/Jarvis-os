@@ -2,7 +2,7 @@
   const root = document.querySelector('[data-family-card="medication"]');
   if (!root || root.dataset.medicationDisplay === "true") return;
   const el = (id) => document.getElementById(id);
-  let data = {plans:[],people:[]}, editing = null, busy = false, generation = 0, selectedPerson = 'all';
+  let data = {plans:[],people:[]}, editing = null, busy = false, generation = 0, selectedPerson = 'all', receivedAt = 0;
   function node(tag,text) {const n=document.createElement(tag); if(text!==undefined)n.textContent=text; return n;}
   function button(text,fn) {const b=node('button',text);b.type='button';b.addEventListener('click',fn);return b;}
   async function request(path='',method='GET',body) {
@@ -18,8 +18,8 @@
   }
   async function refresh() {
     const g=++generation;
-    try {const value=await request();if(g!==generation)return;data=value;render();el('medicationNotice').textContent='';}
-    catch(e){if(g===generation)el('medicationNotice').textContent=`Kunne ikke opdatere. ${e.message}`;}
+    try {const value=await request();if(g!==generation)return;data=value;receivedAt=Date.now();el('medicationNotice').textContent='';render();}
+    catch(e){if(g===generation){el('medicationNotice').textContent=`Kunne ikke opdatere. ${e.message}`;window.dispatchEvent(new Event('jarvis:medication-error'));}}
   }
   async function save(path,method,payload) {
     if(busy)return;busy=true;++generation;emitSummary();
@@ -77,7 +77,7 @@
     }))).sort((a,b)=>a.time.localeCompare(b.time)||a.id.localeCompare(b.id));
     const visible=entries.filter(entry=>selectedPerson==='all'||entry.user_id===selectedPerson);
     const pending=visible.filter(entry=>entry.status==='unmarked').length;
-    window.dispatchEvent(new CustomEvent('jarvis:medication-summary',{detail:{today:data.today,pending,entries:visible,busy,people:data.people,selected_person:selectedPerson,select_person:selectPerson}}));
+    window.dispatchEvent(new CustomEvent('jarvis:medication-summary',{detail:{today:data.today,pending,entries:visible,all_entries:entries,last_success_at:receivedAt,busy,people:data.people,selected_person:selectedPerson,select_person:selectPerson}}));
   }
   function open(p=null) {
     editing=p;const f=el('medicationForm');f.reset();const select=f.elements.user_id;select.replaceChildren();const placeholder=node('option','Vælg familiemedlem');placeholder.value='';select.append(placeholder);

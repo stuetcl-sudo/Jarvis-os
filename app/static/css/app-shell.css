@@ -215,3 +215,33 @@ body.jarvis-app[data-family-role="wall_display"]:not([data-wall-dashboard="true"
   body.jarvis-app[data-family-role="wall_display"]:not([data-wall-dashboard="true"]) .family-header h1 { font-size:28px; }
   body.jarvis-app[data-family-role="wall_display"]:not([data-wall-dashboard="true"]) .family-clock { font-size:30px; }
 }
+/* Missing medication registration is an attention state, never a dose recommendation. */
+.jarvis-app .daily-tile.medication-overdue { order:-1; background:#fff0ed; border:3px solid #b52a31; color:#681c23; }
+.jarvis-app .daily-tile.medication-overdue .daily-tile-heading { color:#8b1824; }
+.jarvis-app .medication-attention { font-weight:700; line-height:1.6; }
+.jarvis-app .medication-attention[hidden], .jarvis-app .medication-pulse-toggle[hidden] { display:none; }
+.jarvis-app .medication-pulse-toggle { min-height:44px; padding:8px 12px; border:1px solid #b52a31; border-radius:10px; background:#fff; color:#681c23; }
+.jarvis-app .medication-overdue.medication-pulse { animation:medication-attention-pulse 4s ease-in-out infinite; }
+@keyframes medication-attention-pulse { 0%,100% { box-shadow:0 0 0 0 rgb(181 42 49 / 8%); } 50% { box-shadow:0 0 0 7px rgb(181 42 49 / 24%); } }
+@media(prefers-reduced-motion:reduce) { .jarvis-app .medication-overdue.medication-pulse { animation:none; } }
+.jarvis-app .progress-people { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:16px; }
+.jarvis-app .progress-person { min-width:0; padding:20px; border:1px solid var(--card-border); border-radius:18px; background:#fff; overflow-wrap:anywhere; }
+.jarvis-app .progress-person h3 { margin-top:0; }
+.jarvis-app .progress-person progress { width:100%; accent-color:#bc861d; margin:12px 0; }
+.jarvis-app .progress-person button,.jarvis-app .progress-buttons button,.jarvis-app .reward-rule button { min-height:44px; border:1px solid #cbdcca; border-radius:10px; padding:9px 12px; background:#e7f0e6; color:#285d3a; font:inherit; cursor:pointer; }
+.jarvis-app .progress-person button:disabled { opacity:.6; cursor:default; }
+.jarvis-app .progress-task { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:12px 0; border-bottom:1px solid var(--card-border); }
+.jarvis-app .progress-task a { display:flex; align-items:center; min-height:44px; color:var(--accent); }
+.jarvis-app .progress-badges { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+.jarvis-app .progress-badges span { padding:8px 10px; border-radius:12px; background:#f1f3f4; font-size:13px; }
+.jarvis-app .progress-badges .badge-earned { background:#fff0c9; color:#74521b; }
+.jarvis-app .progress-buttons { display:flex; flex-wrap:wrap; gap:10px; margin:12px 0; }
+.jarvis-app #wellbeingForm .progress-buttons label { padding:14px; border:1px solid #cbdcca; border-radius:12px; min-height:52px; cursor:pointer; }
+.jarvis-app #wellbeingForm .progress-buttons label:has(input:checked) { background:#e7f0e6; border-color:#40754a; }
+.jarvis-app #wellbeingForm fieldset { border:0; padding:0; margin:20px 0; }
+.jarvis-app #rewardForm > label,.jarvis-app .reward-rule label { display:grid; gap:6px; margin:12px 0; }
+.jarvis-app #rewardForm input,.jarvis-app #rewardForm select { width:100%; min-height:44px; padding:10px; border:1px solid var(--card-border); border-radius:9px; font:inherit; }
+.jarvis-app .reward-rule { display:grid; grid-template-columns:2fr 2fr 1fr auto; gap:10px; align-items:center; padding:12px 0; border-bottom:1px solid var(--card-border); }
+.jarvis-app .daily-tile[data-module="rewards"] { background:#fff8e6; border-top-color:#b98b27; }
+.jarvis-app .daily-tile[data-module="wellbeing"] { background:#eaf7f3; border-top-color:#38897e; }
+@media(max-width:700px) { .jarvis-app .reward-rule { grid-template-columns:minmax(0,1fr); } }

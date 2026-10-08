@@ -445,6 +445,11 @@ class AuthService:
             if row["role"] == "owner":
                 raise ValueError("Owner cannot be deleted")
             tables = {item["name"] for item in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()}
+            for progress_table in ("family_reward_settings", "family_reward_events", "family_reward_redemptions", "family_wellbeing"):
+                if progress_table in tables:
+                    conn.execute(f"DELETE FROM {progress_table} WHERE user_id = ?", (user_id,))
+                    if progress_table != "family_reward_settings":
+                        conn.execute(f"UPDATE {progress_table} SET actor = 'deleted' WHERE actor = ?", (user_id,))
             if "screens" in tables:
                 conn.execute("UPDATE screens SET wall_user_id = NULL WHERE wall_user_id = ?", (user_id,))
             if "family_task_assignments" in tables:

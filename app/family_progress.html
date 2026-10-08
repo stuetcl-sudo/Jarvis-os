@@ -1,0 +1,26 @@
+<article class="family-card" data-family-card="rewards">
+  <div class="card-heading"><p class="card-eyebrow">Stjerner og badges</p><h2>Belønningstavle</h2></div>
+  <p>Små skridt tæller. Stjerner bliver på tavlen, også når en dag er svær.</p>
+  <p id="rewardsNotice" role="status">Henter tavlen…</p><div id="rewardsPeople" class="progress-people"></div>
+  <dialog id="rewardDialog" class="family-planning-dialog"><form id="rewardForm">
+    <h2>Aftal stjerner og belønning</h2><label>Belønning<input name="goal" required maxlength="120" placeholder="Vælg fredagens film"></label>
+    <label>Stjerner til målet<input name="target" type="number" min="1" max="1000" required></label>
+    <h3>Opgaver og rutiner</h3><div id="rewardRules"></div>
+    <div class="progress-buttons"><button type="button" id="rewardAddChore">Tilføj daglig opgave</button><button type="button" id="rewardAddRoutine">Tilføj rutine</button><button type="button" id="rewardAddTask">Knyt eksisterende opgave</button></div>
+    <p>Rutiner og tilknyttede opgaver giver stjerner ved den eksisterende afkrydsning. Nye daglige opgaver klares her. Højst én belønning pr. opgave/rutine pr. dag.</p>
+    <p id="rewardFormNotice" role="status"></p><div class="progress-buttons"><button type="submit">Gem aftalen</button><button type="button" id="rewardCancel">Annuller</button></div>
+  </form></dialog>
+</article>
+<article class="family-card" data-family-card="wellbeing">
+  <div class="card-heading"><p class="card-eyebrow">Kun i dag</p><h2>Hvordan er din dagsform?</h2></div>
+  <p>To hurtige valg. Du behøver ikke forklare noget, og det er frivilligt.</p>
+  <p id="wellbeingNotice" role="status">Henter dagsform…</p><div id="wellbeingPeople" class="progress-people"></div>
+  <dialog id="wellbeingDialog" class="family-planning-dialog"><form id="wellbeingForm">
+    <h2 id="wellbeingTitle">Dagsform</h2><fieldset><legend>Hvordan har du det?</legend><div class="progress-buttons">
+      <label><input type="radio" name="mood" value="good" required>🙂 Godt</label><label><input type="radio" name="mood" value="okay">😐 Okay</label><label><input type="radio" name="mood" value="hard">🙁 Svært</label>
+    </div></fieldset><fieldset><legend>Hvor meget overskud har du?</legend><div class="progress-buttons">
+      <label><input type="radio" name="energy" value="high" required>🔋 Meget</label><label><input type="radio" name="energy" value="low">🔋 Lidt</label><label><input type="radio" name="energy" value="empty">🪫 Tom</label>
+    </div></fieldset><label><input type="checkbox" name="shared" checked>Vis mit svar på fællesskærmen</label>
+    <p id="wellbeingFormNotice" role="status"></p><div class="progress-buttons"><button type="submit">Gem dagens svar</button><button type="button" id="wellbeingCancel">Annuller</button><button type="button" id="wellbeingRemove">Fjern dagens svar</button></div>
+  </form></dialog>
+</article>

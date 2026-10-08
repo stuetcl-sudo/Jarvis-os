@@ -192,6 +192,8 @@ def render_family_page(current_user, wall_actions="", shared_modules=True):
     page = page.replace("<!-- FAMILY_MEDICATION -->", medication, 1)
     planning = (FAMILY_TEMPLATE.parent.parent / "family_planning.html").read_text(encoding="utf-8") if context["role"] in module_roles else ""
     page = page.replace("<!-- FAMILY_PLANNING -->", planning, 1)
+    progress = (FAMILY_TEMPLATE.parent.parent / "family_progress.html").read_text(encoding="utf-8") if context["role"] in module_roles and shared_modules else ""
+    page = page.replace("<!-- FAMILY_PROGRESS -->", progress, 1)
     actor_name = context["display_name"]
     if context["role"] == "wall_display" and shared_modules and isinstance(current_user, dict):
         actor_name = str(current_user.get("username") or "")
