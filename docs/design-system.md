@@ -181,3 +181,25 @@ unchanged. Theme choice does not grant access to a hidden module.
 Use the existing SSH tunnel to open http://localhost:8098. Test both themes in
 family and admin, and a wall account's shared family board. Port 8088 production
 requires separate deployment approval.
+
+### Approved production deployment
+
+Dennis separately approved production on 8 October 2026. The helper
+`scripts/deploy-unified-design.sh` pins UI commit
+`b488e296e6f71f54f1046342afc860f5d8e58633`, rather than deploying a moving branch.
+It checks the production Compose identity and clean working tree, saves the old
+image/code reference and `.env`/Compose configuration, builds only Jarvis, then
+stops it to archive the entire data volume and create a checked SQLite backup.
+The backup container uses a separate 256 MB temp filesystem and puts SQLite
+temporary files in the backup directory, avoiding the earlier full `/tmp` issue.
+
+Only Jarvis is recreated with `--no-deps`; the socket proxy and other services
+are not restarted. Health, running image ID, exact theme asset hashes and database
+readability are checked. Failure restores the old code/image, preserving database
+contents; automatic rollback does not restore the data archive or undo migrations.
+
+SSH from this workspace failed with `Network is unreachable`. No production
+command has been executed by Codex. Syntax and five simulated deployment cases
+passed locally (success, dirty checkout, build failure, backup failure, bad served
+asset); this is not a real Docker execution. Run the reviewed helper in Dennis's
+ServerHub SSH session and inspect the resulting output before claiming success.
