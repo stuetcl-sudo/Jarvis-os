@@ -45,8 +45,16 @@
   window.addEventListener('jarvis:progress-summary',e=>{
     const {rewards,wellbeing}=e.detail;
     const goals=rewards.people.filter(p=>p.settings);set('rewards',goals.length?goals.slice(0,2).map(p=>`${p.display_name} · ${p.balance}/${p.settings.target} stjerner`).join(' · '):'Aftal opgaver og en belønning');
-    const answers=wellbeing.people.filter(p=>p.check_in);const labels=window.JarvisDagsformLabels;
-    set('wellbeing',answers.length&&labels?answers.slice(0,3).map(p=>`${p.display_name}: ${labels.mood[p.check_in.mood]} · ${labels.energy[p.check_in.energy]}`).join(' / '):'Vælg dagens humør og overskud');
+    const tile=tiles.get('wellbeing');if(!tile)return;
+    const people=wellbeing.people;
+    if(!people.some(p=>p.user_id===tile.selectedWellId))tile.selectedWellId=people.find(p=>p.user_id===wellbeing.self_id)?.user_id||people.find(p=>p.can_write)?.user_id||people[0]?.user_id;
+    tile.wellPeople ||= document.createElement('div');tile.wellPeople.className='daily-persons';tile.wellPeople.setAttribute('role','group');tile.wellPeople.setAttribute('aria-label','Vælg person til dagsform');
+    tile.wellButtons ||= new Map();const ids=new Set(people.map(p=>p.user_id));for(const [id,b] of tile.wellButtons)if(!ids.has(id)){b.remove();tile.wellButtons.delete(id);}
+    tile.quickContainer ||= document.createElement('div');tile.quickContainer.className='wellbeing-home-quick';
+    if(tile.wellPeople.parentNode!==tile.actions)tile.actions.append(tile.wellPeople);if(tile.quickContainer.parentNode!==tile.actions)tile.actions.append(tile.quickContainer);tile.actions.hidden=false;
+    for(const person of people){let b=tile.wellButtons.get(person.user_id);if(!b){b=document.createElement('button');b.type='button';b.addEventListener('click',()=>{tile.selectedWellId=person.user_id;draw();});tile.wellButtons.set(person.user_id,b);tile.wellPeople.append(b);}b.textContent=person.display_name;}
+    function draw(){for(const [id,b] of tile.wellButtons)b.setAttribute('aria-pressed',String(id===tile.selectedWellId));e.detail.quick_render(tile.quickContainer,tile.selectedWellId);set('wellbeing','Tryk på humør eller overskud · gemmes automatisk');}
+    draw();
   });
   setInterval(attention,10000);
   const unavailable={authentication_required:'Log ind for at se dagens oplysninger',not_configured:'Ikke tilsluttet',unavailable:'Kan ikke hentes lige nu'};

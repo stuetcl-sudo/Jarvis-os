@@ -65,21 +65,20 @@ def test_role_csrf_validation_and_midnight(client):
     client.cookies.clear();assert client.get('/api/family/rewards').status_code==401
 
 
-def test_wellbeing_shared_private_self_and_wall(client):
+def test_wellbeing_shared_self_and_wall(client):
     headers,uid,_=seed(client)
     own=client.get('/api/auth/me').json()['user_id']
     day=client.get('/api/family/wellbeing').json()['today']
-    data={'day':day,'mood':'okay','energy':'empty','shared':False}
+    data={'day':day,'mood':'okay','energy':'empty','shared':True}
+    assert client.put(f'/api/family/wellbeing/{own}',headers=headers,json={**data,'shared':False}).status_code==422
     assert client.put(f'/api/family/wellbeing/{own}',headers=headers,json=data).status_code==200
-    assert next(p for p in client.get('/api/family/wellbeing').json()['people'] if p['user_id']==own)['check_in']['energy']=='empty'
     wall=login(client,'wall_display')
-    assert next(p for p in client.get('/api/family/wellbeing').json()['people'] if p['user_id']==own)['check_in'] is None
-    assert client.put(f'/api/family/wellbeing/{own}',headers=wall,json={**data,'shared':True}).status_code==403
-    assert client.put(f'/api/family/wellbeing/{uid}',headers=wall,json={**data,'shared':True}).status_code==200
-    assert client.put(f'/api/family/wellbeing/{uid}',headers=wall,json=data).status_code==403
-    assert client.put(f'/api/family/wellbeing/{uid}',json={**data,'shared':True}).status_code==403
-    assert client.put(f'/api/family/wellbeing/{uid}',headers=wall,json={**data,'shared':True,'mood':'inferred'}).status_code==422
-    assert client.put(f'/api/family/wellbeing/{uid}',headers=wall,json={**data,'shared':True,'day':'1990-01-01'}).status_code==409
+    assert next(p for p in client.get('/api/family/wellbeing').json()['people'] if p['user_id']==own)['check_in']['energy']=='empty'
+    assert client.put(f'/api/family/wellbeing/{own}',headers=wall,json=data).status_code==200
+    assert client.put(f'/api/family/wellbeing/{uid}',headers=wall,json=data).status_code==200
+    assert client.put(f'/api/family/wellbeing/{uid}',json=data).status_code==403
+    assert client.put(f'/api/family/wellbeing/{uid}',headers=wall,json={**data,'mood':'inferred'}).status_code==422
+    assert client.put(f'/api/family/wellbeing/{uid}',headers=wall,json={**data,'day':'1990-01-01'}).status_code==409
     with patch('app.family_progress.today',return_value=date(2030,1,1)):
         assert all(p['check_in'] is None for p in client.get('/api/family/wellbeing').json()['people'])
 
@@ -170,3 +169,44 @@ def test_family_visibility_and_disabled_accounts(client):
     assert client.get('/api/family/wellbeing').json()['people']==[]
     auth_service.update_profile(uid,'blue',True)
     assert len(client.get('/api/family/wellbeing').json()['people'])==1
+
+
+def test_quick_check_in_partial_values_and_legacy_private_answer(client):
+    headers,uid,_=seed(client)
+    day=client.get('/api/family/wellbeing').json()['today']
+    def value():
+        return next(p for p in client.get('/api/family/wellbeing').json()['people'] if p['user_id']==uid)['check_in']
+    assert client.put(f'/api/family/wellbeing/{uid}',headers=headers,json={'day':day,'mood':'good'}).status_code==200
+    assert value()['mood']=='good' and value()['energy'] is None
+    assert client.put(f'/api/family/wellbeing/{uid}',headers=headers,json={'day':day,'energy':'empty'}).status_code==200
+    assert value()['mood']=='good' and value()['energy']=='empty'
+    # Legacy private rows stay hidden; a new shared choice does not expose the old counterpart.
+    own=client.get('/api/auth/me').json()['user_id']
+    with connect() as c:
+        c.execute('INSERT INTO family_wellbeing VALUES(?,?,?,?,?,?,?)',(own,day,'hard','low',0,own,'legacy'))
+    assert next(p for p in client.get('/api/family/wellbeing').json()['people'] if p['user_id']==own)['check_in'] is None
+    wall=login(client,'wall_display')
+    assert next(p for p in client.get('/api/family/wellbeing').json()['people'] if p['user_id']==own)['check_in'] is None
+    assert client.put(f'/api/family/wellbeing/{own}',headers=wall,json={'day':day,'mood':'okay'}).status_code==200
+    row=next(p for p in client.get('/api/family/wellbeing').json()['people'] if p['user_id']==own)['check_in']
+    assert row['shared']==1 and row['mood']=='okay' and row['energy'] is None
+
+
+def test_quick_check_in_no_guessed_values_or_blank_submission(client):
+    headers,uid,_=seed(client)
+    day=client.get('/api/family/wellbeing').json()['today']
+    for payload in [{'day':day},{'day':day,'mood':None},{'day':day,'shared':True}]:
+        assert client.put(f'/api/family/wellbeing/{uid}',headers=headers,json=payload).status_code==422
+    assert client.put(f'/api/family/wellbeing/{uid}',headers=headers,json={'day':day,'energy':'high'}).status_code==200
+    row=next(p for p in client.get('/api/family/wellbeing').json()['people'] if p['user_id']==uid)['check_in']
+    assert row['mood'] is None and row['energy']=='high'
+
+
+def test_concurrent_quick_choices_merge_on_server(client):
+    from app.family_progress import check_in,CheckIn
+    headers,uid,_=seed(client)
+    day=client.get('/api/family/wellbeing').json()['today']
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(lambda change:check_in(uid,CheckIn(day=day,**change),{'role':'wall_display','user_id':'screen'}),[{'mood':'okay'},{'energy':'low'}]))
+    row=next(p for p in client.get('/api/family/wellbeing').json()['people'] if p['user_id']==uid)['check_in']
+    assert (row['mood'],row['energy'])==('okay','low')

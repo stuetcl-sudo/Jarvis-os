@@ -1,6 +1,6 @@
 # Medication attention, rewards and daily wellbeing
 
-Branch: `feature/family-rewards-wellbeing`, based on `fix/shared-wall-dashboard`.
+Current follow-up: `fix/quick-wellbeing`, based on `feature/family-rewards-wellbeing`.
 No release version change or production deployment is included.
 
 ## Medication attention
@@ -54,18 +54,18 @@ not automatically invent missing credit.
 ## Voluntary daily wellbeing
 
 Two sets of large choices: good/okay/hard mood and high/low/empty energy.
-These are user-entered answers, never inferred or scored. The main home card is
-compact; full person cards and the two-choice form are in the Dagsform tab.
-No explanation, diagnosis, chart, reminder or point penalty is required.
+The homepage and Dagsform tab offer direct buttons that save each choice immediately.
+Either field may stand alone; missing answers are never inferred. Rapid choices are
+queued per person and partial updates merge under a server transaction. Failed saves
+show an error and restore the server's selection; successful choices persist across devices.
 
-Personal accounts can write/remove their own answer; adults may assist children.
-Wall accounts may enter shared answers for family members with CSRF, but cannot
-read or overwrite private answers or submit a private one. Private values are
-returned only to that person's account; other readers see no shared answer.
-The sharing checkbox explains visibility. Edits replace today's answer; saving a
-new day's answer removes that person's previous-day row. There is no mood history
-API. The active household date rejects stale submissions. Deleting a person
-cleans up reward/check-in records and anonymizes their actor references.
+This is a shared family board. New answers are always shared; there is no privacy
+checkbox, dialog or Save button. Legacy private records stay hidden and a new choice
+replaces them without publishing the old counterpart. Personal accounts can write/remove
+their own answer; adults may assist children. Wall accounts can enter shared answers
+for family members with CSRF. Selecting a new day removes the person's previous-day
+row; stale dates are rejected. There is no mood history, inferred feeling or reward hook.
+Deleting a person cleans up records and anonymizes their actor references.
 
 ## Persistence and validation
 
@@ -87,6 +87,14 @@ The new modules follow the existing light shell and safe DOM text rendering.
   build cannot run here (`docker: command not found`). Live ServerHub staging
   review remains required. Production/database-lock/login recovery is separate.
 
+## Quick wellbeing follow-up validation
+
+- 32 Python tests passed: progress, authentication roles, frontend safety and shared wall.
+- Chromium verified partial autosave, rapid choices, reload persistence, shared wall,
+  error/retry handling and Surface/tablet/phone layouts against a temporary database.
+- JavaScript syntax and diff checks passed. Staging configuration passed; Docker
+  is unavailable locally, so ServerHub staging still needs the actual build.
+
 ## ServerHub staging
 
 ```bash
@@ -94,7 +102,7 @@ The new modules follow the existing light shell and safe DOM text rendering.
   set -e
   cd /docker/Jarvis-os-ui-staging
   git fetch origin
-  git switch --detach origin/feature/family-rewards-wellbeing
+  git switch --detach origin/fix/quick-wellbeing
   docker compose -p jarvis-staging -f compose.staging.yml up -d --build
   curl -fsS http://127.0.0.1:8098/api/health
 )

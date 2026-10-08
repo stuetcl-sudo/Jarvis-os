@@ -3,10 +3,31 @@
   if(!document.querySelector('[data-family-card="rewards"]'))return;
   const el=id=>document.getElementById(id),node=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const mood={good:'🙂 Godt',okay:'😐 Okay',hard:'🙁 Svært'},energy={high:'🔋 Meget overskud',low:'🔋 Lidt overskud',empty:'🪫 Tom for overskud'};
-  let rewards={people:[]},wellbeing={people:[]},rewardPerson=null,wellPerson=null,rules=[],tasks=[],busy=false,generation=0;
+  let rewards={people:[]},wellbeing={people:[]},rewardPerson=null,rules=[],tasks=[],busy=false,generation=0;
   function button(text,action){const b=node('button',text);b.type='button';b.addEventListener('click',action);return b;}
   async function api(path,method='GET',body){const headers={};if(method!=='GET'){const r=await fetch('/api/auth/me');if(!r.ok)throw new Error('Log ind igen.');headers['X-CSRF-Token']=(await r.json()).csrf_token;headers['Content-Type']='application/json';}const r=await fetch('/api/family'+path,{method,headers,credentials:'same-origin',...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();if(!r.ok)throw new Error(typeof data.detail==='string'?data.detail:'Kontrollér felterne.');return data;}
-  function emit(){window.dispatchEvent(new CustomEvent('jarvis:progress-summary',{detail:{rewards,wellbeing}}));}
+  const drafts=new Map(),queued=new Map(),saving=new Set(),errors=new Map(),views=new WeakMap();
+  function personState(uid){return wellbeing.people.find(p=>p.user_id===uid);}
+  function pick(uid,field,value){const p=personState(uid);if(!p?.can_write)return;const day=wellbeing.today;errors.delete(uid);const draft=drafts.get(uid)||{};draft[field]=value;draft.shared=true;drafts.set(uid,draft);queued.set(uid,{...queued.get(uid),day,[field]:value,shared:draft.shared});render();drain(uid);}
+  async function drain(uid){if(saving.has(uid))return;saving.add(uid);render();try{while(queued.has(uid)){const patch=queued.get(uid);queued.delete(uid);await api(`/wellbeing/${uid}`,'PUT',patch);}}catch(e){queued.delete(uid);errors.set(uid,`Ikke gemt: ${e.message}`);}finally{saving.delete(uid);drafts.delete(uid);await refresh();}}
+  async function clear(uid){if(saving.has(uid))return;saving.add(uid);render();try{await api(`/wellbeing/${uid}`,'DELETE');errors.delete(uid);}catch(e){errors.set(uid,e.message);}finally{saving.delete(uid);await refresh();}}
+  function renderQuick(container,selectedId){
+    let cards=views.get(container);if(!cards){cards=new Map();views.set(container,cards);}
+    const people=selectedId?wellbeing.people.filter(p=>p.user_id===selectedId):wellbeing.people;const ids=new Set(people.map(p=>p.user_id));
+    for(const [uid,view] of cards)if(!ids.has(uid)){view.card.remove();cards.delete(uid);}
+    for(const p of people){let view=cards.get(p.user_id);if(!view){
+      const card=node('section',undefined,'wellbeing-quick progress-person');card.dataset.personId=p.user_id;const title=node('h3',p.display_name);card.append(title);const choices=new Map();
+      for(const [field,legend,labels] of [['mood','Humør',mood],['energy','Overskud',{high:'🔋 Meget',low:'🔋 Lidt',empty:'🪫 Tom'}]]){const group=node('fieldset');group.append(node('legend',legend));const row=node('div',undefined,'wellbeing-options');for(const [value,label] of Object.entries(labels)){const b=button(label,()=>pick(p.user_id,field,value));b.dataset.field=field;b.dataset.value=value;b.setAttribute('aria-label',`${p.display_name} · ${legend}: ${label}`);choices.set(field+':'+value,b);row.append(b);}group.append(row);card.append(group);}
+      const status=node('p',undefined,'wellbeing-save-status');status.setAttribute('role','status');const remove=button('Fjern dagens svar',()=>clear(p.user_id));card.append(status,remove);view={card,title,choices,status,remove};cards.set(p.user_id,view);container.append(card);
+    }
+    view.title.textContent=p.display_name;const selected={...p.check_in,...drafts.get(p.user_id)};
+    for(const [key,b] of view.choices){const [field,value]=key.split(':');b.setAttribute('aria-pressed',String(selected[field]===value));b.disabled=!p.can_write;}
+    view.remove.hidden=wellbeing.shared_only||!p.can_write||!p.check_in;view.remove.disabled=saving.has(p.user_id);
+    view.status.textContent=errors.get(p.user_id)|| (saving.has(p.user_id)?'Gemmer…':p.check_in?`Gemt i dag · delt med familien${!p.check_in.mood||!p.check_in.energy?' · det andet valg er frivilligt':''}`:p.can_write?'Vælg ét eller begge · gemmes automatisk':'Intet delt svar i dag');
+    }
+    if(!people.length){if(!container.querySelector('.wellbeing-empty'))container.append(node('p','Ingen synlige familiemedlemmer endnu.','wellbeing-empty'));}else container.querySelector('.wellbeing-empty')?.remove();
+  }
+  function emit(){window.dispatchEvent(new CustomEvent('jarvis:progress-summary',{detail:{rewards,wellbeing,quick_render:renderQuick}}));}
   async function action(path,method,body,notice){if(busy)return;busy=true;++generation;document.querySelectorAll('.progress-people button').forEach(b=>b.disabled=true);try{await api(path,method,body);await refresh();}catch(e){el(notice).textContent=e.message;}finally{busy=false;render();}}
   function render(){
     el('rewardsPeople').replaceChildren();
@@ -19,11 +40,8 @@
       if(rewards.can_manage)card.append(button('Aftal stjerner',()=>openRewards(p)));el('rewardsPeople').append(card);
     }
     if(!rewards.people.length)el('rewardsPeople').append(node('p','Ingen synlige familiemedlemmer. En ejer kan tilføje dem eller ændre familievisning i Administration.'));
-    el('wellbeingPeople').replaceChildren();
-    for(const p of wellbeing.people){const card=node('section',undefined,'progress-person');card.append(node('h3',p.display_name),node('p',p.check_in?`${mood[p.check_in.mood]} · ${energy[p.check_in.energy]}`:'Intet delt svar i dag'));
-      if(p.check_in&&!p.check_in.shared)card.append(node('small','Kun synligt på din egen konto'));
-      if(p.can_write){const b=button(p.check_in?'Ret dagens svar':'Vælg dagsform',()=>openWellbeing(p));b.disabled=busy;card.append(b);}el('wellbeingPeople').append(card);
-    }if(!wellbeing.people.length)el('wellbeingPeople').append(node('p','Ingen synlige familiemedlemmer endnu.'));emit();
+    renderQuick(el('wellbeingPeople'));
+    emit();
   }
   async function refresh(){const g=++generation;const results=await Promise.allSettled([api('/rewards'),api('/wellbeing')]);if(g!==generation)return;for(let i=0;i<results.length;i++){const r=results[i];if(r.status==='fulfilled'){if(i===0)rewards=r.value;else wellbeing=r.value;el(i===0?'rewardsNotice':'wellbeingNotice').textContent='';}else el(i===0?'rewardsNotice':'wellbeingNotice').textContent=r.reason.message;}render();}
   function input(name,value,type='text'){const n=node('input');n.name=name;n.type=type;n.value=value;return n;}
@@ -38,10 +56,6 @@
   el('rewardAddTask').addEventListener('click',async()=>{try{const data=await api('/tasks');tasks=(data.lists||[]).flatMap(l=>(l.items||[]).map(t=>({value:JSON.stringify([l.key,t.uid]),label:t.summary})));if(!tasks.length)throw new Error('Ingen tilgængelige opgaver. Du kan oprette en daglig opgave på tavlen.');if(rules.length>=40)return;rules.push({kind:'task',source:tasks[0].value,label:tasks[0].label,stars:1});renderRules();}catch(e){el('rewardFormNotice').textContent=e.message;}});
   el('rewardCancel').addEventListener('click',()=>el('rewardDialog').close());
   el('rewardForm').addEventListener('submit',async e=>{e.preventDefault();if(busy)return;busy=true;const b=e.currentTarget.querySelector('[type="submit"]');b.disabled=true;try{await api(`/rewards/${rewardPerson.user_id}`,'PUT',{goal:e.currentTarget.elements.goal.value,target:Number(e.currentTarget.elements.target.value),rules});el('rewardDialog').close();await refresh();}catch(err){el('rewardFormNotice').textContent=err.message;}finally{busy=false;b.disabled=false;render();}});
-  function openWellbeing(p){wellPerson=p;const f=el('wellbeingForm');f.reset();el('wellbeingTitle').textContent=`${p.display_name} · dagsform`;if(p.check_in){f.elements.mood.value=p.check_in.mood;f.elements.energy.value=p.check_in.energy;}f.elements.shared.checked=p.check_in?Boolean(p.check_in.shared):true;f.elements.shared.disabled=wellbeing.shared_only;el('wellbeingRemove').hidden=wellbeing.shared_only||!p.check_in;el('wellbeingFormNotice').textContent='';el('wellbeingDialog').showModal();}
-  el('wellbeingCancel').addEventListener('click',()=>el('wellbeingDialog').close());
-  el('wellbeingRemove').addEventListener('click',async()=>{if(busy)return;busy=true;try{await api(`/wellbeing/${wellPerson.user_id}`,'DELETE');el('wellbeingDialog').close();await refresh();}catch(e){el('wellbeingFormNotice').textContent=e.message;}finally{busy=false;render();}});
-  el('wellbeingForm').addEventListener('submit',async e=>{e.preventDefault();if(busy)return;busy=true;const f=e.currentTarget,b=f.querySelector('[type="submit"]');b.disabled=true;try{await api(`/wellbeing/${wellPerson.user_id}`,'PUT',{day:wellbeing.today,mood:f.elements.mood.value,energy:f.elements.energy.value,shared:f.elements.shared.checked});el('wellbeingDialog').close();await refresh();}catch(err){el('wellbeingFormNotice').textContent=err.message;}finally{busy=false;b.disabled=false;render();}});
   window.addEventListener('jarvis:routines-changed',()=>{if(!busy)refresh();});window.addEventListener('jarvis:page-changed',e=>{if(['beloenninger','dagsform'].includes(e.detail)&&!busy)refresh();});window.addEventListener('jarvis:tasks-summary',()=>{if(!busy)refresh();});document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!busy)refresh();});refresh();setInterval(()=>{if(!document.hidden&&!busy)refresh();},30000);
   window.JarvisDagsformLabels={mood,energy};
 })();

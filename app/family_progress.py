@@ -84,9 +84,16 @@ class ChoreDone(BaseModel):
 class CheckIn(BaseModel):
     model_config = ConfigDict(extra='forbid')
     day: str
-    mood: Literal['good','okay','hard']
-    energy: Literal['high','low','empty']
-    shared: bool = True
+    mood: Literal['good','okay','hard'] | None = None
+    energy: Literal['high','low','empty'] | None = None
+    shared: Literal[True] | None = None
+
+    @model_validator(mode='after')
+    def has_change(self):
+        changed = self.model_fields_set - {'day'}
+        if not changed or any(getattr(self, key) is None for key in changed):
+            raise ValueError('Vælg humør eller overskud')
+        return self
 
 
 def settings(conn, uid):
@@ -185,10 +192,10 @@ def wellbeing(user=Depends(family)):
         result=[]
         for p in people(conn):
             r=conn.execute('SELECT mood,energy,shared,updated_at FROM family_wellbeing WHERE user_id=? AND day=?',(p['user_id'],today().isoformat())).fetchone()
-            visible=r is not None and (r['shared'] or p['user_id']==user['user_id'])
-            can_write=(user['role']=='wall_display' and (r is None or r['shared'])) or p['user_id']==user['user_id'] or (user['role'] in {'owner','adult'} and p['role']=='child')
-            result.append({**p,'check_in':dict(r) if visible else None,'can_write':can_write})
-    return {'today':today().isoformat(),'people':result,'shared_only':user['role']=='wall_display'}
+            visible=r is not None and bool(r['shared'])
+            can_write=(user['role']=='wall_display') or p['user_id']==user['user_id'] or (user['role'] in {'owner','adult'} and p['role']=='child')
+            result.append({**p,'check_in':{**dict(r),'mood':r['mood'] or None,'energy':r['energy'] or None} if visible else None,'can_write':can_write})
+    return {'today':today().isoformat(),'people':result,'shared_only':user['role']=='wall_display','self_id':user['user_id']}
 
 
 @router.put('/wellbeing/{user_id}')
@@ -197,11 +204,17 @@ def check_in(user_id:str,payload:CheckIn,user=Depends(require_csrf)):
     with closing(connect()) as conn, conn:
         conn.execute('BEGIN IMMEDIATE')
         p=person(conn,user_id)
-        old=conn.execute('SELECT shared FROM family_wellbeing WHERE user_id=? AND day=?',(user_id,payload.day)).fetchone()
-        allowed=p['user_id']==user['user_id'] or (user['role'] in {'owner','adult'} and p['role']=='child') or (user['role']=='wall_display' and payload.shared and (old is None or old['shared']))
+        old=conn.execute('SELECT mood,energy,shared FROM family_wellbeing WHERE user_id=? AND day=?',(user_id,payload.day)).fetchone()
+        shared = True
+        # A legacy private record is not published by selecting another field.
+        if old is not None and not old['shared']:
+            old = None
+        if old is None and payload.mood is None and payload.energy is None:
+            raise HTTPException(422,'Vælg først humør eller overskud')
+        allowed=p['user_id']==user['user_id'] or (user['role'] in {'owner','adult'} and p['role']=='child') or (user['role']=='wall_display' and shared)
         if not allowed: raise HTTPException(403,'Denne dagsform kræver personens egen konto')
         conn.execute('DELETE FROM family_wellbeing WHERE user_id=? AND day<>?',(user_id,payload.day))
-        conn.execute('INSERT INTO family_wellbeing VALUES(?,?,?,?,?,?,?) ON CONFLICT(user_id,day) DO UPDATE SET mood=excluded.mood,energy=excluded.energy,shared=excluded.shared,actor=excluded.actor,updated_at=excluded.updated_at',(user_id,payload.day,payload.mood,payload.energy,int(payload.shared),user['user_id'],datetime.now(timezone.utc).isoformat()))
+        conn.execute('INSERT INTO family_wellbeing VALUES(?,?,?,?,?,?,?) ON CONFLICT(user_id,day) DO UPDATE SET mood=excluded.mood,energy=excluded.energy,shared=excluded.shared,actor=excluded.actor,updated_at=excluded.updated_at',(user_id,payload.day,payload.mood if payload.mood is not None else (old['mood'] if old else ''),payload.energy if payload.energy is not None else (old['energy'] if old else ''),int(shared),user['user_id'],datetime.now(timezone.utc).isoformat()))
     return {'ok':True}
 
 
