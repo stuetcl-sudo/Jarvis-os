@@ -18,8 +18,7 @@ dyrlægeoplysninger. Ingen ændring af releaseversion eller produktionsdeploymen
 ## Energi
 
 Owner vælger sensorer under **Energi → Vælg energisensorer**. Home Assistant skal
-først være tilsluttet i Administration. Voksne kan læse; børn og wall display
-har ingen adgang til energimodulets API i denne udgave.
+først være tilsluttet i Administration. Voksne og wall display kan læse; børn har ingen adgang til energimodulets API.
 
 Kort til: solproduktion og forbrug nu, dagens produktion/forbrug/import/eksport,
 batteriprocent, strømpris nu, dagens udgift og salgsindtægt. Manglende sensorer,
@@ -57,8 +56,8 @@ angives; den eksisterende `SCRYPTED_URL` fungerer som fallback.
 - Livevisning, optagelser og Scrypted åbnes eksternt og kan kræve eget login.
   Links skal kunne nås fra klienten; en SSH-tunnel til Jarvis giver ikke automatisk
   adgang til en anden tjeneste eller en intern kameraadresse.
-- Owner/adult kan læse kameraer og snapshots; child, wall display og anonym
-  afvises også på API-niveau. Ingen kamera-/energiindhold i deres HTML.
+- Owner/adult/wall display kan læse kameraer og snapshots; child og anonym
+  afvises også på API-niveau. Opsætning er fortsat owner-only.
 - Status er tilgængelighed i HA, ikke et selvstændigt ping eller løfte om livefeed.
 
 Ingen komplet NVR, AI-kameraanalyse, Tractive eller direkte FoxCloud i dette trin.

@@ -239,7 +239,7 @@ def render_wall_page(current_user, screen_slug="wall"):
         raise PermissionError("wall screen is assigned to another user")
 
     shared_display = {"role": "wall_display", "display_name": ""}
-    page = render_family_page(shared_display, wall_actions=wall_actions_for(role, screen))
+    page = render_family_page(shared_display, wall_actions=wall_actions_for(role, screen), shared_modules=False)
     page = move_wall_top_bars_above_cards(page)
     safe_name = escape(screen["name"])
     safe_slug = escape(screen["slug"])

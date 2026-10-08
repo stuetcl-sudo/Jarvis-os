@@ -46,7 +46,9 @@ expense prediction or automatic recurring charges are included.
 
 Dennis selected a shared overview for adults. Owners and adults can see and
 manage all household medication plans, including plans for children. Children,
-wall displays and anonymous users cannot access the view or its API. Writes
+wall displays and anonymous users cannot access the full view or its API. Wall
+displays have a separate read-only today projection with person/name/time/status,
+without instructions, history or editing. Writes
 require CSRF; responses are no-store. Plans reference active household accounts,
 not freely typed people. Account deletion removes that person's plans and records.
 
@@ -63,8 +65,10 @@ This is a manual tracker, not clinical decision support. The application does
 not calculate doses, check interactions, recommend treatments, verify ingestion,
 handle prescriptions or deliver push reminders. An empty record means only
 'unrecorded'. PRN/as-needed medication and missed-dose guidance are outside this
-version. Do not put medication names or dose details on shared or child screens;
-the adult home screen now shows an aggregate number plus up to three scheduled slots, with person/name/time and a checkbox. Instructions and dosage details remain inside the adult module.
+version. The shared wall account may show today’s person/name/time/status, as requested
+for the family dashboard. Children cannot access medication. Instructions and
+dosage details remain inside the adult module. Adult home checkboxes can record
+status; wall checkboxes only display status and are disabled.
 
 ## Storage and rollout
 

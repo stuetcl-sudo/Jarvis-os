@@ -77,12 +77,12 @@
         const check=document.createElement('input');check.type='checkbox';
         const text=document.createElement('span');label.append(check,text);tile.actions.append(label);
         row={label,check,text};tile.medicationRows.set(entry.id,row);
-        check.addEventListener('change',()=>{check.disabled=true;row.change(check.checked);});
+        check.addEventListener('change',()=>{if(typeof row.change!=='function')return;check.disabled=true;row.change(check.checked);});
       }
       row.change=entry.change;
       if(!data.busy)row.check.checked=entry.status==='taken';
-      row.check.disabled=data.busy;
-      row.check.setAttribute('aria-label',`${entry.status==='taken'?'Fortryd registrering af':'Registrér som taget:'} ${entry.name} for ${entry.person} kl. ${entry.time}`);
+      row.check.disabled=data.busy||Boolean(entry.read_only);
+      row.check.setAttribute('aria-label',`${entry.read_only?'Status for':entry.status==='taken'?'Fortryd registrering af':'Registrér som taget:'} ${entry.name} for ${entry.person} kl. ${entry.time}`);
       row.text.textContent=`${entry.time} · ${entry.person} · ${entry.name}${entry.status==='taken'?' · taget':entry.status==='skipped'?' · sprunget over':''}`;
     }
     if(!data.busy){

@@ -1,6 +1,6 @@
 (() => {
   const root = document.querySelector('[data-family-card="medication"]');
-  if (!root) return;
+  if (!root || root.dataset.medicationDisplay === "true") return;
   const el = (id) => document.getElementById(id);
   let data = {plans:[],people:[]}, editing = null, busy = false, generation = 0, selectedPerson = 'all';
   function node(tag,text) {const n=document.createElement(tag); if(text!==undefined)n.textContent=text; return n;}

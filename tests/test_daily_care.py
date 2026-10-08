@@ -66,7 +66,7 @@ def test_medication_and_money_adult_only(client,role):
     assert client.get(f'{PETS}/{pet}/expenses').status_code==403
     assert client.get(MED).status_code==403
     assert client.post(MED,headers=h,json={}).status_code==403
-    assert 'data-family-card="medication"' not in client.get('/').text
+    assert ('data-medication-display="true"' in client.get('/').text) == (role == 'wall_display')
 
 
 def test_medication_anonymous_and_csrf(client):

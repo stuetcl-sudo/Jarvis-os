@@ -50,7 +50,7 @@ def test_shopping_completed_and_cascade(client):
     assert client.get(SHOP).json()['lists']==[]
 
 
-@pytest.mark.parametrize('role',[None,'child','wall_display'])
+@pytest.mark.parametrize('role',[None,'child'])
 def test_energy_camera_privacy_and_owner_settings(client,role):
     if role: login(client,role)
     expected=403 if role else 401

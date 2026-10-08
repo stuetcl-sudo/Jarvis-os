@@ -139,7 +139,7 @@ def visibility_style(role):
     return "<style>" + "".join(hidden) + "</style>" if hidden else ""
 
 
-def render_family_page(current_user, wall_actions=""):
+def render_family_page(current_user, wall_actions="", shared_modules=True):
     context = resolve_family_context(current_user)
     module_settings = load_module_settings(db_path=config.DB_PATH)
     module_config = load_module_config(db_path=config.DB_PATH)
@@ -177,17 +177,25 @@ def render_family_page(current_user, wall_actions=""):
     page = page.replace("<!-- FAMILY_TECHNICAL_CARD -->", TECHNICAL_CARD if context["role"] == "owner" else "", 1)
     page = page.replace("<!-- ROUTINE_EDITOR_ACTION -->", ROUTINE_EDITOR_ACTION if context["role"] in {"owner", "adult"} else "", 1)
     page = page.replace("<!-- WALL_DISPLAY_ACTIONS -->", wall_actions, 1)
-    pets = (FAMILY_TEMPLATE.parent.parent / "pets.html").read_text(encoding="utf-8") if context["role"] in {"owner", "adult", "child"} else ""
+    module_roles = {"owner", "adult", "child"} | ({"wall_display"} if shared_modules else set())
+    pets = (FAMILY_TEMPLATE.parent.parent / "pets.html").read_text(encoding="utf-8") if context["role"] in module_roles else ""
     page = page.replace("<!-- FAMILY_PETS_CARD -->", pets, 1)
     modules = ""
-    if context["role"] in {"owner", "adult", "child"}:
+    if context["role"] in module_roles:
         modules = (FAMILY_TEMPLATE.parent.parent / "home_modules.html").read_text(encoding="utf-8")
         if context["role"] == "child":
             modules = modules.partition("<!-- ADULT_MODULES_START -->")[0]
     page = page.replace("<!-- FAMILY_HOME_MODULES -->", modules, 1)
     medication = (FAMILY_TEMPLATE.parent.parent / "medication.html").read_text(encoding="utf-8") if context["role"] in {"owner", "adult"} else ""
+    if context["role"] == "wall_display" and shared_modules:
+        medication = (FAMILY_TEMPLATE.parent.parent / "medication_display.html").read_text(encoding="utf-8")
     page = page.replace("<!-- FAMILY_MEDICATION -->", medication, 1)
-    planning = (FAMILY_TEMPLATE.parent.parent / "family_planning.html").read_text(encoding="utf-8") if context["role"] in {"owner", "adult", "child"} else ""
+    planning = (FAMILY_TEMPLATE.parent.parent / "family_planning.html").read_text(encoding="utf-8") if context["role"] in module_roles else ""
     page = page.replace("<!-- FAMILY_PLANNING -->", planning, 1)
-    page = page.replace("<!-- FAMILY_NAVIGATION -->", navigation_for(context["role"]), 1)
+    actor_name = context["display_name"]
+    if context["role"] == "wall_display" and shared_modules and isinstance(current_user, dict):
+        actor_name = str(current_user.get("username") or "")
+    role_label = {"owner": "Ejer", "adult": "Voksen", "child": "Barn", "wall_display": "Vægskærm"}.get(context["role"], "Ikke logget ind")
+    badge = f'<p class="app-session-label">{escape(actor_name)} · {role_label}</p>' if actor_name else f'<p class="app-session-label">{role_label}</p>'
+    page = page.replace("<!-- FAMILY_NAVIGATION -->", navigation_for(context["role"]).replace('aria-label="Bruger">', 'aria-label="Bruger">' + badge, 1), 1)
     return apply_module_settings(page, module_settings)

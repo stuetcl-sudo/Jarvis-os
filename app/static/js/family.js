@@ -82,7 +82,7 @@ function updateClock() {
   const greeting = greetingFor(now.getHours());
   setText("currentDate", dateFormatter.format(now));
   setText("currentTime", timeFormatter.format(now));
-  setText("greeting", personalRoles.has(pageRole) ? `${greeting}, familien` : greeting);
+  setText("greeting", (personalRoles.has(pageRole) || (pageRole === "wall_display" && document.body.dataset.wallDashboard !== "true")) ? `${greeting}, familien` : greeting);
   setText("familyViewLabel", familyLabel);
   setText("familySubtitle", familySubtitle);
 }

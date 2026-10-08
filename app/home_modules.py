@@ -37,8 +37,8 @@ _states_cache={}
 _image_cache={}
 
 
-def adults(user=Depends(require_authenticated_user)):
-    if user["role"] not in {"owner","adult"}: raise HTTPException(403,"Adult role required")
+def home_reader(user=Depends(require_authenticated_user)):
+    if user["role"] not in {"owner","adult","wall_display"}: raise HTTPException(403,"Home reader role required")
     return user
 
 
@@ -145,7 +145,7 @@ def metric(key,entity,state):
 
 
 @router.get("/api/family/energy")
-def energy(user=Depends(adults)):
+def energy(user=Depends(home_reader)):
     settings=load_config().energy
     if not any(settings.values()): return {"status":"not_configured","metrics":[metric(k,"",None) for k in ENERGY]}
     try: data=states(); status='ok'
@@ -154,7 +154,7 @@ def energy(user=Depends(adults)):
 
 
 @router.get("/api/family/cameras")
-def cameras(user=Depends(adults)):
+def cameras(user=Depends(home_reader)):
     setup=load_config()
     try: data=states() if setup.cameras else {}; status='ok' if setup.cameras else 'not_configured'
     except (HomeAssistantConfigurationError,HomeAssistantUnavailable): data={}; status='unavailable'
@@ -170,7 +170,7 @@ def cameras(user=Depends(adults)):
 
 
 @router.get("/api/family/cameras/{camera_id}/snapshot")
-def snapshot(camera_id:int,user=Depends(adults)):
+def snapshot(camera_id:int,user=Depends(home_reader)):
     setup=load_config()
     if not 0<=camera_id<len(setup.cameras): raise HTTPException(404,"Kameraet findes ikke")
     entity=setup.cameras[camera_id].entity
@@ -201,7 +201,7 @@ def snapshot(camera_id:int,user=Depends(adults)):
 
 
 @router.get("/api/family/energy/history/{key}")
-def energy_history(key:str,user=Depends(adults)):
+def energy_history(key:str,user=Depends(home_reader)):
     from datetime import timedelta
     if key not in ENERGY: raise HTTPException(404,"Målingen findes ikke")
     entity=load_config().energy.get(key,'')

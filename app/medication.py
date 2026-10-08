@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.db import connect
-from app.pets import adult_reader, editor, today
+from app.pets import adult_reader, editor, today, family
 
 router = APIRouter(prefix="/api/family/medication", tags=["medication"])
 
@@ -102,6 +102,33 @@ def plans(user=Depends(adult_reader)):
             plan["records"] = [dict(r) for r in conn.execute("SELECT day,slot,status,recorded_at,recorded_by,plan_snapshot FROM medication_records WHERE plan_id=? AND day>=? AND day<=? ORDER BY day DESC,slot", (row["id"], date.fromordinal(max(1,day.toordinal()-29)).isoformat(),day.isoformat()))]
             result.append(plan)
     return {"today":day.isoformat(), "people":people, "plans":result}
+
+
+def display_reader(user=Depends(family)):
+    if user["role"] not in {"owner", "adult", "wall_display"}:
+        raise HTTPException(403, "Medication display role required")
+    return user
+
+
+@router.get("/display")
+def daily_display(user=Depends(display_reader)):
+    """Shared display projection: today's names, times and status only."""
+    day = today()
+    entries = []
+    with closing(connect()) as conn:
+        people = [dict(r) for r in conn.execute("SELECT user_id,display_name FROM auth_users WHERE disabled=0 AND role IN ('owner','adult','child') ORDER BY display_name")]
+        eligible = {p["user_id"]: p["display_name"] for p in people}
+        for row in conn.execute("SELECT id,user_id,plan FROM medication_plans ORDER BY id"):
+            if row["user_id"] not in eligible:
+                continue
+            plan = json.loads(row["plan"])
+            if not scheduled(plan, day):
+                continue
+            records = {r["slot"]: r["status"] for r in conn.execute("SELECT slot,status FROM medication_records WHERE plan_id=? AND day=?", (row["id"], day.isoformat()))}
+            for slot in plan["times"]:
+                entries.append({"id": f'{row["id"]}:{slot}', "user_id": row["user_id"], "person": eligible[row["user_id"]], "name": plan["name"], "time": slot, "status": records.get(slot, "unmarked"), "read_only": True})
+    entries.sort(key=lambda entry: (entry["time"], entry["id"]))
+    return {"today": day.isoformat(), "people": people, "entries": entries}
 
 
 @router.post("", status_code=201)
