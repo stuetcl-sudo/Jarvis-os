@@ -47,8 +47,9 @@ expense prediction or automatic recurring charges are included.
 Dennis selected a shared overview for adults. Owners and adults can see and
 manage all household medication plans, including plans for children. Children,
 wall displays and anonymous users cannot access the full view or its API. Wall
-displays have a separate read-only today projection with person/name/time/status,
-without instructions, history or editing. Writes
+displays have a separate today projection with person/name/time/status,
+without instructions, history or plan editing. They can register taken or undo
+today's scheduled record; see `docs/shared-board-actions.md`. Writes
 require CSRF; responses are no-store. Plans reference active household accounts,
 not freely typed people. Account deletion removes that person's plans and records.
 

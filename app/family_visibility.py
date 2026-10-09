@@ -25,8 +25,8 @@ DEFAULT_ACTIONS = {
         "task_remove": False,
     },
     "wall_display": {
-        "task_add": False,
-        "task_complete": False,
+        "task_add": True,
+        "task_complete": True,
         "task_edit": False,
         "task_remove": False,
     },

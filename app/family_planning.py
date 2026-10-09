@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.db import connect
-from app.pets import family, editor, today
+from app.pets import family, board_editor, today
 from app.shopping import require_list
 
 router = APIRouter(prefix="/api/family/planning", tags=["family-planning"])
@@ -69,12 +69,12 @@ def read_week(start: date | None = None, user=Depends(family)):
         plans = {row["day"]: json.loads(row["payload"]) for row in conn.execute(
             "SELECT * FROM family_plans WHERE day BETWEEN ? AND ?", (start.isoformat(), (start + timedelta(days=6)).isoformat()))}
         people = [row[0] for row in conn.execute("SELECT display_name FROM auth_users WHERE disabled=0 AND role IN ('owner','adult','child') ORDER BY display_name")]
-    return {"today": today().isoformat(), "can_edit": user["role"] in {"owner", "adult"}, "people": people,
+    return {"today": today().isoformat(), "can_edit": user["role"] in {"owner", "adult", "wall_display"}, "people": people,
             "days": [{"date": (start + timedelta(days=i)).isoformat(), **plans.get((start + timedelta(days=i)).isoformat(), DayPlan().model_dump())} for i in range(7)]}
 
 
 @router.put("/{day}")
-def save_day(day: date, payload: DayPlan, user=Depends(editor)):
+def save_day(day: date, payload: DayPlan, user=Depends(board_editor)):
     with closing(connect()) as conn, conn:
         conn.execute("INSERT INTO family_plans(day,payload) VALUES (?,?) ON CONFLICT(day) DO UPDATE SET payload=excluded.payload",
                      (day.isoformat(), json.dumps(payload.model_dump(), ensure_ascii=False)))
@@ -82,7 +82,7 @@ def save_day(day: date, payload: DayPlan, user=Depends(editor)):
 
 
 @router.post("/{day}/shopping")
-def send_ingredients(day: date, payload: ShoppingTarget, user=Depends(editor)):
+def send_ingredients(day: date, payload: ShoppingTarget, user=Depends(board_editor)):
     with closing(connect()) as conn, conn:
         conn.execute("BEGIN IMMEDIATE")
         require_list(conn, payload.list_id)

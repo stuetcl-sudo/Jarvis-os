@@ -41,7 +41,18 @@ def test_default_action_permissions_are_family_safe():
         assert rules["adult"]["task_remove"] is True
         assert rules["child"]["task_complete"] is True
         assert rules["child"]["task_add"] is False
-        assert rules["wall_display"]["task_complete"] is False
+        assert rules["wall_display"]["task_complete"] is True
+        assert rules["wall_display"]["task_add"] is True
+        assert rules["wall_display"]["task_edit"] is False
+        assert rules["wall_display"]["task_remove"] is False
+
+
+def test_explicit_wall_restrictions_are_preserved():
+    with visibility_environment():
+        save_action_rules({'wall_display': {'task_add': False, 'task_complete': False}}, db_path=config.DB_PATH)
+        rules = load_action_rules(db_path=config.DB_PATH)
+        assert not role_can_do('wall_display', 'task_add', rules)
+        assert not role_can_do('wall_display', 'task_complete', rules)
 
 
 def test_owner_visibility_and_actions_cannot_be_disabled():

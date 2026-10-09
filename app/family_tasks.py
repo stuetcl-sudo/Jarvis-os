@@ -507,7 +507,8 @@ class FamilyTasksService:
         cleaned_summary = _required_text(summary, MAX_SUMMARY_LENGTH, "Task summary is invalid")
         cleaned_description = _optional_text(description, MAX_DESCRIPTION_LENGTH)
         if assignee_id is not None:
-            if not _can_perform(current_user,'task_edit'): raise PermissionError('Task assignment is not allowed')
+            # Choosing a person is part of creation. Existing reassignment still
+            # requires task_edit; wall accounts do not gain that permission.
             if assignee_id not in {p['user_id'] for p in self.people_loader()}: raise KeyError('Task assignee not found')
         task_client=HomeAssistantTasksClient(settings,self.client_factory)
         before=set()

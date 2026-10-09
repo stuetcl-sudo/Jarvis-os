@@ -81,7 +81,7 @@ def test_restricted_roles_and_csrf(client, role):
     assert client.post(f"{BASE}/{pet}/reminders", headers=headers, json={"title":"Pill", "kind":"medicine", "due_date":data["today"]}).status_code == 403
     payload = {"done":True, "day":data["today"]}
     assert client.put(f"{BASE}/{pet}/care/water", json=payload).status_code == 403
-    assert client.put(f"{BASE}/{pet}/care/water", headers=headers, json=payload).status_code == (200 if role == "child" else 403)
+    assert client.put(f"{BASE}/{pet}/care/water", headers=headers, json=payload).status_code == 200
 
 
 def test_daily_checklist_idempotency_midnight_and_undo(client):

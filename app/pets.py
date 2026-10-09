@@ -58,8 +58,15 @@ def family(user=Depends(require_authenticated_user)):
 
 
 def carer(user=Depends(require_csrf)):
-    if user["role"] not in {"owner", "adult", "child"}:
+    if user["role"] not in {"owner", "adult", "child", "wall_display"}:
         raise HTTPException(403, "Family member required")
+    return user
+
+
+def board_editor(user=Depends(require_csrf)):
+    """Everyday shared planning, not adult settings or medical plan editing."""
+    if user["role"] not in {"owner", "adult", "wall_display"}:
+        raise HTTPException(403, "Shared board role required")
     return user
 
 
@@ -146,7 +153,7 @@ def list_pets(user=Depends(family)):
                 "SELECT id,title,kind,due_date,notes,completed,interval_unit,interval_count FROM pet_reminders WHERE pet_id=? ORDER BY completed,due_date,id", (row["id"],))]
             pets.append(pet)
     return {"pets": pets, "today": day, "can_edit": user["role"] in {"owner", "adult"},
-            "can_care": user["role"] in {"owner", "adult", "child"}}
+            "can_care": user["role"] in {"owner", "adult", "child", "wall_display"}}
 
 
 @router.post("", status_code=201)

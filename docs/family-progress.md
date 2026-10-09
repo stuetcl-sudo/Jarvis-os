@@ -17,7 +17,8 @@ A failed refresh clears the attention state and shows the existing unavailable
 message; yesterday's slots cannot keep today's card red. This indicates missing
 registration, not ingestion, clinical risk or instructions to take a dose.
 The dedicated `/wall` layout remains separate; the shared application supports
-its authenticated wall account with read-only medication controls.
+its authenticated wall account with today-only medication check-off controls
+(see `docs/shared-board-actions.md` for the bounded taken/undo permission).
 
 ## Reward board
 

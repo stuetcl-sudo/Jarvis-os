@@ -74,7 +74,7 @@
     const list = currentList();
     const pending = shopping.lists.reduce((total,item) => total + item.items.filter((i) => !i.done).length,0);
     byId('shoppingSummary').textContent = `${shopping.lists.length} liste${shopping.lists.length === 1 ? '' : 'r'} · ${pending} vare${pending === 1 ? '' : 'r'} mangler`;
-    byId('shoppingAddList').hidden = !shopping.can_manage;
+    byId('shoppingAddList').hidden = !shopping.can_create_list;
     byId('shoppingLists').replaceChildren(...shopping.lists.map((item) => {
       const link = button(item.name, () => {activeList = item.id; renderShopping();});
       link.setAttribute('aria-pressed',String(item.id === activeList)); return link;
@@ -84,7 +84,7 @@
     for (const id of ['shoppingRename','shoppingClear','shoppingDelete']) byId(id).hidden = !shopping.can_manage;
     byId('shoppingAddItem').hidden = !shopping.can_shop;
     const container = byId('shoppingItems'); container.replaceChildren();
-    if (!list) {container.append(node('p',shopping.can_manage ? 'Opret den første liste til familiens indkøb.' : 'En voksen kan oprette en indkøbsliste.')); return;}
+    if (!list) {container.append(node('p',shopping.can_create_list ? 'Opret den første liste til familiens indkøb.' : 'En voksen kan oprette en indkøbsliste.')); return;}
     const search = byId('shoppingSearch').value.trim().toLocaleLowerCase('da-DK');
     const items = list.items.filter((item) => `${item.name} ${item.quantity} ${item.category} ${item.note}`.toLocaleLowerCase('da-DK').includes(search));
     if (!items.length) container.append(node('p',search ? 'Ingen varer matcher søgningen.' : 'Listen er tom. Tilføj den første vare.'));

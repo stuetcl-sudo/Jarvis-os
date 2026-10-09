@@ -77,7 +77,8 @@ The main application's Overblik now uses compact summary links rather than full
 module cards. Summaries focus on today; future dates belong in their module tabs.
 New modules should provide a short truthful summary using their existing
 permission checks. Keep detailed forms, histories and charts off the home screen.
-Medication editing is adult-only; wall accounts have a read-only today summary.
+Medication plan editing is adult-only; wall accounts have a today-only summary
+with bounded taken/undo registration (see `docs/shared-board-actions.md`).
 Financial records are
 adult-only. See `docs/daily-care.md` for recurring pet reminders, pet expenses
 and the shared adult medication tracker.

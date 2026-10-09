@@ -3,7 +3,7 @@ from contextlib import closing
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from app.db import connect
-from app.pets import family, carer, editor
+from app.pets import family, carer, editor, board_editor
 
 router = APIRouter(prefix="/api/family/shopping", tags=["shopping"])
 
@@ -45,11 +45,13 @@ def read_lists(user=Depends(family)):
         lists = [{**dict(row), "items": [dict(item) for item in conn.execute(
             "SELECT id,name,quantity,category,note,done FROM shopping_items WHERE list_id=? ORDER BY done,category,id", (row["id"],))]}
             for row in conn.execute("SELECT * FROM shopping_lists ORDER BY id")]
-    return {"lists":lists, "can_manage":user["role"] in {"owner","adult"}, "can_shop":user["role"] in {"owner","adult","child"}}
+    return {"lists":lists, "can_manage":user["role"] in {"owner","adult"},
+            "can_create_list":user["role"] in {"owner","adult","wall_display"},
+            "can_shop":user["role"] in {"owner","adult","child","wall_display"}}
 
 
 @router.post("", status_code=201)
-def create_list(payload: ListPayload, user=Depends(editor)):
+def create_list(payload: ListPayload, user=Depends(board_editor)):
     with closing(connect()) as conn, conn:
         if conn.execute("SELECT COUNT(*) FROM shopping_lists").fetchone()[0] >= 30:
             raise HTTPException(409, "Der kan højst oprettes 30 lister")

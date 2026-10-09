@@ -1,4 +1,4 @@
-"""User-entered medication plans and manual daily records; adults only."""
+"""Adult-managed medication plans with bounded shared daily check-off."""
 import json
 from uuid import uuid4
 from contextlib import closing
@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.db import connect
-from app.pets import adult_reader, editor, today, family
+from app.pets import adult_reader, editor, board_editor, today, family
 
 router = APIRouter(prefix="/api/family/medication", tags=["medication"])
 
@@ -71,6 +71,10 @@ class Record(BaseModel):
     status: Literal["taken", "skipped", "unmarked"]
 
 
+class DisplayRecord(Record):
+    status: Literal["taken", "unmarked"]
+
+
 def require_person(conn, user_id):
     if not conn.execute("SELECT 1 FROM auth_users WHERE user_id=? AND disabled=0 AND role IN ('owner','adult','child')", (user_id,)).fetchone():
         raise HTTPException(422, "Vælg et aktivt familiemedlem")
@@ -118,7 +122,7 @@ def daily_display(user=Depends(display_reader)):
     with closing(connect()) as conn:
         people = [dict(r) for r in conn.execute("SELECT user_id,display_name FROM auth_users WHERE disabled=0 AND role IN ('owner','adult','child') ORDER BY display_name")]
         eligible = {p["user_id"]: p["display_name"] for p in people}
-        for row in conn.execute("SELECT id,user_id,plan FROM medication_plans ORDER BY id"):
+        for row in conn.execute("SELECT id,user_id,plan,revision FROM medication_plans ORDER BY id"):
             if row["user_id"] not in eligible:
                 continue
             plan = json.loads(row["plan"])
@@ -126,9 +130,15 @@ def daily_display(user=Depends(display_reader)):
                 continue
             records = {r["slot"]: r["status"] for r in conn.execute("SELECT slot,status FROM medication_records WHERE plan_id=? AND day=?", (row["id"], day.isoformat()))}
             for slot in plan["times"]:
-                entries.append({"id": f'{row["id"]}:{slot}', "user_id": row["user_id"], "person": eligible[row["user_id"]], "name": plan["name"], "time": slot, "status": records.get(slot, "unmarked"), "read_only": True})
+                entries.append({"id": f'{row["id"]}:{slot}', "plan_id":row["id"], "revision":row["revision"], "user_id": row["user_id"], "person": eligible[row["user_id"]], "name": plan["name"], "time": slot, "status": records.get(slot, "unmarked"), "read_only": False})
     entries.sort(key=lambda entry: (entry["time"], entry["id"]))
     return {"today": day.isoformat(), "people": people, "entries": entries}
+
+
+@router.put("/display/{plan_id}/record")
+def record_display(plan_id: int, payload: DisplayRecord, user=Depends(board_editor)):
+    """Only today's prescribed slot; never edit a plan or mark it skipped."""
+    return record(plan_id, payload, user)
 
 
 @router.post("", status_code=201)

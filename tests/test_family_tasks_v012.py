@@ -388,7 +388,10 @@ def test_permissions_allow_completion_for_family_but_editing_for_adults_only():
     assert child["can_edit"] is False
     owner = service.get_tasks({"role": "owner"})
     assert owner["can_edit"] is True
-    for role in [None, {"role": "child"}, {"role": "wall_display"}]:
+    wall = service.get_tasks({"role": "wall_display"})
+    assert wall['can_add'] and wall['can_complete']
+    assert not wall['can_edit'] and not wall['can_remove']
+    for role in [None, {"role": "child"}]:
         try:
             service.add_task("shopping-list", "Brød", None, role)
         except PermissionError:

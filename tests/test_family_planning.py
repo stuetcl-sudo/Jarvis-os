@@ -27,7 +27,7 @@ def test_shared_week_permissions_and_csrf(client):
     assert 'password' not in client.get(BASE).text
     wall = login(client, 'wall_display')
     assert client.get(BASE).status_code == 200
-    assert client.put(f'{BASE}/{day}', headers=wall, json=payload).status_code == 403
+    assert client.put(f'{BASE}/{day}', headers=wall, json=payload).status_code == 200
 
 
 def test_separate_days_and_validation(client):

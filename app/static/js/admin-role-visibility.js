@@ -52,6 +52,18 @@
     if (role === "owner") {
       card.append(element("small", "", "Ejer kan altid ændre familieindhold."));
     }
+    if (role === "wall_display") {
+      card.append(element("small", "", "Fællestavlen kan normalt oprette og afslutte opgaver. Tidligere gemte begrænsninger bevares."));
+      const preset = element("button", "secondary", "Tillad oprettelse og afkrydsning");
+      preset.type = "button";
+      preset.addEventListener("click", () => {
+        for (const action of ["task_add", "task_complete"]) {
+          card.querySelector(`[data-action-feature="${action}"]`).checked = true;
+        }
+        document.getElementById("roleActionStatus").textContent = "Valgt for vægskærmen — tryk Gem rettigheder for at aktivere.";
+      });
+      card.append(preset);
+    }
     actionOrder.forEach((action) => {
       const label = element("label", "checkbox-control", "");
       const input = document.createElement("input");
@@ -193,7 +205,7 @@
     const text = document.createElement("div");
     text.append(
       element("h3", "", "Hvem må ændre hvad?"),
-      element("p", "panel-help", "Vælg hvem der må tilføje, afslutte, rette eller fjerne punkter på familiens lister. Indkøbslister er også familielister."),
+      element("p", "panel-help", "Disse rettigheder gælder Home Assistant-opgavelister. Lokalt Indkøb tillader også fællestavlens oprettelse og afkrydsning; administration af lister kræver en voksen."),
     );
     const save = element("button", "", "Gem rettigheder");
     save.type = "button";
