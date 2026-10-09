@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Dennis approved this production deployment on 9 October 2026.
+# Pins the approved PWA commit; rolls back code/image on failure, preserving data.
+set -euo pipefail
+cd /docker/Jarvis-os
+[ -z "$(git status --porcelain)" ] || { echo 'STOP: Der er lokale ændringer i projektet.'; exit 1; }
+[ "$(docker inspect jarvis-os --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}')" = /docker/Jarvis-os/docker-compose.yml ] || { echo 'STOP: Uventet Compose-fil.'; exit 1; }
+project=$(docker inspect jarvis-os --format '{{index .Config.Labels "com.docker.compose.project"}}')
+[ -n "$project" ]
+old_commit=$(git rev-parse HEAD)
+old_image=$(docker inspect jarvis-os --format '{{.Image}}')
+db_path=$(docker exec jarvis-os python -c 'from app.config import DB_PATH; print(DB_PATH)')
+[ "$db_path" = /data/jarvis.db ] || { echo 'STOP: Uventet databaseplacering.'; exit 1; }
+git fetch origin
+new_commit=045a872546ee7a6454e722c2c2277bfad29e727e
+git merge-base --is-ancestor "$new_commit" origin/feature/jarvis-pwa-notifications
+backup="/docker/jarvis-backups/$(date +%Y%m%d-%H%M%S)-pwa-notifications"
+mkdir -m 700 -p "$backup"
+cp .env docker-compose.yml "$backup/"
+printf '%s\n' "$old_commit" > "$backup/previous-commit.txt"
+printf '%s\n' "$old_image" > "$backup/previous-image.txt"
+docker tag "$old_image" "jarvis-os:rollback-$(basename "$backup")"
+stopped=0
+finish() {
+  rc=$?
+  trap - EXIT
+  if [ "$rc" -ne 0 ]; then
+    echo 'Opdateringen fejlede. Gendanner tidligere kode og image.'
+    docker tag "$old_image" jarvis-os:local || true
+    git switch --detach "$old_commit" || true
+    if [ "$stopped" = 1 ]; then
+      docker compose -p "$project" -f docker-compose.yml up -d --no-deps --force-recreate jarvis-os || echo 'ROLLBACK FEJLEDE: send hele outputtet.'
+    fi
+  fi
+  exit "$rc"
+}
+trap finish EXIT
+git switch --detach "$new_commit"
+docker compose -p "$project" -f docker-compose.yml build jarvis-os
+new_image=$(docker image inspect jarvis-os:local --format '{{.Id}}')
+stopped=1
+docker stop --time 30 jarvis-os >/dev/null
+docker run --rm -i --network none --read-only \
+  --volumes-from jarvis-os \
+  --tmpfs /tmp:rw,noexec,nosuid,size=256m \
+  --env TMPDIR=/backup --env SQLITE_TMPDIR=/backup \
+  --mount "type=bind,source=$backup,target=/backup" \
+  "$old_image" python - <<'PY'
+import sqlite3
+import time
+import tarfile
+from pathlib import Path
+assert Path('/data/jarvis.db').is_file(), 'Database mangler'
+# Container is stopped: preserve all persisted data, including routine files and journals.
+with tarfile.open('/backup/data.tar.gz', 'w:gz') as archive:
+    archive.add('/data', arcname='data')
+source = sqlite3.connect('/data/jarvis.db', timeout=10)
+target = sqlite3.connect('/backup/jarvis.db')
+try:
+    deadline = time.monotonic() + 60
+    def progress(status, remaining, total):
+        if time.monotonic() > deadline:
+            raise TimeoutError("Databasebackup tog mere end 60 sekunder")
+    source.backup(target, pages=1024, progress=progress)
+    result = target.execute('PRAGMA quick_check').fetchall()
+    assert result == [('ok',)], result
+    print('Databasebackup OK')
+finally:
+    target.close()
+    source.close()
+PY
+docker compose -p "$project" -f docker-compose.yml up -d --no-deps --force-recreate jarvis-os
+ready=0
+for attempt in $(seq 1 30); do
+  if curl -fsS --max-time 3 http://127.0.0.1:8088/api/health > "$backup/health.json"; then ready=1; break; fi
+  sleep 1
+done
+[ "$ready" = 1 ]
+[ "$(docker inspect jarvis-os --format '{{.Image}}')" = "$new_image" ]
+curl -fsS --max-time 5 http://127.0.0.1:8088/login >/dev/null
+for asset in static/js/notifications.js static/js/notification-rules.js static/js/app-shell.js static/css/unified-design.css static/pwa/icon-192.png static/pwa/icon-512.png; do
+  expected=$(git show "$new_commit:app/$asset" | sha256sum | cut -d ' ' -f 1)
+  actual=$(curl -fsS --max-time 5 "http://127.0.0.1:8088/$asset" | sha256sum | cut -d ' ' -f 1)
+  [ "$actual" = "$expected" ] || { echo "STOP: Forkert indhold leveret for $asset"; exit 1; }
+done
+for route in sw.js manifest.webmanifest; do
+  expected=$(git show "$new_commit:app/static/pwa/$route" | sha256sum | cut -d ' ' -f 1)
+  actual=$(curl -fsS --max-time 5 "http://127.0.0.1:8088/$route" | sha256sum | cut -d ' ' -f 1)
+  [ "$actual" = "$expected" ] || { echo "STOP: Forkert indhold leveret for $route"; exit 1; }
+done
+docker exec -i jarvis-os python - <<'PY_CHECK'
+import sqlite3
+from contextlib import closing
+from app import config, settings_store
+assert config.PUSH_DELIVERY_ENABLED, 'PUSH_DELIVERY_ENABLED er false; telefonpush kan ikke testes'
+with closing(sqlite3.connect(config.DB_PATH, timeout=10)) as conn:
+    print('Database kan læses; antal konti:', conn.execute('SELECT COUNT(*) FROM auth_users').fetchone()[0])
+    for table in ('push_devices', 'push_deliveries'):
+        assert conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone(), table
+print('PWA-databasetabeller OK; push aktiveret af ejer:', settings_store.get_setting('push.enabled','false',db_path=config.DB_PATH))
+PY_CHECK
+printf '\nPWA-produktion opdateret. Backup: %s\n' "$backup"
+cat "$backup/health.json"
+printf '\n'
+echo 'Åbn https://speed.dennishub.dk og genindlæs. Aktivér og test derefter push under Beskeder.'
