@@ -1,0 +1,15 @@
+{
+  "id": "/",
+  "name": "Jarvis · Familiens hverdag",
+  "short_name": "Jarvis",
+  "lang": "da",
+  "start_url": "/#overblik",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#17352a",
+  "icons": [
+    {"src":"/static/pwa/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"/static/pwa/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}

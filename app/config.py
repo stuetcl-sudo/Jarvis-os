@@ -1,5 +1,8 @@
 import os
 
+# Independent of Docker/system worker; subscriptions and owner setup are opt-in.
+PUSH_DELIVERY_ENABLED = os.getenv('PUSH_DELIVERY_ENABLED', 'true').lower() == 'true'
+
 from app.version import VERSION
 
 

@@ -314,3 +314,7 @@ body.jarvis-app .family-card {
 .jarvis-app .app-account .family-nav-link.primary { background:var(--ui-selected); color:var(--ui-selected-text); }
 .jarvis-app .family-task-add { grid-template-columns:minmax(0,1fr) minmax(110px,180px) auto; }
 @media(max-width:700px) { .jarvis-app .family-task-add { grid-template-columns:minmax(0,1fr); } }
+.jarvis-app [data-family-card="notifications"] .pets-panel { margin-block:16px; }
+.jarvis-app [data-family-card="notifications"] fieldset { border:1px solid var(--ui-border); border-radius:12px; padding:12px; }
+.jarvis-app [data-family-card="notifications"] .pets-field { display:grid; gap:8px; margin-block:12px; }
+.jarvis-app [data-family-card="notifications"] .pets-checkbox { display:flex; align-items:center; gap:12px; min-height:44px; }

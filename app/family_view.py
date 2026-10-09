@@ -190,6 +190,8 @@ def render_family_page(current_user, wall_actions="", shared_modules=True):
     if context["role"] == "wall_display" and shared_modules:
         medication = (FAMILY_TEMPLATE.parent.parent / "medication_display.html").read_text(encoding="utf-8")
     page = page.replace("<!-- FAMILY_MEDICATION -->", medication, 1)
+    notifications = (FAMILY_TEMPLATE.parent.parent / 'notifications.html').read_text(encoding='utf-8') if context['role'] in {'owner','adult','wall_display'} and shared_modules else ''
+    page = page.replace('<!-- FAMILY_NOTIFICATIONS -->',notifications,1)
     planning = (FAMILY_TEMPLATE.parent.parent / "family_planning.html").read_text(encoding="utf-8") if context["role"] in module_roles else ""
     page = page.replace("<!-- FAMILY_PLANNING -->", planning, 1)
     progress = (FAMILY_TEMPLATE.parent.parent / "family_progress.html").read_text(encoding="utf-8") if context["role"] in module_roles and shared_modules else ""

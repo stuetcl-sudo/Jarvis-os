@@ -23,6 +23,7 @@
     ["kamera", "Kamera", "camera", "cameras"],
     ["hjemmet", "Hjemmet", "home", "home"],
     ["vejr", "Vejr", "sun", "weather"],
+    ["beskeder", "Beskeder", "bell", "notifications"],
     ["system", "System", "settings", "technical"],
   ];
   const icon = name => window.JarvisUI?.icon(name) || document.createTextNode('');

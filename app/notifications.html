@@ -1,0 +1,35 @@
+<article class="family-card" data-family-card="notifications">
+  <div class="card-heading"><p class="card-eyebrow">Jarvis på din enhed</p><h2>Beskeder &amp; lyd</h2></div>
+  <p>Telefonbeskeder om manglende medicinregistrering. Afkrydsning sker i Jarvis. Ingen Home Assistant er nødvendig.</p>
+  <p id="pushNotice" role="status">Henter indstillinger…</p>
+  <section class="pets-panel">
+    <h3>Jarvis som app</h3><p id="pwaStatus">På iPhone: Åbn Jarvis i Safari → Del → Føj til hjemmeskærm. Åbn derefter Jarvis-ikonet for at tillade beskeder.</p>
+    <button type="button" id="pwaInstall" hidden>Installér Jarvis</button>
+    <p>Push kræver HTTPS og internet. Beskeder kan blive forsinkede. Dashboardets medicinoversigt fungerer uafhængigt af push.</p>
+  </section>
+  <form id="pushServerForm" class="pets-panel" hidden>
+    <h3>Aktivér telefonbeskeder for hjemmet</h3>
+    <label class="pets-field">Kontaktmail til push-tjenesten<input name="contact" type="email" maxlength="190" required autocomplete="email" /></label>
+    <label class="pets-checkbox"><input name="enabled" type="checkbox" /> Tillad telefonbeskeder</label>
+    <button type="submit">Gem push-opsætning</button>
+  </form>
+  <form id="pushPreferences" class="pets-panel">
+    <h3>Denne enheds påmindelser</h3>
+    <label class="pets-field">Enhedsnavn<input name="name" maxlength="80" value="Min telefon" required /></label>
+    <fieldset id="pushPeople"><legend>Hvem vil du have påmindelser om?</legend></fieldset>
+    <label class="pets-checkbox"><input name="medication" type="checkbox" checked /> Påmind om medicin, der mangler registrering</label>
+    <label class="pets-field">Én gentagelse<select name="repeat_minutes"><option value="">Ingen</option><option value="15">Efter 15 minutter</option><option value="30">Efter 30 minutter</option><option value="60">Efter 60 minutter</option></select></label>
+    <div class="pets-form-grid"><label class="pets-field">Stille fra<input name="quiet_start" type="time" value="22:00" required /></label><label class="pets-field">Stille til<input name="quiet_end" type="time" value="07:00" required /></label></div>
+    <p>Tidspunkter følger hjemmets tidszone. Samme start/slut betyder ingen stilleperiode. Påmindelser sendes højst to timer efter planens tidspunkt.</p>
+    <label class="pets-checkbox"><input name="show_details" type="checkbox" /> Vis person og medicinnavn i telefonbeskeder</label>
+    <div class="progress-buttons"><button type="submit" id="pushSave">Gem valg for denne enhed</button><button type="button" id="pushEnable">Tillad telefonbeskeder</button><button type="button" id="pushTest" hidden>Send testbesked</button><button type="button" id="pushDisable" hidden>Slå telefonbeskeder fra</button></div>
+    <p id="pushDeviceStatus" role="status"></p>
+  </form>
+  <section class="pets-panel">
+    <h3>Lyd på denne skærm</h3><p>Et diskret ding ved manglende medicinregistrering. Bruger personvalg og stilleperiode ovenfor og virker, mens Jarvis er åben og synlig.</p>
+    <label class="pets-field">Lydstyrke<select id="pushVolume"><option value="0.1">Lav</option><option value="0.25" selected>Mellem</option><option value="0.5">Høj</option></select></label>
+    <div class="progress-buttons"><button type="button" id="pushSoundEnable">Aktivér lyd og afspil test</button><button type="button" id="pushSoundDisable">Slå lyd fra</button></div>
+    <p id="pushSoundStatus" role="status">Lyd er slået fra.</p>
+  </section>
+  <section class="pets-panel"><h3>Tilmeldte telefoner for din konto</h3><div id="pushDevices"></div><p>Ved logout afmeldes kontoens telefonbeskeder. Brug din egen konto på telefonen og en særskilt vægskærmskonto på fællestavlen.</p></section>
+</article>

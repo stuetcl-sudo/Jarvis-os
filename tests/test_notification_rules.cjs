@@ -1,0 +1,7 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const {quiet,due}=require('../app/static/js/notification-rules.js');
+const p={person_ids:['child'],medication:true,repeat_minutes:30,quiet_start:'22:00',quiet_end:'07:00'};
+const entry={id:'1:08:00',user_id:'child',time:'08:00',status:'unmarked'},day='2026-10-09';
+test('quiet hours including overnight and disabled period',()=>{assert.ok(quiet('23:00','22:00','07:00'));assert.ok(quiet('06:59','22:00','07:00'));assert.equal(quiet('07:00','22:00','07:00'),false);assert.equal(quiet('23:00','22:00','22:00'),false);});
+test('sound only for selected, due, unregistered slots; no stale backlog',()=>{assert.equal(due([entry],day,'07:59',0,p,{}).length,0);assert.equal(due([entry],day,'08:00',0,p,{}).length,1);assert.equal(due([entry],day,'10:01',0,p,{}).length,0);assert.equal(due([{...entry,status:'taken'}],day,'08:00',0,p,{}).length,0);assert.equal(due([{...entry,status:'skipped'}],day,'08:00',0,p,{}).length,0);assert.equal(due([entry],day,'08:00',0,{...p,person_ids:[]},{}).length,0);});
+test('persistent initial and one repeat; new day has a new key',()=>{const played={[day+':'+entry.id+':0']:1000};assert.equal(due([entry],day,'08:29',1000+29*60000,p,played).length,0);const repeat=due([entry],day,'08:30',1000+30*60000,p,played);assert.equal(repeat.length,1);played[repeat[0].key]=1000+30*60000;assert.equal(due([entry],day,'09:00',1000+60*60000,p,played).length,0);assert.equal(due([entry],'2026-10-10','08:00',0,p,played).length,1);});

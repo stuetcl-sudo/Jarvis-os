@@ -7,6 +7,10 @@
   <meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)" />
   <script src="/static/js/theme.js"></script>
   <title>Jarvis – Hjem</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/static/pwa/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Jarvis" />
   <link rel="stylesheet" href="/static/css/tokens.css" />
   <link rel="stylesheet" href="/static/css/base.css" />
   <link rel="stylesheet" href="/static/css/components.css" />
@@ -57,6 +61,7 @@
 <!-- FAMILY_TECHNICAL_STATUS -->
 
     <section class="family-grid" aria-label="Familiens oversigt">
+<!-- FAMILY_NOTIFICATIONS -->
 <!-- MODULE:routines:START -->
       <article class="family-card routine-card" data-family-card="routine" hidden>
         <div class="card-icon" aria-hidden="true">✓</div>
@@ -243,5 +248,7 @@
   <script src="/static/js/pets.js" defer></script>
   <script src="/static/js/home-modules.js" defer></script>
   <script src="/static/js/family-planning.js" defer></script>
+  <script src="/static/js/notification-rules.js" defer></script>
+  <script src="/static/js/notifications.js" defer></script>
 </body>
 </html>

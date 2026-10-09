@@ -166,6 +166,8 @@ def init_db():
     initialize_shopping(conn)
     from app.medication import initialize_medication
     initialize_medication(conn)
+    from app.notifications import initialize_notifications
+    initialize_notifications(conn)
     conn.execute(ACTION_SCHEMA)
     conn.execute(INCIDENT_SCHEMA)
     conn.execute(CHECK_SCHEMA)

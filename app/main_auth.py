@@ -1,7 +1,9 @@
 import hmac
+import asyncio
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse
 
 from app import config
 from app.auth.context import reset_current_actor, set_current_actor
@@ -18,6 +20,7 @@ from app.medication import router as medication_router
 from app.shopping import router as shopping_router
 from app.family_planning import router as planning_router
 from app.home_modules import router as home_modules_router
+from app.notifications import router as notifications_router, notification_loop
 from app.family_view import render_family_page
 from app.family_visibility import family_feature_hidden, router as family_visibility_router
 from app.health import get_health
@@ -45,12 +48,23 @@ app.include_router(progress_router)
 app.include_router(shopping_router)
 app.include_router(planning_router)
 app.include_router(home_modules_router)
+app.include_router(notifications_router)
 app.include_router(routines_router)
 app.include_router(safety_status_router)
 app.include_router(family_visibility_router)
 app.include_router(module_settings_router)
 app.include_router(screen_router)
 app.include_router(admin_user_router)
+
+
+@app.get('/sw.js')
+def pwa_worker():
+    return FileResponse('app/static/pwa/sw.js',media_type='application/javascript',headers={'Cache-Control':'no-cache','Service-Worker-Allowed':'/'})
+
+
+@app.get('/manifest.webmanifest')
+def pwa_manifest():
+    return FileResponse('app/static/pwa/manifest.webmanifest',media_type='application/manifest+json',headers={'Cache-Control':'no-cache'})
 
 ROUTINE_WRITE_ACTIONS = {"complete", "back", "reset"}
 OWNER_DOCUMENTATION_PATHS = {"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"}
@@ -127,6 +141,18 @@ def hidden_safety_response():
 @app.on_event("startup")
 async def initialize_local_authentication():
     auth_service.initialize()
+    app.state.notification_task = asyncio.create_task(notification_loop()) if config.PUSH_DELIVERY_ENABLED else None
+
+
+@app.on_event('shutdown')
+async def stop_notifications():
+    task = getattr(app.state, 'notification_task', None)
+    if task:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 @app.middleware("http")
@@ -166,6 +192,7 @@ async def enforce_local_authentication(request: Request, call_next):
                         and (path == "/api/family/medication" or path.startswith("/api/family/medication/")))
     planning_write = (request.method in {"PUT", "POST"} and path.startswith("/api/family/planning/"))
     progress_write = (request.method in {"POST", "PUT", "DELETE"} and path.startswith(("/api/family/rewards/", "/api/family/wellbeing/")))
+    notification_write = request.method in {'POST','PUT','DELETE'} and path.startswith('/api/family/notifications/')
     protected_write = (
         request.method in {"POST", "PUT", "PATCH", "DELETE"}
         and path.startswith("/api/")
@@ -178,6 +205,7 @@ async def enforce_local_authentication(request: Request, call_next):
         and not medication_write
         and not planning_write
         and not progress_write
+        and not notification_write
     )
     try:
         if request.method == "GET" and path in {"/login", "/bootstrap", "/setup", "/admin"}:
@@ -276,7 +304,9 @@ async def enforce_local_authentication(request: Request, call_next):
             response.headers["Cache-Control"] = "no-cache, must-revalidate"
         if path.startswith(("/api/family/rewards", "/api/family/wellbeing", "/api/family/planning", "/api/family/pets", "/api/family/medication", "/api/family/shopping", "/api/family/energy", "/api/family/cameras", "/api/admin/home-modules")):
             response.headers["Cache-Control"] = "no-store"
-        if (protected_write or family_task_write or pet_write or shopping_write or medication_write or planning_write or progress_write) and current_user:
+        if path.startswith('/api/family/notifications'):
+            response.headers['Cache-Control']='no-store'
+        if (protected_write or family_task_write or pet_write or shopping_write or medication_write or planning_write or progress_write or notification_write) and current_user:
             log_action(
                 "authenticated_write",
                 path,

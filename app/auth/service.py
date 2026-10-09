@@ -368,6 +368,8 @@ class AuthService:
             conn.execute("UPDATE auth_users SET disabled = ?, updated_at = ? WHERE user_id = ?", (1 if disabled else 0, now, row["user_id"]))
             if disabled:
                 conn.execute("DELETE FROM auth_sessions WHERE user_id = ?", (row["user_id"],))
+                from app.notifications import revoke_devices
+                revoke_devices(conn,row['user_id'])
             conn.commit()
         finally:
             conn.close()
@@ -387,6 +389,8 @@ class AuthService:
                 raise ValueError("User not found")
             conn.execute("UPDATE auth_users SET password_hash = ?, updated_at = ? WHERE user_id = ?", (credential_hash, now, row["user_id"]))
             conn.execute("DELETE FROM auth_sessions WHERE user_id = ?", (row["user_id"],))
+            from app.notifications import revoke_devices
+            revoke_devices(conn,row['user_id'])
             conn.commit()
         finally:
             conn.close()
@@ -407,6 +411,8 @@ class AuthService:
                 raise ValueError("Owner password cannot be changed here")
             conn.execute("UPDATE auth_users SET password_hash = ?, updated_at = ? WHERE user_id = ?", (credential_hash, now, user_id))
             conn.execute("DELETE FROM auth_sessions WHERE user_id = ?", (user_id,))
+            from app.notifications import revoke_devices
+            revoke_devices(conn,user_id)
             conn.commit()
         finally:
             conn.close()
@@ -459,6 +465,8 @@ class AuthService:
                 conn.execute("DELETE FROM medication_plans WHERE user_id=?", (user_id,))
                 conn.execute("UPDATE medication_records SET recorded_by='deleted' WHERE recorded_by=?", (user_id,))
             conn.execute("DELETE FROM auth_sessions WHERE user_id = ?", (user_id,))
+            from app.notifications import revoke_devices
+            revoke_devices(conn,user_id)
             conn.execute("DELETE FROM auth_users WHERE user_id = ?", (user_id,))
             conn.commit()
         finally:
@@ -597,6 +605,10 @@ class AuthService:
         initialize_auth_tables()
         conn = connect()
         try:
+            row=conn.execute('SELECT user_id FROM auth_sessions WHERE session_token_hash=?',(hash_session_token(raw_value),)).fetchone()
+            if row:
+                from app.notifications import revoke_devices
+                revoke_devices(conn,row['user_id'])
             deleted = conn.execute("DELETE FROM auth_sessions WHERE session_token_hash = ?", (hash_session_token(raw_value),)).rowcount
             conn.commit()
         finally:

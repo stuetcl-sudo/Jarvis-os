@@ -20,6 +20,7 @@ services:
       SAFE_MODE: "true"
       DRY_RUN: "true"
       WORKER_ENABLED: "false"
+      PUSH_DELIVERY_ENABLED: "false"
       ALLOW_RESTART_STOPPED: "false"
       ROUTINE_TIMEZONE: "Europe/Copenhagen"
 
