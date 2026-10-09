@@ -97,6 +97,51 @@ The new modules follow the existing light shell and safe DOM text rendering.
 
 ## ServerHub staging
 
+### Unified tasks/rewards follow-up
+
+Daily reward chores now appear in Tasks as a live projection of the existing
+reward agreement. They are not copied into Home Assistant or a second task table.
+Completing them from either view uses the same per-person/source/day ledger;
+repeat clicks do not award extra stars, and a new day gets a new task ID.
+Existing agreements and reward history are preserved without a schema migration.
+
+Tasks initially shows **Alle**, including assigned and unassigned tasks. New HA
+tasks can select a family member at creation. Assignment is only applied when
+the new HA UID can be identified unambiguously; otherwise a notice explains
+that the created task remains under Familien for manual assignment.
+
+Reward agreement editing loads current HA tasks automatically. Changing the
+selected task changes its label, labels support the same 160-character limit
+as Tasks, and already-linked options are disabled. Projected daily chores are
+excluded from the HA task picker to avoid linking the same activity twice.
+Children can complete only their own daily reward chores. Wall accounts retain
+their existing reward-chore permission, not permission to edit/complete HA tasks.
+All writes still require CSRF and server-side role checks.
+
+Validation: 76 focused Python tests and 5 JavaScript tests passed. Chromium
+checked creation, task linking, long titles, assignment, completion and reward
+credit against synthetic HA responses and a temporary real SQLite database.
+Six light/dark Surface, tablet and phone layouts had no horizontal overflow or
+JavaScript errors. Live Home Assistant and Docker staging still need ServerHub
+review; Docker is unavailable in the local test environment.
+
+Use this branch for the follow-up (it includes compact dashboard/energy work):
+
+```bash
+(
+  set -e
+  cd /docker/Jarvis-os-ui-staging
+  git fetch origin
+  git switch --detach origin/fix/unified-tasks-rewards
+  docker compose -p jarvis-staging -f compose.staging.yml up -d --build
+)
+```
+
+After startup, check `curl -fsS http://127.0.0.1:8098/api/health` and review the
+task/reward flow using the existing SSH tunnel. Production is unchanged.
+
+### Earlier quick-wellbeing staging
+
 ```bash
 (
   set -e

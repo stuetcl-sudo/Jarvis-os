@@ -210,3 +210,102 @@ def test_concurrent_quick_choices_merge_on_server(client):
         list(pool.map(lambda change:check_in(uid,CheckIn(day=day,**change),{'role':'wall_display','user_id':'screen'}),[{'mood':'okay'},{'energy':'low'}]))
     row=next(p for p in client.get('/api/family/wellbeing').json()['people'] if p['user_id']==uid)['check_in']
     assert (row['mood'],row['energy'])==('okay','low')
+
+
+def test_daily_chore_is_shared_task_with_atomic_single_award(client,monkeypatch):
+    from app.family_tasks import family_tasks_service
+    from app.family_progress import CHORE_LIST
+    monkeypatch.setattr(family_tasks_service,'settings_loader',lambda:None)
+    headers,uid,_=seed(client)
+    snapshot=client.get('/api/family/tasks').json()
+    assert snapshot['status']=='ok'
+    chore=next(l for l in snapshot['lists'] if l['key']==CHORE_LIST)['items'][0]
+    assert chore['summary']=='Skrald' and chore['assignee_id']==uid
+    assert any(p['user_id']==uid and p['count']==1 for p in snapshot['people'])
+    path=f"/api/family/tasks/{CHORE_LIST}/complete"
+    assert client.post(path,json={'item':chore['uid']}).status_code==403
+    for _ in range(2):
+        assert client.post(path,headers=headers,json={'item':chore['uid']}).status_code==200
+    assert board(client,uid)['balance']==1
+    assert client.get('/api/family/tasks').json()['total']==0
+    day=client.get('/api/family/rewards').json()['today']
+    assert client.post(f'/api/family/rewards/{uid}/complete',headers=headers,json={'source':'trash','day':day}).status_code==200
+    assert board(client,uid)['balance']==1
+    with patch('app.family_progress.today',return_value=date(2030,1,1)):
+        assert client.post(path,headers=headers,json={'item':chore['uid']}).status_code==404
+        assert client.get('/api/family/tasks').json()['total']==1
+    client.cookies.clear()
+    assert client.get('/api/family/tasks').json()['lists']==[]
+
+
+def test_daily_chore_child_cannot_complete_other_person(client,monkeypatch):
+    from app.family_tasks import family_tasks_service
+    from app.family_progress import CHORE_LIST
+    monkeypatch.setattr(family_tasks_service,'settings_loader',lambda:None)
+    _,uid,_=seed(client)
+    other=login(client,'child')
+    task=client.get('/api/family/tasks').json()['lists'][0]['items'][0]
+    assert task['can_complete'] is False
+    assert client.post(f'/api/family/tasks/{CHORE_LIST}/complete',headers=other,json={'item':task['uid']}).status_code==403
+    assert board(client,uid)['balance']==0
+    wall=login(client,'wall_display')
+    assert client.post(f'/api/family/tasks/{CHORE_LIST}/complete',headers=wall,json={'item':task['uid']}).status_code==200
+    assert board(client,uid)['balance']==1
+
+
+def test_existing_task_titles_up_to_160_can_be_linked(client):
+    headers,uid,agreement=seed(client)
+    agreement['rules'].append({'kind':'task','source':'["list","task"]','label':'x'*160,'stars':1})
+    assert client.put(f'/api/family/rewards/{uid}',headers=headers,json=agreement).status_code==200
+    assert len(board(client,uid)['settings']['rules'][-1]['label'])==160
+    agreement['rules'][-1]['label']='x'*161
+    assert client.put(f'/api/family/rewards/{uid}',headers=headers,json=agreement).status_code==422
+
+
+def test_daily_chore_keeps_working_when_ha_is_unavailable(client,monkeypatch):
+    from app.family_tasks import family_tasks_service,HomeAssistantTasksClient
+    from test_family_tasks_v012 import settings
+    monkeypatch.setattr(family_tasks_service,'settings_loader',settings)
+    family_tasks_service.clear_cache()
+    monkeypatch.setattr(HomeAssistantTasksClient,'fetch',lambda self:([],3))
+    seed(client)
+    snapshot=client.get('/api/family/tasks').json()
+    assert snapshot['status']=='partial' and snapshot['total']==1
+    assert snapshot['unavailable_lists']==3
+
+
+@pytest.mark.parametrize('ambiguous',[False,True])
+def test_new_ha_task_assignment_identifies_uid_without_guessing(client,monkeypatch,ambiguous):
+    from app.family_tasks import FamilyTasksService,HomeAssistantTasksClient
+    from app.family_task_assignments import FamilyTaskAssignmentStore
+    from app import config as app_config
+    from test_family_tasks_v012 import settings
+    _,uid,_=seed(client)
+    store=FamilyTaskAssignmentStore(app_config.DB_PATH)
+    service=FamilyTasksService(settings_loader=settings,assignment_store=store)
+    items=[{'uid':'old','summary':'Samme navn','due':None}]
+    monkeypatch.setattr(HomeAssistantTasksClient,'fetch',lambda self:([{'key':'familieopgaver','label':'Familieopgaver','items':items.copy()}],0))
+    def add(self,source,summary,description):
+        items.append({'uid':'new','summary':summary,'due':None})
+        if ambiguous: items.append({'uid':'concurrent','summary':summary,'due':None})
+    monkeypatch.setattr(HomeAssistantTasksClient,'add',add)
+    result=service.add_task('familieopgaver','Samme navn',None,{'role':'owner','user_id':'test'},uid)
+    assert store.get('familieopgaver','old') is None
+    if ambiguous:
+        assert store.get('familieopgaver','new') is None and result['created_assignee_id'] is None
+        assert 'write_notice' in result
+    else:
+        assert store.get('familieopgaver','new')==uid and result['created_assignee_id']==uid
+
+
+def test_invalid_assignment_does_not_create_ha_task(client,monkeypatch):
+    from app.family_tasks import FamilyTasksService,HomeAssistantTasksClient
+    from app.family_task_assignments import FamilyTaskAssignmentStore
+    from app import config as app_config
+    from test_family_tasks_v012 import settings
+    seed(client)
+    service=FamilyTasksService(settings_loader=settings,assignment_store=FamilyTaskAssignmentStore(app_config.DB_PATH))
+    created=[]
+    monkeypatch.setattr(HomeAssistantTasksClient,'add',lambda *args:created.append(True))
+    with pytest.raises(KeyError):service.add_task('familieopgaver','Test',None,{'role':'owner','user_id':'test'},'missing')
+    assert not created

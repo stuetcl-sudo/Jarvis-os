@@ -1,5 +1,6 @@
 """Shared reward ledger and voluntary daily mood/energy check-ins."""
 import json
+import hashlib
 from contextlib import closing
 from datetime import datetime, timezone
 from typing import Literal
@@ -7,6 +8,8 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.db import connect
+from app import config
+import sqlite3
 from app.pets import family, editor, today
 from app.auth.dependencies import require_csrf
 
@@ -40,7 +43,7 @@ class Rule(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     kind: Literal['routine', 'task', 'chore']
     source: str = Field(min_length=1, max_length=500)
-    label: str = Field(min_length=1, max_length=120)
+    label: str = Field(min_length=1, max_length=160)
     stars: int = Field(ge=1, le=20, strict=True)
 
     @model_validator(mode='after')
@@ -114,6 +117,29 @@ def has_task_reward(source):
         return any(rule['kind']=='task' and rule['source']==source
             for row in conn.execute('SELECT payload FROM family_reward_settings')
             for rule in json.loads(row['payload'])['rules'])
+
+
+CHORE_LIST = '_jarvis_daily_rewards'
+
+
+def daily_reward_tasks(user, db_path=None, include_completed=False):
+    """Project existing agreements into Tasks; never duplicate chores or their ledger."""
+    with closing(sqlite3.connect(db_path or config.DB_PATH, timeout=5)) as conn:
+        conn.row_factory=sqlite3.Row
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE name='family_reward_settings'").fetchone():
+            return None
+        day=today().isoformat()
+        items=[]; configured=False
+        for p in people(conn):
+            agreement=settings(conn,p['user_id'])
+            for rule in (agreement or {}).get('rules',[]):
+                if rule['kind']!='chore': continue
+                configured=True
+                done=conn.execute("SELECT 1 FROM family_reward_events WHERE user_id=? AND kind='chore' AND source=? AND day=?",(p['user_id'],rule['source'],day)).fetchone() is not None
+                if done and not include_completed: continue
+                uid=hashlib.sha256(json.dumps([day,p['user_id'],rule['source']],ensure_ascii=False).encode()).hexdigest()
+                items.append({'uid':uid,'summary':rule['label'],'due':day,'description':f"{p['display_name']} · +{rule['stars']} stjerner · daglig opgave",'assignee_id':p['user_id'],'reward_chore':True,'reward_person':p['user_id'],'reward_source':rule['source'],'can_complete':user['role']!='child' or user['user_id']==p['user_id'],'list':{'key':CHORE_LIST,'label':'Daglige belønningsopgaver'}})
+        return {'key':CHORE_LIST,'label':'Daglige belønningsopgaver','items':items,'reward_chores':True,'can_complete':True} if configured else None
 
 
 def award_completion(kind, source, actor, user_id=None, day=None):

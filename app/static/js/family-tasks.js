@@ -13,7 +13,7 @@
   const WALL_SHOPPING_PREVIEW_LIMIT = 5;
   const pendingTasks = new Set();
   let taskCsrfToken = null;
-  let activeTaskAssigneeId = null;
+  let activeTaskAssigneeId = '__all__';
   let latestFamilyTasks = null;
 
   function setTaskState(message) {
@@ -78,7 +78,11 @@
       body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error("Ændringen kunne ikke gemmes");
-    renderFamilyTasks(await response.json());
+    const data=await response.json();
+    if(method==='POST' && suffix==='items')activeTaskAssigneeId=normalizedAssigneeId(data.created_assignee_id)||'__all__';
+    renderFamilyTasks(data);
+    if(data.write_notice)setTaskNotice(data.write_notice);
+    window.dispatchEvent(new Event('jarvis:tasks-changed'));
   }
 
   async function completeFamilyTask(listKey, item, button) {
@@ -234,9 +238,9 @@
     const complete = document.createElement("button");
     complete.type = "button";
     complete.className = "family-task-complete";
-    complete.disabled = !permissions.canComplete;
+    complete.disabled = !permissions.canComplete || item.can_complete===false;
     complete.setAttribute("aria-label", `Markér ${item.summary || "opgaven"} som færdig`);
-    if (permissions.canComplete) complete.addEventListener("click", () => completeFamilyTask(listKey, item, complete));
+    if (!complete.disabled) complete.addEventListener("click", () => completeFamilyTask(listKey, item, complete));
 
     const copy = document.createElement("div");
     const summary = document.createElement("p");
@@ -263,7 +267,7 @@
     return row;
   }
 
-  function createAddForm(taskList) {
+  function createAddForm(taskList,people) {
     const form = document.createElement("form");
     form.className = "family-task-add";
     const input = document.createElement("input");
@@ -275,7 +279,9 @@
     const button = document.createElement("button");
     button.type = "submit";
     button.textContent = "Tilføj";
-    form.append(input, button);
+    const assignee=document.createElement('select');assignee.setAttribute('aria-label','Person til den nye opgave');
+    for(const person of people){const option=document.createElement('option');option.value=person.user_id||'';option.textContent=person.display_name;assignee.append(option);}
+    form.append(input, assignee, button);
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const summary = input.value.trim();
@@ -283,7 +289,7 @@
       input.disabled = true;
       button.disabled = true;
       try {
-        await taskWrite(taskList.key, "POST", "items", { summary, description: null }, "Tilføjer punktet…");
+        await taskWrite(taskList.key, "POST", "items", { summary, description: null,assignee_id:assignee.value||null }, "Tilføjer punktet…");
       } catch (error) {
         setTaskNotice("Kunne ikke tilføje punktet. Prøv igen.");
         input.disabled = false;
@@ -383,6 +389,7 @@
   }
 
   function syncActiveTaskPerson(tasks) {
+    if(activeTaskAssigneeId==='__all__')return;
     const people = Array.isArray(tasks?.people) ? tasks.people : [];
     const selectionExists = people.some(
       (person) => normalizedAssigneeId(person.user_id) === activeTaskAssigneeId,
@@ -397,7 +404,7 @@
     const container = document.getElementById("familyTaskPersonSwitch");
     if (!container) return;
 
-    const people = Array.isArray(tasks?.people) ? tasks.people : [];
+    const people = [{user_id:'__all__',display_name:'Alle',count:tasks.total},...(Array.isArray(tasks?.people) ? tasks.people : [])];
     syncActiveTaskPerson(tasks);
     container.replaceChildren();
 
@@ -438,7 +445,7 @@
     return lists.map((taskList) => ({
       ...taskList,
       items: (Array.isArray(taskList.items) ? taskList.items : []).filter(
-        (item) => normalizedAssigneeId(item.assignee_id) === activeTaskAssigneeId,
+        (item) => activeTaskAssigneeId==='__all__' || normalizedAssigneeId(item.assignee_id) === activeTaskAssigneeId,
       ),
     }));
   }
@@ -462,6 +469,7 @@
   }
 
   function createTaskList(taskList, permissions, allowAdd, people) {
+    if(taskList.reward_chores)permissions={...permissions,canComplete:Boolean(taskList.can_complete),canAdd:false,canEdit:false,canRemove:false};
     const section = document.createElement("section");
     section.className = `family-task-list family-task-list-${taskList.key || "general"}`;
     if (isShoppingList(taskList)) section.classList.add("family-task-list-shopping-list");
@@ -497,7 +505,7 @@
     }
 
     section.append(heading);
-    if (permissions.canAdd && allowAdd) section.append(createAddForm(taskList));
+    if (permissions.canAdd && allowAdd) section.append(createAddForm(taskList,people));
     section.append(items);
     return section;
   }
@@ -537,7 +545,7 @@
         (total, taskList) => total + taskList.items.length,
         0,
       );
-      const familySelected = activeTaskAssigneeId === null;
+      const familySelected = activeTaskAssigneeId === null || activeTaskAssigneeId==='__all__';
 
       if (visibleTotal === 0 && !familySelected) {
         lists.append(createTaskFilterEmpty(tasks));
@@ -577,6 +585,8 @@
   window.addEventListener("jarvis:calendar-updated", () => {
     if (latestFamilyTasks) renderFamilyTasks(latestFamilyTasks);
   });
+  window.addEventListener('jarvis:rewards-changed',refreshFamilyTasks);
+  window.addEventListener('jarvis:page-changed',e=>{if(e.detail==='opgaver')refreshFamilyTasks();});
 
   refreshFamilyTasks();
   setInterval(refreshFamilyTasks, 30000);

@@ -41,6 +41,7 @@ class CompleteTaskRequest(BaseModel):
 class CreateTaskRequest(BaseModel):
     summary: str = Field(min_length=1, max_length=MAX_SUMMARY_LENGTH)
     description: str | None = Field(default=None, max_length=MAX_DESCRIPTION_LENGTH)
+    assignee_id: str | None = None
 
 
 class UpdateTaskRequest(BaseModel):
@@ -344,6 +345,7 @@ class FamilyTasksService:
         self.client_factory = client_factory
         self.monotonic = monotonic
         self.assignment_store = assignment_store or FamilyTaskAssignmentStore()
+        self.progress_db_path = getattr(assignment_store, 'db_path', None)
         self.people_loader = people_loader
         self._lock = threading.Lock()
         self._cached = None
@@ -379,7 +381,7 @@ class FamilyTasksService:
             list_key = task_list.get("key")
             for item in task_list.get("items", []):
                 task_key = (list_key, item.get("uid"))
-                assignee_id = assignments.get(task_key)
+                assignee_id = item.get('assignee_id') if item.get('reward_chore') else assignments.get(task_key)
                 if assignee_id not in person_ids:
                     assignee_id = None
                 item["assignee_id"] = assignee_id
@@ -403,6 +405,15 @@ class FamilyTasksService:
         return result
 
     def _public_tasks(self, snapshot, current_user):
+        if _authenticated(current_user):
+            from app.family_progress import daily_reward_tasks
+            chores=daily_reward_tasks(current_user, self.progress_db_path)
+            if chores is not None:
+                snapshot=copy.deepcopy(snapshot)
+                snapshot['lists'].append(chores)
+                snapshot['total']+=len(chores['items'])
+                if snapshot['status']=='not_configured': snapshot['status']='ok'
+                elif snapshot['status']=='unavailable': snapshot['status']='partial'
         return _public_snapshot(
             self._decorate_assignments(snapshot),
             current_user,
@@ -460,6 +471,14 @@ class FamilyTasksService:
         return settings, source
 
     def complete_task(self, list_key, item_uid, current_user=None):
+        from app.family_progress import CHORE_LIST, daily_reward_tasks, complete_chore, ChoreDone
+        if list_key==CHORE_LIST:
+            if not _authenticated(current_user): raise PermissionError('Family login required')
+            chores=daily_reward_tasks(current_user,self.progress_db_path,include_completed=True)
+            item=next((i for i in (chores or {}).get('items',[]) if i['uid']==item_uid),None)
+            if item is None: raise KeyError('Daily task not found; refresh today')
+            complete_chore(item['reward_person'],ChoreDone(source=item['reward_source'],day=item['due']),current_user)
+            return self.get_tasks(current_user)
         if not _can_perform(current_user, "task_complete"):
             raise PermissionError("Task completion is not allowed")
         settings, source = self._settings_and_source(list_key)
@@ -481,19 +500,38 @@ class FamilyTasksService:
         self.clear_cache()
         return self.get_tasks(current_user)
 
-    def add_task(self, list_key, summary, description, current_user=None):
+    def add_task(self, list_key, summary, description, current_user=None, assignee_id=None):
         if not _can_perform(current_user, "task_add"):
             raise PermissionError("Task creation is not allowed")
         settings, source = self._settings_and_source(list_key)
         cleaned_summary = _required_text(summary, MAX_SUMMARY_LENGTH, "Task summary is invalid")
         cleaned_description = _optional_text(description, MAX_DESCRIPTION_LENGTH)
-        HomeAssistantTasksClient(settings, self.client_factory).add(
+        if assignee_id is not None:
+            if not _can_perform(current_user,'task_edit'): raise PermissionError('Task assignment is not allowed')
+            if assignee_id not in {p['user_id'] for p in self.people_loader()}: raise KeyError('Task assignee not found')
+        task_client=HomeAssistantTasksClient(settings,self.client_factory)
+        before=set()
+        if assignee_id is not None:
+            live, failures=task_client.fetch()
+            if failures: raise HomeAssistantUnavailable('Cannot safely identify a new assigned task')
+            before={i['uid'] for l in live if l['key']==list_key for i in l['items']}
+        task_client.add(
             source,
             cleaned_summary,
             cleaned_description,
         )
         self.clear_cache()
-        return self.get_tasks(current_user)
+        result=self.get_tasks(current_user)
+        result['created_assignee_id']=None
+        if assignee_id is not None:
+            matches=[i for l in result['lists'] if l['key']==list_key for i in l['items'] if i['uid'] not in before and i['summary']==cleaned_summary]
+            if result['status']=='ok' and len(matches)==1:
+                self.assignment_store.set(list_key,matches[0]['uid'],assignee_id)
+                result=self.get_tasks(current_user)
+                result['created_assignee_id']=assignee_id
+            else:
+                result['write_notice']='Opgaven er oprettet, men personen kunne ikke tilknyttes sikkert. Find opgaven under Familien og tildel den dér.'
+        return result
 
     def update_task(self, list_key, item_uid, summary, description, current_user=None):
         if not _can_perform(current_user, "task_edit"):
@@ -594,6 +632,7 @@ def add_family_task(list_key: str, payload: CreateTaskRequest, request: Request)
             payload.summary,
             payload.description,
             current_user,
+            payload.assignee_id,
         )
     except Exception as exc:
         _handle_task_error(exc)
