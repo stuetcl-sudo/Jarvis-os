@@ -1,5 +1,6 @@
 import sqlite3
 import threading
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from app import config
@@ -13,11 +14,17 @@ def _database_path(db_path=None):
     return db_path or config.DB_PATH
 
 
+@contextmanager
 def _connect(db_path=None):
     connection = sqlite3.connect(_database_path(db_path), timeout=5)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    return connection
+    try:
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        # SQLite's connection context commits/rolls back but does not close.
+        with connection:
+            yield connection
+    finally:
+        connection.close()
 
 
 def _now_iso():

@@ -1,6 +1,7 @@
 import os
 import tempfile
 import threading
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -422,7 +423,7 @@ def test_stale_installing_state_fails_safely_and_can_be_replanned():
         stale_time = datetime.now(timezone.utc) - timedelta(
             seconds=installer.INSTALLING_STALE_SECONDS + 1
         )
-        with installer._connect(db_path) as conn:
+        with closing(installer._connect(db_path)) as conn, conn:
             conn.execute(
                 "UPDATE app_settings SET updated_at = ? WHERE key = ?",
                 (stale_time.isoformat(), installer.STATE_SETTING),
