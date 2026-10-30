@@ -9,6 +9,7 @@ import hashlib
 import os
 import secrets
 import sqlite3
+from contextlib import closing
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -117,7 +118,7 @@ def _load_state(db_path=None):
     state = settings_store.get_setting(STATE_SETTING, NOT_REQUESTED, db_path=db_path)
     state = state if state in INSTALL_STATES else FAILED
     if state == INSTALLING:
-        with _connect(db_path) as conn:
+        with closing(_connect(db_path)) as conn, conn:
             row = conn.execute(
                 "SELECT updated_at FROM app_settings WHERE key = ?", (STATE_SETTING,)
             ).fetchone()
@@ -131,7 +132,7 @@ def _load_state(db_path=None):
 
 def _has_pending_request(db_path=None, now=None):
     instant = (now or _now()).isoformat()
-    with _connect(db_path) as conn:
+    with closing(_connect(db_path)) as conn, conn:
         row = conn.execute(
             "SELECT 1 FROM managed_home_assistant_requests "
             "WHERE consumed_at IS NULL AND expires_at > ? LIMIT 1",
@@ -401,7 +402,7 @@ def _preflight(client):
 def _set_failure(code, db_path=None):
     safe_code = code if code in SAFE_ERRORS else "installation_failed"
     instant = _now().isoformat()
-    with _connect(db_path) as conn:
+    with closing(_connect(db_path)) as conn, conn:
         for key, value in (
             (STATE_SETTING, FAILED),
             (ERROR_CODE_SETTING, safe_code),

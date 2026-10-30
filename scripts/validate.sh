@@ -162,6 +162,7 @@ PYTHONPATH=. "$PYTHON_BIN" tests/test_family_api_visibility.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_safety_status.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_api_read_access.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_session_touch.py
+PYTHONPATH=. "$PYTHON_BIN" tests/test_assignment_connections.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_docker_socket_proxy.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_live_family_status_validation.py
 PYTHONPATH=. "$PYTHON_BIN" tests/test_calendar_integration.py
