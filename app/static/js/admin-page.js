@@ -6,7 +6,7 @@ function openSectionButton(section, label) {
 }
 
 function pendingApprovalCount() {
-  return actionRows.filter((action) => ["waiting_approval", "queued", "approved"].includes(action.status)).length;
+  return actionRows.filter((action) => action.status === "waiting_approval").length;
 }
 
 function renderMissionCards(data) {
@@ -162,7 +162,8 @@ function updateIntegrationAttention(integrations) {
 
 function renderOverviewAttention(data, brain) {
   const items = [];
-  const pending = actionRows.filter((action) => ["waiting_approval", "queued", "approved"].includes(action.status));
+  const pending = actionRows.filter((action) => action.status === "waiting_approval");
+  const approved = actionRows.filter((action) => action.status === "approved");
   if (data.active_incidents.length) {
     items.push({
       title: `${data.active_incidents.length} aktivt problem${data.active_incidents.length === 1 ? "" : "er"}`,
@@ -177,6 +178,14 @@ function renderOverviewAttention(data, brain) {
       detail: "Ingen handling udføres uden den eksisterende godkendelse og sikkerhedskontrol.",
       section: "advanced",
       label: "Se handlinger",
+    });
+  }
+  if (approved.length) {
+    items.push({
+      title: `${approved.length} godkendt${approved.length === 1 ? " handling" : "e handlinger"} klar til udførelse`,
+      detail: "Godkendelse er givet, men handlingen er endnu ikke udført. Sikkerhedskontrol sker ved udførelse.",
+      section: "advanced",
+      label: "Se godkendte handlinger",
     });
   }
   if (data.unknown_containers.length) {
