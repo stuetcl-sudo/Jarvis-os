@@ -278,3 +278,10 @@ def test_admin_does_not_present_missing_health_metrics_as_zero():
     assert 'raw === null || raw === undefined || raw === ""' in page_script
     assert 'const text = available ? pct(value) : "Ukendt"' in page_script
     assert "progress.hidden = !available" in page_script
+
+def test_admin_does_not_mark_zero_configured_critical_services_healthy():
+    page_script = ADMIN_SCRIPTS[2]
+    assert 'value: critical.length ?' in page_script
+    assert '"Ikke valgt"' in page_script
+    assert '"Der er endnu ingen tjenester markeret som vigtige"' in page_script
+    assert 'tone: !critical.length ? "warning"' in page_script
