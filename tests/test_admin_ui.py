@@ -264,3 +264,10 @@ def test_container_start_is_not_misrepresented_as_restart():
     assert "Startanmodningen er oprettet" in CORE_JAVASCRIPT
     assert "Anmod om start" in ADMIN_SCRIPTS[1]
     assert "Anmod om genstart" not in ADMIN_SCRIPTS[1]
+
+def test_admin_distinguishes_waiting_approval_from_approved_actions():
+    page_script = ADMIN_SCRIPTS[2]
+    assert 'actionRows.filter((action) => action.status === "waiting_approval")' in page_script
+    assert 'actionRows.filter((action) => action.status === "approved")' in page_script
+    assert "klar til udførelse" in page_script
+    assert "Sikkerhedskontrol sker ved udførelse" in page_script
