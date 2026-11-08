@@ -6,7 +6,7 @@ function openSectionButton(section, label) {
 }
 
 function pendingApprovalCount() {
-  return actionRows.filter((action) => ["waiting_approval", "queued", "approved"].includes(action.status)).length;
+  return actionRows.filter((action) => action.status === "waiting_approval").length;
 }
 
 function renderMissionCards(data) {
@@ -37,9 +37,13 @@ function renderMissionCards(data) {
     },
     {
       label: "Vigtige tjenester",
-      value: `${criticalRunning}/${critical.length}`,
-      detail: criticalRunning === critical.length ? "Alle vigtige tjenester kører" : "En vigtig tjeneste er stoppet",
-      tone: criticalRunning === critical.length ? "ok" : "critical",
+      value: critical.length ? `${criticalRunning}/${critical.length}` : "Ikke valgt",
+      detail: !critical.length
+        ? "Der er endnu ingen tjenester markeret som vigtige"
+        : criticalRunning === critical.length
+          ? "Alle vigtige tjenester kører"
+          : "En vigtig tjeneste er stoppet",
+      tone: !critical.length ? "warning" : criticalRunning === critical.length ? "ok" : "critical",
       section: "home",
       link: "Se hjemmet",
     },
@@ -162,7 +166,8 @@ function updateIntegrationAttention(integrations) {
 
 function renderOverviewAttention(data, brain) {
   const items = [];
-  const pending = actionRows.filter((action) => ["waiting_approval", "queued", "approved"].includes(action.status));
+  const pending = actionRows.filter((action) => action.status === "waiting_approval");
+  const approved = actionRows.filter((action) => action.status === "approved");
   if (data.active_incidents.length) {
     items.push({
       title: `${data.active_incidents.length} aktivt problem${data.active_incidents.length === 1 ? "" : "er"}`,
@@ -177,6 +182,14 @@ function renderOverviewAttention(data, brain) {
       detail: "Ingen handling udføres uden den eksisterende godkendelse og sikkerhedskontrol.",
       section: "advanced",
       label: "Se handlinger",
+    });
+  }
+  if (approved.length) {
+    items.push({
+      title: `${approved.length} godkendt${approved.length === 1 ? " handling" : "e handlinger"} klar til udførelse`,
+      detail: "Godkendelse er givet, men handlingen er endnu ikke udført. Sikkerhedskontrol sker ved udførelse.",
+      section: "advanced",
+      label: "Se godkendte handlinger",
     });
   }
   if (data.unknown_containers.length) {
@@ -201,17 +214,21 @@ function renderOverviewAttention(data, brain) {
 
 function renderSystemHealth(health) {
   const metrics = [
-    ["CPU", Number(health.cpu_percent || 0)],
-    ["Hukommelse", Number(health.memory.percent || 0)],
-    ["Swap", Number(health.swap.percent || 0)],
-    ["Lagerplads", Number(health.disk_root.percent || 0)],
-  ].map(([label, value]) => {
+    ["CPU", health?.cpu_percent],
+    ["Hukommelse", health?.memory?.percent],
+    ["Swap", health?.swap?.percent],
+    ["Lagerplads", health?.disk_root?.percent],
+  ].map(([label, raw]) => {
+    const value = raw === null || raw === undefined || raw === "" ? NaN : Number(raw);
+    const available = Number.isFinite(value) && value >= 0 && value <= 100;
+    const text = available ? pct(value) : "Ukendt";
     const row = document.createElement("div");
     const progress = document.createElement("progress");
     progress.max = 100;
-    progress.value = value;
-    progress.setAttribute("aria-label", `${label}: ${pct(value)}`);
-    row.append(element("span", "", label), progress, element("b", "", pct(value)));
+    if (available) progress.value = value;
+    progress.hidden = !available;
+    progress.setAttribute("aria-label", `${label}: ${text}`);
+    row.append(element("span", "", label), progress, element("b", "", text));
     return row;
   });
   replaceContent("systemHealth", metrics);

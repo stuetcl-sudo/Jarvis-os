@@ -167,22 +167,27 @@ async function queueRestart(assetId) {
     body: JSON.stringify({
       asset_id: assetId,
       action_type: "docker.start_container",
-      reason: "manual restart request from Mission Control",
+      reason: "manual start request from administration",
       requires_approval: true,
     }),
   });
 }
 
-async function restartContainer(name) {
+async function requestContainerStart(name) {
   const container = containerRows.find((item) => item.name === name);
   if (!container) return;
-  if (!window.confirm(`Opret en sikker genstartsanmodning for ${container.name}? Handlingen skal godkendes, før den kan køres.`)) return;
+  const state = container.docker_state || container.status;
+  if (state !== "exited" || container.protected || container.classification !== "optional") {
+    showNotice("Kun stoppede, ubeskyttede, valgfrie tjenester kan anmodes startet.", "warning", 0);
+    return;
+  }
+  if (!window.confirm(`Opret en sikker startanmodning for ${container.name}? Den starter kun en stoppet tjeneste og kræver godkendelse.`)) return;
   try {
     await queueRestart(container.asset_id);
-    showNotice("Genstartsanmodningen er oprettet og afventer godkendelse.", "success");
+    showNotice("Startanmodningen er oprettet og afventer godkendelse.", "success");
     await refreshAll();
   } catch (error) {
-    showNotice(`Genstartsanmodningen kunne ikke oprettes: ${error.message}`, "error", 0);
+    showNotice(`Startanmodningen kunne ikke oprettes: ${error.message}`, "error", 0);
   }
 }
 

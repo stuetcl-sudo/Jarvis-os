@@ -255,3 +255,33 @@ if __name__ == "__main__":
     ]:
         test()
     print("Admin UI tests OK")
+
+def test_container_start_is_not_misrepresented_as_restart():
+    """Action Engine supports start of exited optional containers, not restart."""
+    assert 'action_type: "docker.start_container"' in CORE_JAVASCRIPT
+    assert "async function requestContainerStart(name)" in CORE_JAVASCRIPT
+    assert 'state !== "exited" || container.protected || container.classification !== "optional"' in CORE_JAVASCRIPT
+    assert "Startanmodningen er oprettet" in CORE_JAVASCRIPT
+    assert "Anmod om start" in ADMIN_SCRIPTS[1]
+    assert "Anmod om genstart" not in ADMIN_SCRIPTS[1]
+
+def test_admin_distinguishes_waiting_approval_from_approved_actions():
+    page_script = ADMIN_SCRIPTS[2]
+    assert 'actionRows.filter((action) => action.status === "waiting_approval")' in page_script
+    assert 'actionRows.filter((action) => action.status === "approved")' in page_script
+    assert "klar til udførelse" in page_script
+    assert "Sikkerhedskontrol sker ved udførelse" in page_script
+
+def test_admin_does_not_present_missing_health_metrics_as_zero():
+    page_script = ADMIN_SCRIPTS[2]
+    assert 'health?.memory?.percent' in page_script
+    assert 'raw === null || raw === undefined || raw === ""' in page_script
+    assert 'const text = available ? pct(value) : "Ukendt"' in page_script
+    assert "progress.hidden = !available" in page_script
+
+def test_admin_does_not_mark_zero_configured_critical_services_healthy():
+    page_script = ADMIN_SCRIPTS[2]
+    assert 'value: critical.length ?' in page_script
+    assert '"Ikke valgt"' in page_script
+    assert '"Der er endnu ingen tjenester markeret som vigtige"' in page_script
+    assert 'tone: !critical.length ? "warning"' in page_script

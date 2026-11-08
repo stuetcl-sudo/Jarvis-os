@@ -36,5 +36,52 @@ jobs:
       - name: Check shell syntax
         run: bash -n scripts/privacy_check.sh scripts/validate.sh
 
+      - name: Check family display edge cases
+        run: node --test tests/test_family_formatting.cjs
+
       - name: Run full validation
         run: bash scripts/validate.sh
+
+      - name: Build and smoke-test isolated staging
+        run: |
+          set -euo pipefail
+          docker compose -p jarvis-staging -f compose.staging.yml up -d --build
+          healthy=false
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:8098/api/health > /tmp/jarvis-staging-health.json 2>/dev/null; then
+              healthy=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$healthy" != true ]; then
+            docker compose -p jarvis-staging -f compose.staging.yml ps
+            docker compose -p jarvis-staging -f compose.staging.yml logs --tail=60
+            exit 1
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          response = json.loads(Path("/tmp/jarvis-staging-health.json").read_text())
+          assert response["status"] == "ok", response
+          print("Staging health OK:", response.get("app"), response.get("version"))
+          PY
+          curl --fail --silent --show-error http://127.0.0.1:8098/ > /tmp/jarvis-staging-family.html
+          grep -q 'Her er et roligt overblik over hjemmet' /tmp/jarvis-staging-family.html
+
+          staging_id="$(docker compose -p jarvis-staging -f compose.staging.yml ps -q jarvis-os)"
+          test -n "$staging_id"
+          docker inspect "$staging_id" | python -c '
+          import json,sys
+          container=json.load(sys.stdin)[0]
+          mounts=container.get("Mounts", [])
+          assert not any("docker.sock" in str(m.get("Source", "")) for m in mounts)
+          assert container["HostConfig"]["ReadonlyRootfs"] is True
+          assert container["HostConfig"]["Privileged"] is False
+          print("Staging isolation checks OK")
+          '
+
+      - name: Tear down CI staging
+        if: always()
+        run: docker compose -p jarvis-staging -f compose.staging.yml down --volumes --remove-orphans
