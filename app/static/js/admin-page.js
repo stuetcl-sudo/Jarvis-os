@@ -210,17 +210,21 @@ function renderOverviewAttention(data, brain) {
 
 function renderSystemHealth(health) {
   const metrics = [
-    ["CPU", Number(health.cpu_percent || 0)],
-    ["Hukommelse", Number(health.memory.percent || 0)],
-    ["Swap", Number(health.swap.percent || 0)],
-    ["Lagerplads", Number(health.disk_root.percent || 0)],
-  ].map(([label, value]) => {
+    ["CPU", health?.cpu_percent],
+    ["Hukommelse", health?.memory?.percent],
+    ["Swap", health?.swap?.percent],
+    ["Lagerplads", health?.disk_root?.percent],
+  ].map(([label, raw]) => {
+    const value = raw === null || raw === undefined || raw === "" ? NaN : Number(raw);
+    const available = Number.isFinite(value) && value >= 0 && value <= 100;
+    const text = available ? pct(value) : "Ukendt";
     const row = document.createElement("div");
     const progress = document.createElement("progress");
     progress.max = 100;
-    progress.value = value;
-    progress.setAttribute("aria-label", `${label}: ${pct(value)}`);
-    row.append(element("span", "", label), progress, element("b", "", pct(value)));
+    if (available) progress.value = value;
+    progress.hidden = !available;
+    progress.setAttribute("aria-label", `${label}: ${text}`);
+    row.append(element("span", "", label), progress, element("b", "", text));
     return row;
   });
   replaceContent("systemHealth", metrics);
