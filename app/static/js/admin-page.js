@@ -37,9 +37,13 @@ function renderMissionCards(data) {
     },
     {
       label: "Vigtige tjenester",
-      value: `${criticalRunning}/${critical.length}`,
-      detail: criticalRunning === critical.length ? "Alle vigtige tjenester kører" : "En vigtig tjeneste er stoppet",
-      tone: criticalRunning === critical.length ? "ok" : "critical",
+      value: critical.length ? `${criticalRunning}/${critical.length}` : "Ikke valgt",
+      detail: !critical.length
+        ? "Der er endnu ingen tjenester markeret som vigtige"
+        : criticalRunning === critical.length
+          ? "Alle vigtige tjenester kører"
+          : "En vigtig tjeneste er stoppet",
+      tone: !critical.length ? "warning" : criticalRunning === critical.length ? "ok" : "critical",
       section: "home",
       link: "Se hjemmet",
     },
