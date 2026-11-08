@@ -36,5 +36,8 @@ jobs:
       - name: Check shell syntax
         run: bash -n scripts/privacy_check.sh scripts/validate.sh
 
+      - name: Check family display edge cases
+        run: node --test tests/test_family_formatting.cjs
+
       - name: Run full validation
         run: bash scripts/validate.sh
