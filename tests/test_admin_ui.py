@@ -271,3 +271,10 @@ def test_admin_distinguishes_waiting_approval_from_approved_actions():
     assert 'actionRows.filter((action) => action.status === "approved")' in page_script
     assert "klar til udførelse" in page_script
     assert "Sikkerhedskontrol sker ved udførelse" in page_script
+
+def test_admin_does_not_present_missing_health_metrics_as_zero():
+    page_script = ADMIN_SCRIPTS[2]
+    assert 'health?.memory?.percent' in page_script
+    assert 'raw === null || raw === undefined || raw === ""' in page_script
+    assert 'const text = available ? pct(value) : "Ukendt"' in page_script
+    assert "progress.hidden = !available" in page_script
