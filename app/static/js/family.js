@@ -59,11 +59,13 @@ function setText(id, value) {
 }
 
 function percentage(value) {
+  if (value === null || value === undefined || value === "") return "–";
   const number = Number(value);
   return Number.isFinite(number) ? `${number.toFixed(0)} %` : "–";
 }
 
 function measurement(value, unit = "") {
+  if (value === null || value === undefined || value === "") return "–";
   const number = Number(value);
   if (!Number.isFinite(number)) return "–";
   const digits = Number.isInteger(number) ? 0 : 1;
@@ -125,9 +127,10 @@ function renderMission(mission) {
   setText("jarvisStatus", calmStatus(status));
   if (dot) dot.className = `status-dot ${status}`;
   updateWallHomeStatus(status);
-  setText("safeMode", mission.safe_mode ? "Til" : "Fra");
-  setText("systemsOnline", `${mission.docker?.running ?? 0} af ${mission.docker?.total ?? 0}`);
-  setText("incidentCount", String(mission.active_incidents?.length ?? 0));
+  const anonymousMission = mission.safe_mode === null || mission.safe_mode === undefined;
+  setText("safeMode", anonymousMission ? "Ukendt" : mission.safe_mode ? "Til" : "Fra");
+  setText("systemsOnline", anonymousMission ? "Skjult" : `${mission.docker?.running ?? 0} af ${mission.docker?.total ?? 0}`);
+  setText("incidentCount", anonymousMission ? "Skjult" : String(mission.active_incidents?.length ?? 0));
 }
 
 function renderHealth(health) {
@@ -154,8 +157,10 @@ function weatherDescription(condition) {
 
 function rainProbability(forecast) {
   const first = Array.isArray(forecast) ? forecast[0] : null;
-  const value = Number(first?.precipitation_probability);
-  return Number.isFinite(value) ? value : null;
+  const raw = first?.precipitation_probability;
+  if (raw === null || raw === undefined || raw === "") return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 && value <= 100 ? value : null;
 }
 
 function childRainText(probability) {
@@ -191,8 +196,8 @@ function createForecastEntry(item) {
 
   entry.append(day, symbol, temperatures);
 
-  const probability = Number(item.precipitation_probability);
-  if (Number.isFinite(probability)) {
+  const probability = rainProbability([item]);
+  if (probability !== null) {
     const rain = document.createElement("span");
     rain.className = "weather-forecast-rain";
     rain.textContent = `${probability.toFixed(0)} % regn`;
