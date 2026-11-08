@@ -116,10 +116,10 @@ function renderContainerRow(container, index) {
   appendTableCell(row, "Gem vurdering", classificationWrap);
 
   if (canRequest) {
-    const restartButton = element("button", "", "Anmod om genstart");
-    restartButton.type = "button";
-    restartButton.addEventListener("click", () => restartContainer(container.name));
-    appendTableCell(row, "Handling", restartButton);
+    const startButton = element("button", "", "Anmod om start");
+    startButton.type = "button";
+    startButton.addEventListener("click", () => requestContainerStart(container.name));
+    appendTableCell(row, "Handling", startButton);
   } else {
     appendTableCell(row, "Handling", "—");
   }
