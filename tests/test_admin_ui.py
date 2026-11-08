@@ -255,3 +255,12 @@ if __name__ == "__main__":
     ]:
         test()
     print("Admin UI tests OK")
+
+def test_container_start_is_not_misrepresented_as_restart():
+    """Action Engine supports start of exited optional containers, not restart."""
+    assert 'action_type: "docker.start_container"' in CORE_JAVASCRIPT
+    assert "async function requestContainerStart(name)" in CORE_JAVASCRIPT
+    assert 'state !== "exited" || container.protected || container.classification !== "optional"' in CORE_JAVASCRIPT
+    assert "Startanmodningen er oprettet" in CORE_JAVASCRIPT
+    assert "Anmod om start" in ADMIN_SCRIPTS[1]
+    assert "Anmod om genstart" not in ADMIN_SCRIPTS[1]
